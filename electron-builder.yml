@@ -1,0 +1,47 @@
+appId: gg.qubiq.launcher
+productName: QubiQ Server Launcher
+copyright: Copyright © 2026 AitorMencias. GPLv3.
+
+directories:
+  output: release
+  buildResources: build
+
+# Solo se empaqueta lo compilado. El código fuente, los scripts de prueba y
+# node_modules quedan fuera: React y el resto los inlinea Vite en el bundle.
+files:
+  - out/**/*
+  - package.json
+
+# `asar` mantiene los recursos en un único archivo. La app nunca lee ficheros
+# desde su propia carpeta de instalación —todo vive en userData—, así que no
+# hay nada que desempaquetar.
+asar: true
+compression: normal
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  # Sin firma de código, por decisión de proyecto (§13.3). SmartScreen avisará
+  # en la primera ejecución hasta que haya reputación o certificado gratuito.
+  signAndEditExecutable: true
+
+nsis:
+  # Instalación por usuario: no pide permisos de administrador (§12).
+  perMachine: false
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: QubiQ Server Launcher
+  artifactName: QubiQ-Server-Launcher-Setup-${version}.${ext}
+  # Los servidores y mundos viven en %APPDATA%, fuera de la carpeta de
+  # instalación: desinstalar nunca debe llevarse por delante las partidas.
+  deleteAppDataOnUninstall: false
+  uninstallDisplayName: QubiQ Server Launcher
+
+portable:
+  artifactName: QubiQ-Server-Launcher-${version}-portable.${ext}

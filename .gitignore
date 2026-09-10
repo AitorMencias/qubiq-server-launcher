@@ -1,0 +1,35 @@
+# Dependencias
+node_modules/
+
+# Salidas de compilación
+# out/     -> bundles de electron-vite (main, preload, renderer y pruebas)
+# release/ -> instalador y portable, ~106 MB cada uno; se regeneran con `npm run dist`
+out/
+dist/
+release/
+*.tsbuildinfo
+.vite/
+
+# Registros y temporales
+*.log
+npm-debug.log*
+
+# Entorno local: aquí nunca deben acabar credenciales
+.env
+.env.*
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Ajustes locales de Claude Code (los compartidos sí van al repo)
+.claude/settings.local.json
+
+# Basura del sistema de ficheros
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# NOTA: build/ SÍ se versiona. Contiene el icono de la aplicación, que hace
+# falta para poder reproducir el ejecutable.
