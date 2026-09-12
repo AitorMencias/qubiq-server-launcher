@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { InstanceState, PropertyDefinition } from '@shared/types'
+import type { InstanceState, PropertyDefinition, UiMode } from '@shared/types'
 
 /** Claves que se gestionan dentro de otro control y no se pintan sueltas. */
 const COMPOSITE_KEYS = new Set(['hardcore'])
@@ -14,16 +14,18 @@ const COMPOSITE_KEYS = new Set(['hardcore'])
 
 interface Props {
   state: InstanceState
+  mode: UiMode
   onSaved: () => void
 }
 
-export function ConfigPanel({ state, onSaved }: Props): React.JSX.Element {
+export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element {
   const { manifest, status } = state
   const running = status !== 'stopped' && status !== 'crashed'
 
   const [catalog, setCatalog] = useState<PropertyDefinition[]>([])
   const [values, setValues] = useState<Record<string, string>>({})
   const [original, setOriginal] = useState<Record<string, string>>({})
+  const basic = mode === 'basic'
   const [advanced, setAdvanced] = useState(false)
   const [memoryMb, setMemoryMb] = useState(manifest.memoryMb)
   const [players, setPlayers] = useState(manifest.expectedPlayers ?? 8)
@@ -59,13 +61,17 @@ export function ConfigPanel({ state, onSaved }: Props): React.JSX.Element {
     void window.qubiq.catalog
       .recommendMemory(players, manifest.distribution)
       .then((value) => {
-        if (!cancelled) setRecommendedMb(value)
+        if (cancelled) return
+        setRecommendedMb(value)
+        // En modo básico la memoria no es una decisión del usuario: sigue
+        // siempre a la recomendación, sin control que tocar.
+        if (basic) setMemoryMb(value)
       })
       .catch(() => undefined)
     return () => {
       cancelled = true
     }
-  }, [players, manifest.distribution])
+  }, [players, manifest.distribution, basic])
 
   // `hardcore` no se pinta por separado: va dentro del selector de modo de
   // juego, porque para el usuario es "otro modo" aunque técnicamente sean dos
@@ -73,9 +79,9 @@ export function ConfigPanel({ state, onSaved }: Props): React.JSX.Element {
   const visible = useMemo(
     () =>
       catalog.filter(
-        (def) => (advanced || def.level === 'basic') && !COMPOSITE_KEYS.has(def.key)
+        (def) => (advanced && !basic ? true : def.level === 'basic') && !COMPOSITE_KEYS.has(def.key)
       ),
-    [catalog, advanced]
+    [catalog, advanced, basic]
   )
 
   const hardcore = values['hardcore'] === 'true'
@@ -117,7 +123,15 @@ export function ConfigPanel({ state, onSaved }: Props): React.JSX.Element {
     setError(null)
     try {
       if (changedKeys.length > 0) {
-        const updated = await window.qubiq.config.set(manifest.id, values)
+        // ⚠ Solo se envían las claves que el usuario ha tocado aquí.
+        //
+        // Mandar `values` entero reescribiría con datos viejos cualquier clave
+        // que haya cambiado FUERA del panel mientras estaba abierto. El caso
+        // real: un plugin mueve `level-name` al terminar una partida; si luego
+        // se guarda desde aquí, vuelve a apuntar a una carpeta ya borrada y se
+        // pierde el mundo en curso.
+        const changes = Object.fromEntries(changedKeys.map((key) => [key, values[key]!]))
+        const updated = await window.qubiq.config.set(manifest.id, changes)
         setValues(updated)
         setOriginal(updated)
       }
@@ -177,15 +191,19 @@ export function ConfigPanel({ state, onSaved }: Props): React.JSX.Element {
               Lo que verán y podrán hacer tus jugadores.
             </p>
           </div>
-          <label className="row" style={{ cursor: 'pointer', flexShrink: 0 }}>
-            <input
-              type="checkbox"
-              checked={advanced}
-              onChange={(e) => setAdvanced(e.target.checked)}
-              style={{ width: 16, height: 16 }}
-            />
-            <span style={{ fontSize: 12, color: 'var(--muted)' }}>Mostrar avanzadas</span>
-          </label>
+          {/* En modo básico ni siquiera se ofrece: el interruptor sería una
+              invitación a tocar cosas que no hace falta entender. */}
+          {!basic && (
+            <label className="row" style={{ cursor: 'pointer', flexShrink: 0 }}>
+              <input
+                type="checkbox"
+                checked={advanced}
+                onChange={(e) => setAdvanced(e.target.checked)}
+                style={{ width: 16, height: 16 }}
+              />
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>Mostrar avanzadas</span>
+            </label>
+          )}
         </div>
 
         {visible.map((def) =>
@@ -231,14 +249,17 @@ export function ConfigPanel({ state, onSaved }: Props): React.JSX.Element {
       </div>
 
       <div className="card">
-        <h3>Jugadores y memoria</h3>
+        <h3>{basic ? '¿Cuánta gente vais a ser?' : 'Jugadores y memoria'}</h3>
         <p className="hint">
-          Se aplican en el siguiente arranque. La memoria recomendada depende de cuánta gente
-          esperas a la vez y de si el servidor lleva mods.
+          {basic
+            ? 'Ajustamos solos la memoria del servidor según lo que indiques. Se aplica en el siguiente arranque.'
+            : 'Se aplican en el siguiente arranque. La memoria recomendada depende de cuánta gente esperas a la vez y de si el servidor lleva mods.'}
         </p>
 
-        <div className="field">
-          <label>Jugadores esperados a la vez: {players}</label>
+        <div className="field" style={basic ? { marginBottom: 0 } : undefined}>
+          <label>
+            {basic ? `${players} jugadores a la vez` : `Jugadores esperados a la vez: ${players}`}
+          </label>
           <input
             type="range"
             min={2}
@@ -252,11 +273,15 @@ export function ConfigPanel({ state, onSaved }: Props): React.JSX.Element {
             }}
           />
           <div className="help">
-            Solo sirve para calcular la memoria. El límite real de conexiones es &quot;Jugadores como
-            máximo&quot;, ahí arriba.
+            {basic
+              ? 'Cuenta a quienes estaréis conectados a la vez, no el total de amigos.'
+              : 'Solo sirve para calcular la memoria. El límite real de conexiones es "Jugadores como máximo", ahí arriba.'}
           </div>
         </div>
 
+        {/* La memoria es el ejemplo perfecto de decisión que el modo básico no
+            debe delegar en el usuario: se aplica la recomendada y punto. */}
+        {!basic && (
         <div className="field">
           <label>Memoria asignada: {(memoryMb / 1024).toFixed(1)} GB</label>
           <input
@@ -292,6 +317,7 @@ export function ConfigPanel({ state, onSaved }: Props): React.JSX.Element {
             Subirla sin necesidad no mejora nada y se la quita al resto del equipo.
           </div>
         </div>
+        )}
       </div>
 
       <div className="row between">

@@ -12,9 +12,37 @@ import { mkdir } from 'node:fs/promises'
 
 let dataRootPath: string | null = null
 
+/**
+ * Carpeta de recursos que viajan con la aplicación (los jars de los plugins
+ * oficiales). Cambia entre desarrollo y empaquetado, así que la inyecta el
+ * proceso principal igual que la raíz de datos.
+ */
+let resourcesRootPath: string | null = null
+
 /** La fija el proceso principal al arrancar, o una prueba con un directorio temporal. */
 export function setDataRoot(path: string): void {
   dataRootPath = path
+}
+
+export function setResourcesRoot(path: string): void {
+  resourcesRootPath = path
+}
+
+export function resourcesRoot(): string {
+  if (!resourcesRootPath) {
+    throw new Error(
+      'La carpeta de recursos no está inicializada. Llama a setResourcesRoot() antes de usarla.'
+    )
+  }
+  return resourcesRootPath
+}
+
+/**
+ * Fichero de un plugin oficial dentro de los recursos empaquetados.
+ * Cada plugin tiene su carpeta con el jar y la plantilla de configuración.
+ */
+export function bundledPluginPath(pluginId: string, fileName: string): string {
+  return join(resourcesRoot(), 'plugins', pluginId, fileName)
 }
 
 export function dataRoot(): string {
@@ -61,6 +89,20 @@ export function launcherLogPath(id: string): string {
 
 export async function ensureDir(path: string): Promise<void> {
   await mkdir(path, { recursive: true })
+}
+
+/**
+ * Ruta absoluta al bsdtar que trae Windows 10/11.
+ *
+ * Nunca invoques `tar.exe` a secas: Git para Windows, MSYS2 y Cygwin instalan
+ * un tar de GNU y, si su carpeta está en el PATH, gana él. GNU tar interpreta
+ * `C:\...` como «máquina C, ruta ...» e intenta conectarse por red, así que
+ * falla con un «Cannot connect to C: resolve failed» que no se parece en nada
+ * al problema real. Con la ruta absoluta no hay ambigüedad posible.
+ */
+export function systemTarPath(): string {
+  const windowsDir = process.env['SystemRoot'] || process.env['windir']
+  return windowsDir ? join(windowsDir, 'System32', 'tar.exe') : 'tar.exe'
 }
 
 export async function ensureBaseDirs(): Promise<void> {

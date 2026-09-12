@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { access, readdir, rm } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { runtimesDir, ensureDir, cacheDir } from '../paths'
+import { runtimesDir, ensureDir, cacheDir, systemTarPath } from '../paths'
 import { download } from '../net/downloader'
 
 const execFileAsync = promisify(execFile)
@@ -120,11 +120,13 @@ export async function ensureJava(
  * Descomprime usando el bsdtar que trae Windows 10/11 (`C:\Windows\System32\tar.exe`).
  * Evita añadir una dependencia npm para esto, y es notablemente más rápido
  * que Expand-Archive de PowerShell con ficheros grandes.
+ *
+ * Por la ruta absoluta, nunca por el PATH: ver `systemTarPath`.
  */
 async function extractZip(archivePath: string, destination: string): Promise<void> {
   await ensureDir(destination)
   try {
-    await execFileAsync('tar.exe', ['-xf', archivePath, '-C', destination], {
+    await execFileAsync(systemTarPath(), ['-xf', archivePath, '-C', destination], {
       windowsHide: true,
       maxBuffer: 1024 * 1024 * 16
     })

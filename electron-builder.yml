@@ -18,6 +18,14 @@ files:
 asar: true
 compression: normal
 
+# Los plugins oficiales van FUERA del asar: hay que copiarlos a la carpeta del
+# servidor como ficheros de verdad, y desde dentro del archivo no se puede.
+extraResources:
+  - from: resources
+    to: .
+    filter:
+      - '**/*'
+
 win:
   icon: build/icon.ico
   target:

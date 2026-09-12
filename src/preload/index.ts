@@ -1,9 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC, EVENTS, type MemoryInfo } from '../shared/ipc'
+import type { OfficialPluginStatus } from '../shared/officialPlugins'
 import type {
+  AppSettings,
   BackupEstimate,
   BackupInfo,
   ConnectionInfo,
+  ContentInfo,
   CreateInstanceRequest,
   CreateWorldRequest,
   Diagnosis,
@@ -34,6 +37,12 @@ function subscribe<T extends unknown[]>(
 }
 
 const api = {
+  settings: {
+    get: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.getSettings),
+    update: (changes: Partial<AppSettings>): Promise<AppSettings> =>
+      ipcRenderer.invoke(IPC.updateSettings, changes)
+  },
+
   catalog: {
     versions: (distribution: Distribution, includeUnstable = false): Promise<DistributionVersion[]> =>
       ipcRenderer.invoke(IPC.listVersions, distribution, includeUnstable),
@@ -70,6 +79,35 @@ const api = {
     catalog: (): Promise<PropertyDefinition[]> => ipcRenderer.invoke(IPC.propertyCatalog)
   },
 
+  content: {
+    list: (id: string): Promise<ContentInfo> => ipcRenderer.invoke(IPC.listContent, id),
+    openFolder: (id: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.contentFolder, id),
+    setEnabled: (id: string, fileName: string, enabled: boolean): Promise<ContentInfo> =>
+      ipcRenderer.invoke(IPC.setContentEnabled, id, fileName, enabled),
+    remove: (id: string, fileName: string): Promise<ContentInfo> =>
+      ipcRenderer.invoke(IPC.removeContent, id, fileName)
+  },
+
+  official: {
+    list: (id: string): Promise<OfficialPluginStatus[]> =>
+      ipcRenderer.invoke(IPC.listOfficialPlugins, id),
+    install: (id: string, pluginId: string, role?: string): Promise<OfficialPluginStatus[]> =>
+      ipcRenderer.invoke(IPC.installOfficialPlugin, id, pluginId, role),
+    uninstall: (
+      id: string,
+      pluginId: string,
+      removeConfig: boolean
+    ): Promise<OfficialPluginStatus[]> =>
+      ipcRenderer.invoke(IPC.uninstallOfficialPlugin, id, pluginId, removeConfig),
+    setConfig: (
+      id: string,
+      pluginId: string,
+      values: Record<string, string | number | boolean>
+    ): Promise<OfficialPluginStatus[]> =>
+      ipcRenderer.invoke(IPC.setOfficialPluginConfig, id, pluginId, values)
+  },
+
   worlds: {
     list: (id: string): Promise<WorldInfo[]> => ipcRenderer.invoke(IPC.listWorlds, id),
     create: (id: string, request: CreateWorldRequest): Promise<WorldInfo[]> =>
@@ -95,7 +133,8 @@ const api = {
     info: (id: string): Promise<ConnectionInfo> => ipcRenderer.invoke(IPC.connectionInfo, id),
     freePort: (from: number): Promise<number> => ipcRenderer.invoke(IPC.suggestFreePort, from),
     checkFromInternet: (id: string): Promise<ExternalCheck> =>
-      ipcRenderer.invoke(IPC.checkFromInternet, id)
+      ipcRenderer.invoke(IPC.checkFromInternet, id),
+    publicIp: (): Promise<string | null> => ipcRenderer.invoke(IPC.publicIp)
   },
 
   on: {

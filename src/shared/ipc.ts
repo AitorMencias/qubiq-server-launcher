@@ -4,6 +4,10 @@
  */
 
 export const IPC = {
+  // Ajustes de la aplicación
+  getSettings: 'app:getSettings',
+  updateSettings: 'app:updateSettings',
+
   // Catálogo
   listVersions: 'catalog:listVersions',
   defaultVersion: 'catalog:defaultVersion',
@@ -28,6 +32,18 @@ export const IPC = {
   setProperties: 'config:set',
   propertyCatalog: 'config:catalog',
 
+  // Plugins y mods
+  listContent: 'content:list',
+  contentFolder: 'content:folder',
+  setContentEnabled: 'content:setEnabled',
+  removeContent: 'content:remove',
+
+  // Plugins oficiales
+  listOfficialPlugins: 'official:list',
+  installOfficialPlugin: 'official:install',
+  uninstallOfficialPlugin: 'official:uninstall',
+  setOfficialPluginConfig: 'official:config',
+
   // Mundos
   listWorlds: 'worlds:list',
   createWorld: 'worlds:create',
@@ -45,6 +61,7 @@ export const IPC = {
   connectionInfo: 'network:info',
   suggestFreePort: 'network:freePort',
   checkFromInternet: 'network:checkExternal',
+  publicIp: 'network:publicIp',
 
   // Sistema
   openInstanceFolder: 'system:openFolder'

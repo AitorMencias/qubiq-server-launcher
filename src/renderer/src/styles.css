@@ -579,3 +579,432 @@ select:focus {
   text-align: center;
   border-top: 1px solid var(--border);
 }
+
+/* --- Selector de modo (básico / avanzado) --------------------------------- */
+
+.mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mode-switch label {
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.mode-switch select {
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.mode-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #6b7385;
+}
+
+/* --- Elección de modo al crear (dos tarjetas grandes) --------------------- */
+
+.chooser-intro {
+  text-align: center;
+  max-width: 620px;
+  margin: 18px auto 26px;
+}
+
+.chooser-intro h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.chooser-intro p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mode-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  max-width: 860px;
+  margin: 0 auto 20px;
+}
+
+/* Tarjeta-botón: todo el bloque es clicable, no solo un enlace al final. */
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  gap: 10px;
+  padding: 24px;
+  min-height: 260px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  transition: border-color 0.14s, background 0.14s, transform 0.14s;
+}
+
+.mode-card:hover:not(:disabled) {
+  background: #1e2740;
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.mode-card.current {
+  border-color: var(--accent-dim);
+}
+
+.mode-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mode-card-title {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.badge.warn {
+  background: var(--warn);
+  color: #1c1500;
+}
+
+.badge.muted {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.mode-card-tagline {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.mode-card-points {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  flex: 1;
+}
+
+.mode-card-points li {
+  position: relative;
+  padding-left: 18px;
+  margin-bottom: 9px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.mode-card-points li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.mode-card-cta {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .mode-choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-card {
+    min-height: 0;
+  }
+}
+
+/* Zona de acciones irreversibles: se distingue del resto sin gritar. */
+.card.danger-zone {
+  border-color: #4a2a2a;
+}
+
+.card.danger-zone h3 {
+  color: #ff9d97;
+}
+
+/* --- Asistente por pasos (modo básico) ------------------------------------ */
+
+.wizard {
+  max-width: 620px;
+  margin: 0 auto;
+  padding-top: 10px;
+}
+
+.step-dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.step-dot {
+  width: 30px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  transition: background 0.2s;
+}
+
+.step-dot.done {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+}
+
+.step-dot.now {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.step-label {
+  margin-left: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+}
+
+.step-frame {
+  text-align: center;
+}
+
+.step-frame h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.step-frame .step-help {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* El grid de tipos vuelve a alinearse a la izquierda dentro del paso. */
+.step-frame .choice-grid {
+  text-align: left;
+}
+
+/* Número grande del paso de jugadores: el valor debe leerse de un vistazo. */
+.big-number {
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 18px;
+  color: var(--accent);
+}
+
+.wizard-nav {
+  margin-top: 28px;
+}
+
+/* --- Resumen final -------------------------------------------------------- */
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.summary-row.last {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.summary-label {
+  flex: 0 0 180px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.summary-value {
+  flex: 1;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-auto {
+  font-size: 11px;
+  color: #5c6377;
+  flex-shrink: 0;
+}
+
+button.link {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font-size: 12px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+button.link:hover:not(:disabled) {
+  background: none;
+  text-decoration: underline;
+}
+
+/* --- Plugins y mods ------------------------------------------------------- */
+
+/* Lo que hay que comprobar ANTES de descargar, bien visible. */
+.requirements {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.requirements > div {
+  flex: 1;
+  background: #151824;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.req-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.req-value {
+  display: block;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.source {
+  display: block;
+  padding: 13px 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.source:hover {
+  border-color: var(--accent);
+  background: #1e2740;
+}
+
+.source.primary {
+  border-color: var(--accent-dim);
+}
+
+.source-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.source-name {
+  font-weight: 600;
+}
+
+.source-desc {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* --- Plugins oficiales ---------------------------------------------------- */
+
+.official-plugin {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  background: var(--panel-2);
+}
+
+.official-plugin:last-child {
+  margin-bottom: 0;
+}
+
+.official-version {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.official-summary {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.official-role {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+/* Zona que se despliega al añadir o configurar. */
+.official-setup {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.official-description {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .role-grid {
+    grid-template-columns: 1fr;
+  }
+}

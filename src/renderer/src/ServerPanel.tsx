@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Diagnosis, InstanceState, LogLine } from '@shared/types'
-import { DISTRIBUTION_LABELS } from '@shared/types'
+import type { Diagnosis, InstanceState, LogLine, UiMode } from '@shared/types'
+import { DISTRIBUTION_LABELS, contentKindFor } from '@shared/types'
 import { ConnectionCard } from './ConnectionCard'
 import { ConfigPanel } from './ConfigPanel'
 import { BackupPanel } from './BackupPanel'
 import { WorldsPanel } from './WorldsPanel'
+import { BasicConnection } from './BasicConnection'
+import { ConfirmDelete } from './ConfirmDelete'
+import { ContentPanel } from './ContentPanel'
 
 /**
  * Panel de un servidor: estado, consola, jugadores, ajustes y copias.
  * La pantalla principal NO es la consola (§7): es el estado y cómo conectarse.
  */
 
-type Tab = 'estado' | 'consola' | 'jugadores' | 'mundos' | 'ajustes' | 'copias'
+type Tab = 'estado' | 'consola' | 'jugadores' | 'mundos' | 'contenido' | 'ajustes' | 'copias'
 
 interface Props {
   state: InstanceState
@@ -19,6 +22,7 @@ interface Props {
   players: string[]
   diagnosis: Diagnosis | null
   progress: { phase: string; progress: number | null; detail?: string } | null
+  mode: UiMode
   onRefresh: () => void
 }
 
@@ -28,10 +32,14 @@ export function ServerPanel({
   players,
   diagnosis,
   progress,
+  mode,
   onRefresh
 }: Props): React.JSX.Element {
   const [tab, setTab] = useState<Tab>('estado')
+  const basic = mode === 'basic'
+  const contentKind = contentKindFor(state.manifest.distribution)
   const [command, setCommand] = useState('')
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const consoleRef = useRef<HTMLDivElement>(null)
 
@@ -93,12 +101,15 @@ export function ServerPanel({
         <button className={`tab ${tab === 'estado' ? 'active' : ''}`} onClick={() => setTab('estado')}>
           Estado
         </button>
-        <button
-          className={`tab ${tab === 'consola' ? 'active' : ''}`}
-          onClick={() => setTab('consola')}
-        >
-          Consola
-        </button>
+        {/* La consola es lo más técnico de la app: no aparece en modo básico. */}
+        {!basic && (
+          <button
+            className={`tab ${tab === 'consola' ? 'active' : ''}`}
+            onClick={() => setTab('consola')}
+          >
+            Consola
+          </button>
+        )}
         <button
           className={`tab ${tab === 'jugadores' ? 'active' : ''}`}
           onClick={() => setTab('jugadores')}
@@ -111,6 +122,15 @@ export function ServerPanel({
         >
           Mundos
         </button>
+        {/* Vanilla no admite plugins ni mods: la pestaña ni aparece. */}
+        {contentKind !== null && (
+          <button
+            className={`tab ${tab === 'contenido' ? 'active' : ''}`}
+            onClick={() => setTab('contenido')}
+          >
+            {contentKind === 'mods' ? 'Mods' : 'Plugins'}
+          </button>
+        )}
         <button
           className={`tab ${tab === 'ajustes' ? 'active' : ''}`}
           onClick={() => setTab('ajustes')}
@@ -122,13 +142,16 @@ export function ServerPanel({
         </button>
       </div>
 
-      {tab === 'mundos' && <WorldsPanel state={state} onChanged={onRefresh} />}
+      {tab === 'mundos' && <WorldsPanel state={state} mode={mode} onChanged={onRefresh} />}
 
-      {tab === 'ajustes' && <ConfigPanel state={state} onSaved={onRefresh} />}
+      {tab === 'contenido' && contentKind !== null && <ContentPanel state={state} mode={mode} />}
+
+      {tab === 'ajustes' && <ConfigPanel state={state} mode={mode} onSaved={onRefresh} />}
 
       {tab === 'copias' && (
         <BackupPanel
           state={state}
+          mode={mode}
           onManifestChanged={onRefresh}
           progressDetail={
             progress && (progress.phase === 'backup' || progress.phase === 'restore')
@@ -171,8 +194,15 @@ export function ServerPanel({
             </div>
           )}
 
-          <ConnectionCard state={state} onManifestChanged={onRefresh} />
+          {basic ? (
+            <BasicConnection state={state} onManifestChanged={onRefresh} />
+          ) : (
+            <ConnectionCard state={state} onManifestChanged={onRefresh} />
+          )}
 
+          {/* Versión de Java, build y memoria no significan nada para quien
+              solo quiere jugar: la ficha técnica es cosa del modo avanzado. */}
+          {!basic && (
           <div className="card">
             <h3>Detalles</h3>
             <div className="row between" style={{ marginBottom: 8 }}>
@@ -198,7 +228,9 @@ export function ServerPanel({
               <span>{(manifest.memoryMb / 1024).toFixed(1)} GB</span>
             </div>
           </div>
+          )}
 
+          {!basic && (
           <div className="card">
             <h3>Mantenimiento</h3>
             <p className="hint">
@@ -216,7 +248,39 @@ export function ServerPanel({
               </button>
             </div>
           </div>
+          )}
+
+          {/* Borrar está en los dos modos: querer deshacerse de un servidor es
+              tan básico como crearlo. Lo que cambia es el aviso, no el acceso. */}
+          <div className="card danger-zone">
+            <h3>Borrar este servidor</h3>
+            <p className="hint">
+              Se elimina para siempre, con su mundo y sus copias de seguridad.
+              {basic && ' Si solo quieres dejar de jugar un tiempo, basta con pararlo.'}
+            </p>
+            <div className="row">
+              <button className="danger" disabled={busy} onClick={() => setConfirmingDelete(true)}>
+                Borrar servidor
+              </button>
+              {basic && (
+                <button onClick={() => void window.qubiq.instances.openFolder(manifest.id)}>
+                  Abrir carpeta
+                </button>
+              )}
+            </div>
+          </div>
         </div>
+      )}
+
+      {confirmingDelete && (
+        <ConfirmDelete
+          state={state}
+          onCancel={() => setConfirmingDelete(false)}
+          onDeleted={() => {
+            setConfirmingDelete(false)
+            onRefresh()
+          }}
+        />
       )}
 
       {tab === 'consola' && (

@@ -3,6 +3,19 @@
  * No debe importar nada de Node ni de Electron.
  */
 
+/**
+ * Nivel de detalle de la interfaz.
+ *
+ * `basic` no es "la misma pantalla con menos botones": es no obligar a decidir.
+ * Lo que en avanzado son controles (versión, memoria, puerto), en básico son
+ * valores sensatos ya elegidos, y como mucho se informan.
+ */
+export type UiMode = 'basic' | 'advanced'
+
+export interface AppSettings {
+  uiMode: UiMode
+}
+
 export type Distribution = 'vanilla' | 'paper' | 'fabric' | 'forge'
 
 export const DISTRIBUTIONS: Distribution[] = ['vanilla', 'paper', 'fabric', 'forge']
@@ -167,6 +180,96 @@ export interface PropertyDefinition {
   default: string
   /** Cambiarlo puede destruir el mundo existente: exige confirmación (§8). */
   destructive?: boolean
+}
+
+// --- Plugins y mods (§4.8) ---------------------------------------------------
+
+/**
+ * Qué admite cada distribución.
+ *
+ * ⚠ No son lo mismo, y confundirlos es el error nº 1:
+ *  - `plugins` (Paper/Bukkit) se instalan SOLO en el servidor.
+ *  - `mods` (Forge/Fabric) hay que instalarlos también en el Minecraft de cada
+ *    jugador, o no podrá entrar.
+ */
+export type ContentKind = 'plugins' | 'mods'
+
+export function contentKindFor(distribution: Distribution): ContentKind | null {
+  if (distribution === 'paper') return 'plugins'
+  if (distribution === 'fabric' || distribution === 'forge') return 'mods'
+  return null // Vanilla no admite ni una cosa ni la otra.
+}
+
+export interface ContentItem {
+  fileName: string
+  sizeBytes: number
+  addedAt: string
+  /** Los desactivados siguen en la carpeta pero el servidor los ignora. */
+  enabled: boolean
+}
+
+export interface ContentInfo {
+  kind: ContentKind | null
+  /** Nombre de la carpeta donde van los ficheros: `plugins` o `mods`. */
+  folderName: string
+  items: ContentItem[]
+}
+
+export interface ContentSource {
+  name: string
+  url: string
+  description: string
+  /** La opción que recomendamos para esta distribución. */
+  primary?: boolean
+}
+
+/** Dónde descargar, según el tipo de servidor. */
+export const CONTENT_SOURCES: Record<Distribution, ContentSource[]> = {
+  vanilla: [],
+  paper: [
+    {
+      name: 'Hangar',
+      url: 'https://hangar.papermc.io',
+      description: 'El repositorio oficial de PaperMC. Todo lo de aquí está pensado para tu servidor.',
+      primary: true
+    },
+    {
+      name: 'Modrinth',
+      url: 'https://modrinth.com/plugins',
+      description: 'Buscador cómodo y moderno. Filtra por versión y por Paper.'
+    },
+    {
+      name: 'SpigotMC',
+      url: 'https://www.spigotmc.org/resources/',
+      description: 'El catálogo clásico, enorme. Algunos plugins solo están aquí.'
+    }
+  ],
+  fabric: [
+    {
+      name: 'Modrinth',
+      url: 'https://modrinth.com/mods',
+      description: 'La referencia para Fabric. Filtra por versión y por Fabric.',
+      primary: true
+    },
+    {
+      name: 'CurseForge',
+      url: 'https://www.curseforge.com/minecraft/mc-mods',
+      description: 'El otro gran catálogo. Comprueba siempre que el mod sea de Fabric.'
+    }
+  ],
+  forge: [
+    {
+      name: 'CurseForge',
+      url: 'https://www.curseforge.com/minecraft/mc-mods',
+      description: 'El catálogo más grande para Forge, con diferencia.',
+      primary: true
+    },
+    {
+      name: 'Modrinth',
+      url: 'https://modrinth.com/mods',
+      description: 'Buscador más limpio. Filtra por versión y por Forge.'
+    }
+  ]
 }
 
 // --- Mundos ------------------------------------------------------------------

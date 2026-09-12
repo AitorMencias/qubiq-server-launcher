@@ -30,7 +30,12 @@ export interface SupervisorEvents {
   players: (players: string[]) => void
   ready: () => void
   diagnosis: (diagnosis: Diagnosis) => void
-  exit: (code: number | null) => void
+  /**
+   * `requested` distingue quién decidió el cierre: true si lo pidió el usuario
+   * (`stop()`), false si el servidor se apagó por su cuenta. Sin ese dato no se
+   * puede saber si procede volver a arrancarlo.
+   */
+  exit: (code: number | null, requested: boolean) => void
 }
 
 export interface StartOptions {
@@ -255,7 +260,7 @@ export class ServerSupervisor extends EventEmitter {
 
     if (wasRequested || code === 0) {
       this.setStatus('stopped')
-      this.emit('exit', code)
+      this.emit('exit', code, wasRequested)
       return
     }
 
@@ -263,7 +268,7 @@ export class ServerSupervisor extends EventEmitter {
     this.setStatus('crashed')
     const diagnosis = diagnoseExit(code, this.recent)
     this.emit('diagnosis', diagnosis)
-    this.emit('exit', code)
+    this.emit('exit', code, wasRequested)
 
     this.registerCrash()
   }

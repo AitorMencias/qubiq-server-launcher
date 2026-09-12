@@ -2,7 +2,7 @@ import { app, BrowserWindow, Menu, dialog, powerSaveBlocker } from 'electron'
 import { join } from 'node:path'
 import { registerIpc } from './ipc'
 import { service } from './core/service'
-import { setDataRoot } from './core/paths'
+import { setDataRoot, setResourcesRoot } from './core/paths'
 
 /**
  * Proceso principal.
@@ -77,6 +77,12 @@ void app.whenReady().then(async () => {
 
   // El núcleo no conoce Electron: se le inyecta dónde guardar los datos (§5).
   setDataRoot(app.getPath('userData'))
+
+  // Los jars de los plugins oficiales viajan con la aplicación. En desarrollo
+  // están en el repositorio; empaquetados, junto al ejecutable.
+  setResourcesRoot(
+    app.isPackaged ? process.resourcesPath : join(app.getAppPath(), 'resources')
+  )
   await service.initialize()
   registerIpc(() => mainWindow)
 

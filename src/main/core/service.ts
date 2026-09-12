@@ -1,9 +1,12 @@
 import { EventEmitter } from 'node:events'
-import { appendFile } from 'node:fs/promises'
+import { appendFile, readFile, rm } from 'node:fs/promises'
+import { join } from 'node:path'
 import type {
+  AppSettings,
   BackupEstimate,
   BackupInfo,
   ConnectionInfo,
+  ContentInfo,
   CreateInstanceRequest,
   CreateWorldRequest,
   Diagnosis,
@@ -22,8 +25,14 @@ import * as instances from './instances/manager'
 import * as java from './java/manager'
 import * as backups from './backup/manager'
 import * as worlds from './worlds/manager'
+import * as content from './content/manager'
+import * as official from './content/official'
+import type { OfficialPluginStatus } from './content/official'
+import { officialPluginById, serverPropertiesFor } from '@shared/officialPlugins'
 import * as network from './net/network'
+import * as settings from './settings/manager'
 import { serverDir, launcherLogPath, ensureBaseDirs } from './paths'
+import { evaluateRestart } from './runtime/restartPolicy'
 
 /**
  * Orquestador del núcleo (§5).
@@ -41,15 +50,39 @@ export interface ServiceEvents {
   diagnosis: (instanceId: string, diagnosis: Diagnosis) => void
 }
 
+/**
+ * Fichero que deja un plugin en el directorio de trabajo del servidor para
+ * pedir que se vuelva a arrancar. Su mera existencia es la señal; el contenido
+ * es informativo y solo se usa para el texto del mensaje.
+ */
+const RESTART_REQUEST_FILE = 'hardcore-restart.request'
+
+/** Margen antes de volver a arrancar, para que el proceso anterior suelte todo. */
+const RESTART_DELAY_MS = 3_000
+
 class LauncherService extends EventEmitter {
   private readonly supervisors = new Map<string, ServerSupervisor>()
   /** Instancias con una instalación en curso. */
   private readonly installing = new Set<string>()
   /** Temporizadores de copia programada, uno por instancia arrancada. */
   private readonly backupTimers = new Map<string, NodeJS.Timeout>()
+  /** Reinicios ya programados, para poder cancelarlos. */
+  private readonly pendingRestarts = new Map<string, NodeJS.Timeout>()
+  /** Marcas de tiempo de reinicios recientes, para la política anti-bucle. */
+  private readonly restartHistory = new Map<string, number[]>()
 
   async initialize(): Promise<void> {
     await ensureBaseDirs()
+  }
+
+  // --- Ajustes de la aplicación ---------------------------------------------
+
+  async getSettings(): Promise<AppSettings> {
+    return settings.readSettings()
+  }
+
+  async updateSettings(changes: Partial<AppSettings>): Promise<AppSettings> {
+    return settings.updateSettings(changes)
   }
 
   // --- Instancias -----------------------------------------------------------
@@ -157,6 +190,8 @@ class LauncherService extends EventEmitter {
   }
 
   async remove(id: string): Promise<void> {
+    this.cancelPendingRestart(id)
+
     const supervisor = this.supervisors.get(id)
     if (supervisor?.isRunning) {
       // Nunca se borra un servidor arrancado: primero se cierra bien (§7).
@@ -169,6 +204,9 @@ class LauncherService extends EventEmitter {
   // --- Ejecución ------------------------------------------------------------
 
   async start(id: string): Promise<void> {
+    // Si el usuario arranca a mano durante la espera del reinicio, gana él.
+    this.cancelPendingRestart(id)
+
     const manifest = await instances.readManifest(id)
     if (!manifest) throw new Error(`No existe la instancia ${id}.`)
     if (!manifest.eulaAccepted) {
@@ -205,6 +243,10 @@ class LauncherService extends EventEmitter {
   }
 
   async stop(id: string): Promise<void> {
+    // Va ANTES de comprobar si hay proceso: pulsar "Parar" durante los 3 s de
+    // espera debe cancelar el reinicio aunque el servidor ya esté apagado.
+    this.cancelPendingRestart(id)
+
     const supervisor = this.supervisors.get(id)
     if (!supervisor?.isRunning) return
     await supervisor.stop()
@@ -218,12 +260,110 @@ class LauncherService extends EventEmitter {
 
   /** Cierre limpio de todo lo arrancado. Se llama al salir de la app (§7). */
   async stopAll(): Promise<void> {
+    // Cerrar la app cancela cualquier reinicio pendiente: la decisión del
+    // usuario siempre gana a la petición de un plugin.
+    for (const id of [...this.pendingRestarts.keys()]) this.cancelPendingRestart(id)
+
     const running = [...this.supervisors.values()].filter((s) => s.isRunning)
     await Promise.all(running.map((s) => s.stop()))
   }
 
   hasRunningServers(): boolean {
     return [...this.supervisors.values()].some((s) => s.isRunning)
+  }
+
+  // --- Reinicio bajo petición del servidor ----------------------------------
+
+  /**
+   * Se ejecuta cada vez que un servidor termina.
+   *
+   * Solo se vuelve a arrancar si el propio servidor dejó un fichero pidiéndolo.
+   * Nunca se reinicia por cuenta propia tras un cierre normal ni tras un fallo:
+   * eso sería otra cosa (reinicio ante caídas) y no está conectado a nada.
+   */
+  private async handleExit(id: string, code: number | null, requested: boolean): Promise<void> {
+    const requestPath = join(serverDir(id), RESTART_REQUEST_FILE)
+
+    let raw: string
+    try {
+      raw = await readFile(requestPath, 'utf8')
+    } catch {
+      return // Sin petición: comportamiento de siempre.
+    }
+
+    // Se borra ANTES de decidir nada. Si quedara en disco y el siguiente
+    // arranque fallara, se reintentaría sin fin.
+    try {
+      await rm(requestPath, { force: true })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      await this.appendLauncherLog(
+        id,
+        `No se pudo borrar ${RESTART_REQUEST_FILE}, no se reinicia para evitar un bucle: ${message}`
+      )
+      return
+    }
+
+    if (requested) {
+      this.systemLog(id, 'Petición de reinicio descartada: el servidor se ha parado a mano.')
+      return
+    }
+
+    const decision = evaluateRestart(this.restartHistory.get(id) ?? [], Date.now())
+    this.restartHistory.set(id, decision.recent)
+
+    if (!decision.allowed) {
+      this.emit('diagnosis', id, {
+        code: 'restart-loop',
+        title: 'El servidor ha pedido reiniciarse demasiadas veces',
+        detail:
+          'Se ha reiniciado 5 veces en 10 minutos a petición de un plugin. ' +
+          'No se vuelve a arrancar solo para no entrar en bucle. Revisa el registro.'
+      })
+      return
+    }
+
+    const run = parseRunNumber(raw)
+    const parts = ['Un plugin ha pedido reiniciar el servidor']
+    if (run !== null) parts.push(`(run #${run} terminada)`)
+    // Que exista el fichero demuestra que el plugin ya hizo su trabajo, así que
+    // se reinicia aunque el código de salida no sea 0; pero se deja constancia.
+    if (code !== 0) parts.push(`tras salir con código ${code}`)
+    this.systemLog(id, `${parts.join(' ')}. Arrancando de nuevo en 3 s…`)
+
+    const timer = setTimeout(() => {
+      this.pendingRestarts.delete(id)
+      if (this.supervisors.get(id)?.isRunning) return
+
+      void this.start(id).catch(async (err: Error) => {
+        await this.appendLauncherLog(id, `No se pudo reiniciar: ${err.message}`)
+        this.emit('diagnosis', id, {
+          code: 'restart-failed',
+          title: 'No se pudo volver a arrancar el servidor',
+          detail: err.message
+        })
+      })
+    }, RESTART_DELAY_MS)
+
+    timer.unref?.()
+    this.pendingRestarts.set(id, timer)
+  }
+
+  private cancelPendingRestart(id: string): void {
+    const timer = this.pendingRestarts.get(id)
+    if (!timer) return
+    clearTimeout(timer)
+    this.pendingRestarts.delete(id)
+  }
+
+  /**
+   * Línea de sistema en la consola y en el log de la app.
+   * `pushLog` del supervisor es privado, así que desde aquí se emite igual que
+   * hace su listener de `log`.
+   */
+  private systemLog(id: string, text: string): void {
+    this.emit('log', id, { ts: Date.now(), level: 'system', text })
+    void this.appendLauncherLog(id, text)
   }
 
   private supervisorFor(id: string): ServerSupervisor {
@@ -243,6 +383,9 @@ class LauncherService extends EventEmitter {
     })
     supervisor.on('players', (players: string[]) => this.emit('players', id, players))
     supervisor.on('diagnosis', (diagnosis: Diagnosis) => this.emit('diagnosis', id, diagnosis))
+    supervisor.on('exit', (code: number | null, requested: boolean) => {
+      void this.handleExit(id, code, requested)
+    })
 
     this.supervisors.set(id, supervisor)
     return supervisor
@@ -279,6 +422,99 @@ class LauncherService extends EventEmitter {
       )
     }
     return instances.writeProperties(id, values)
+  }
+
+  // --- Plugins y mods (§4.8) ------------------------------------------------
+
+  async listContent(id: string): Promise<ContentInfo> {
+    const manifest = await instances.readManifest(id)
+    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    return content.listContent(id, manifest.distribution)
+  }
+
+  /** Ruta de la carpeta de plugins/mods, creada si hacía falta. */
+  async contentFolder(id: string): Promise<string | null> {
+    const manifest = await instances.readManifest(id)
+    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    return content.contentFolder(id, manifest.distribution)
+  }
+
+  async setContentEnabled(id: string, fileName: string, enabled: boolean): Promise<ContentInfo> {
+    const manifest = await instances.readManifest(id)
+    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    this.assertStopped(id, 'activar o desactivar plugins y mods')
+    return content.setEnabled(id, manifest.distribution, fileName, enabled)
+  }
+
+  async removeContent(id: string, fileName: string): Promise<ContentInfo> {
+    const manifest = await instances.readManifest(id)
+    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    this.assertStopped(id, 'borrar plugins o mods')
+    return content.removeContent(id, manifest.distribution, fileName)
+  }
+
+  // --- Plugins oficiales ----------------------------------------------------
+
+  async listOfficialPlugins(id: string): Promise<OfficialPluginStatus[]> {
+    const manifest = await instances.readManifest(id)
+    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    return official.listOfficial(id, manifest.distribution)
+  }
+
+  /**
+   * Instala un plugin oficial y aplica los ajustes de `server.properties` que
+   * necesita: aceptar transferencias siempre, y el modo extremo si el papel
+   * elegido lo exige.
+   *
+   * La interfaz ya ha avisado de lo que va a cambiar; prometerlo y no hacerlo
+   * dejaría la partida en supervivencia normal sin que nadie se diera cuenta
+   * hasta morirse y reaparecer tan tranquilo, o con un lobby incapaz de mandar
+   * a nadie a jugar.
+   */
+  async installOfficialPlugin(
+    id: string,
+    pluginId: string,
+    role?: string
+  ): Promise<OfficialPluginStatus[]> {
+    const manifest = await instances.readManifest(id)
+    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    this.assertStopped(id, 'instalar un plugin')
+
+    const result = await official.install(id, manifest.distribution, pluginId, role)
+
+    const plugin = officialPluginById(pluginId)
+    if (plugin) {
+      const properties = serverPropertiesFor(plugin, role)
+      if (Object.keys(properties).length > 0) {
+        await instances.writeProperties(id, properties)
+      }
+    }
+
+    return result
+  }
+
+  async uninstallOfficialPlugin(
+    id: string,
+    pluginId: string,
+    removeConfig = false
+  ): Promise<OfficialPluginStatus[]> {
+    const manifest = await instances.readManifest(id)
+    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    this.assertStopped(id, 'quitar un plugin')
+    return official.uninstall(id, manifest.distribution, pluginId, removeConfig)
+  }
+
+  async setOfficialPluginConfig(
+    id: string,
+    pluginId: string,
+    values: Record<string, string | number | boolean>
+  ): Promise<OfficialPluginStatus[]> {
+    const manifest = await instances.readManifest(id)
+    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    // El plugin lee su configuración al arrancar: cambiarla en caliente no
+    // tendría efecto y daría una falsa sensación de haberlo aplicado.
+    this.assertStopped(id, 'cambiar la configuración de un plugin')
+    return official.writeConfig(id, manifest.distribution, pluginId, values)
   }
 
   // --- Mundos ---------------------------------------------------------------
@@ -468,6 +704,17 @@ class LauncherService extends EventEmitter {
     return info
   }
 
+  /**
+   * IP pública, para poder enseñar la dirección que de verdad sirve cuando el
+   * usuario ha elegido abrir el puerto del router.
+   *
+   * Implica consultar un servicio externo, así que solo se llama cuando esa
+   * elección ya se ha hecho: sin la IP no hay dirección que darle a nadie.
+   */
+  async publicIp(): Promise<string | null> {
+    return network.publicIp()
+  }
+
   /** Sugiere un puerto libre cuando el elegido está ocupado (§7). */
   async suggestFreePort(from: number): Promise<number> {
     return network.findFreePort(from)
@@ -530,6 +777,19 @@ class LauncherService extends EventEmitter {
 
     const result = await network.checkFromInternet(ip, manifest.port)
     return { ...result, address: `${ip}:${manifest.port}`, publicIp: ip, checkedAt }
+  }
+}
+
+/**
+ * Número de run del fichero de petición, solo para el texto del mensaje.
+ * El formato puede cambiar, así que cualquier fallo se traga y se omite el dato.
+ */
+function parseRunNumber(raw: string): number | null {
+  try {
+    const data = JSON.parse(raw) as { run?: unknown }
+    return typeof data.run === 'number' ? data.run : null
+  } catch {
+    return null
   }
 }
 

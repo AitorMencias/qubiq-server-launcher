@@ -255,6 +255,16 @@ export const PROPERTY_CATALOG: PropertyDefinition[] = [
     level: 'advanced',
     type: 'boolean',
     default: 'false'
+  },
+  {
+    key: 'accepts-transfers',
+    label: 'Aceptar jugadores enviados desde otro servidor',
+    help:
+      'Necesario si usas un lobby o una red de servidores que mueve a los jugadores con /transfer. ' +
+      'Si no, déjalo apagado.',
+    level: 'advanced',
+    type: 'boolean',
+    default: 'false'
   }
 ]
 

@@ -9,9 +9,11 @@
 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, readFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 
-import { setDataRoot, ensureBaseDirs } from '../src/main/core/paths'
+import { setDataRoot, ensureBaseDirs, systemTarPath } from '../src/main/core/paths'
 import * as mojang from '../src/main/core/versions/mojang'
 import * as paper from '../src/main/core/versions/paper'
 import * as fabric from '../src/main/core/versions/fabric'
@@ -33,6 +35,19 @@ import { parseLine, diagnose } from '../src/main/core/runtime/logParser'
 import { slugify } from '../src/main/core/paths'
 import * as network from '../src/main/core/net/network'
 import { validateWorldName } from '../src/main/core/worlds/manager'
+import {
+  evaluateRestart,
+  RESTART_LIMIT,
+  RESTART_WINDOW_MS
+} from '../src/main/core/runtime/restartPolicy'
+import { PluginConfigFile } from '../src/main/core/content/pluginConfig'
+import {
+  OFFICIAL_PLUGINS,
+  officialPluginsFor,
+  serverPropertiesFor
+} from '../src/shared/officialPlugins'
+
+const execFileAsync = promisify(execFile)
 
 let passed = 0
 let failed = 0
@@ -44,6 +59,15 @@ function check(name: string, condition: boolean, detail?: string): void {
   } else {
     failed++
     console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+  }
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await readFile(path)
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -204,6 +228,216 @@ async function main(): Promise<void> {
     const savePattern = /Saved the (game|world|chunks)/i
     check('reconoce "Saved the game"', savePattern.test('[12:00:00 INFO]: Saved the game'))
     check('reconoce "Saved the world"', savePattern.test('[12:00:00] [Server thread/INFO]: Saved the world'))
+
+    // El tar de Windows, por ruta absoluta. Si se llamara por el PATH podría
+    // ganar el tar de GNU que instalan Git o MSYS2, que no entiende rutas con
+    // letra de unidad y rompe copias y descarga de Java con un error sin
+    // relación aparente ("Cannot connect to C: resolve failed").
+    const tarPath = systemTarPath()
+    check('el tar del sistema existe', await fileExists(tarPath), tarPath)
+    const tarVersion = await execFileAsync(tarPath, ['--version'])
+      .then((r) => r.stdout.trim())
+      .catch(() => '')
+    check('y es bsdtar, no el de GNU', tarVersion.startsWith('bsdtar'), tarVersion.slice(0, 40))
+  })
+
+  // --- Plugins oficiales ----------------------------------------------------
+
+  await section('Plugins oficiales', async () => {
+    // Se prueba contra la plantilla REAL que se empaqueta, no contra un YAML
+    // inventado: así, si el plugin cambia su esquema, esto se entera.
+    const templatePath = join(process.cwd(), 'resources/plugins/hardcore-utility/config.yml')
+    const template = await readFile(templatePath, 'utf8')
+    const config = PluginConfigFile.parse(template)
+
+    check('lee una clave de primer nivel', config.get('mode') === 'game', config.get('mode') ?? '')
+    check('lee una clave anidada', config.get('game.api-port') === '25580', config.get('game.api-port') ?? '')
+    check('lee una clave de tres niveles', config.get('game.pregeneration.radius') === '1000')
+    check('quita las comillas al leer', config.get('game.lobby-host') === 'localhost')
+
+    // La misma palabra aparece en las dos secciones; hay que no confundirlas.
+    check('no confunde secciones', config.get('game.lobby-port') === '25565', config.get('game.lobby-port') ?? '')
+    check('ni en la otra dirección', config.get('lobby.game-port') === '25566', config.get('lobby.game-port') ?? '')
+
+    check('una ruta inexistente da null', config.get('game.no-existe') === null)
+    check('no inventa claves al escribir', config.set('game.no-existe', 1) === false)
+
+    config.set('mode', 'lobby')
+    config.set('api-token', 'clave-compartida')
+    config.set('game.api-port', 25590)
+    config.set('game.pregeneration.enabled', false)
+    const out = config.serialize()
+
+    check('escribe cadenas entrecomilladas', /^mode: "lobby"$/m.test(out))
+    check('escribe números desnudos', /^ {2}api-port: 25590$/m.test(out))
+    check('escribe booleanos desnudos', /^ {4}enabled: false$/m.test(out))
+    check('no toca las demás claves', /^ {2}api-bind: "127\.0\.0\.1"$/m.test(out))
+
+    // Lo que de verdad importa: el fichero sigue siendo legible para quien lo
+    // abra a mano. Un serializador de YAML se habría comido los comentarios.
+    check('conserva los comentarios', out.includes('# "lobby" = sala de espera'))
+    check(
+      'conserva la cabecera',
+      out.includes('#  Instala el MISMO .jar en los dos servidores')
+    )
+
+    // --- Config antigua + plantilla nueva ---
+    // El caso de quien ya tenía el plugin instalado cuando sale una opción
+    // nueva: sin esto, el campo aparecería en el formulario y al guardarlo no
+    // pasaría nada, porque `set` no crea claves.
+    const antigua = PluginConfigFile.parse(
+      [
+        'mode: game',
+        'api-token: "mi-clave"',
+        '',
+        'game:',
+        '  api-bind: "127.0.0.1"',
+        '  api-port: 25580',
+        '',
+        '  # Dirección con la que los JUGADORES entran al lobby.',
+        '  lobby-host: "mi-servidor.com"',
+        '  lobby-port: 25565',
+        '',
+        '  require-transfer: true',
+        ''
+      ].join('\r\n')
+    )
+
+    const añadidas = antigua.addMissingFrom(PluginConfigFile.parse(template))
+    check('detecta las opciones que faltan', añadidas.includes('game.lobby-local-host'), añadidas.length + ' rutas')
+    check('y ahora se pueden leer', antigua.get('game.lobby-local-host') === '')
+    check('y escribir', antigua.set('game.lobby-local-host', '192.168.1.50') === true)
+    check('sin tocar lo que el usuario ya tenía', antigua.get('game.lobby-host') === 'mi-servidor.com')
+
+    const fusionada = antigua.serialize()
+    check(
+      'la opción nueva cae en su sección, no al final',
+      fusionada.indexOf('lobby-local-host') > fusionada.indexOf('lobby-port') &&
+        fusionada.indexOf('lobby-local-host') < fusionada.indexOf('require-transfer')
+    )
+    check('se trae el comentario que la explica', fusionada.includes('casi ningun router'))
+    check('conserva los comentarios del usuario', fusionada.includes('# Dirección con la que los JUGADORES'))
+    check(
+      'no duplica lo que ya estaba',
+      fusionada.split('lobby-host:').length - 1 === 1,
+      `${fusionada.split('lobby-host:').length - 1} veces`
+    )
+
+    // Una sección entera que falta se reconstruye completa y en orden.
+    check('añade la sección que falta', antigua.has('lobby.game-host') && antigua.has('lobby.game-local-port'))
+    check(
+      'y en el orden de la plantilla',
+      fusionada.indexOf('game-host:') < fusionada.indexOf('game-local-host:')
+    )
+
+    // Repetirlo no debe volver a añadir nada: es idempotente.
+    check('no añade nada la segunda vez', antigua.addMissingFrom(PluginConfigFile.parse(template)).length === 0)
+
+    // Caso límite: un fichero vacío se reconstruye entero desde la plantilla.
+    const vacia = PluginConfigFile.parse('')
+    vacia.addMissingFrom(PluginConfigFile.parse(template))
+    check(
+      'reconstruye una configuración vacía',
+      vacia.get('mode') === 'game' && vacia.get('lobby.game-local-port') === '0'
+    )
+
+    // El catálogo tiene que apuntar a ficheros que existen de verdad.
+    for (const plugin of OFFICIAL_PLUGINS) {
+      const jar = join(process.cwd(), 'resources/plugins', plugin.id, plugin.jarFileName)
+      const cfg = join(process.cwd(), 'resources/plugins', plugin.id, plugin.configFileName)
+      check(`${plugin.name}: el jar viaja con la app`, await fileExists(jar), plugin.jarFileName)
+      check(`${plugin.name}: la plantilla de configuración también`, await fileExists(cfg))
+
+      // Cada campo del formulario tiene que existir en la plantilla, o el
+      // usuario vería un control que no guarda nada.
+      const real = PluginConfigFile.parse(await readFile(cfg, 'utf8'))
+      const huerfanos = plugin.fields.filter((f) => !real.has(f.path)).map((f) => f.path)
+      check(`${plugin.name}: todos sus campos existen en el config.yml`, huerfanos.length === 0, huerfanos.join(', '))
+      if (plugin.roleKey) {
+        check(`${plugin.name}: la clave de papel existe`, real.has(plugin.roleKey), plugin.roleKey)
+      }
+
+      // Un ajuste que imponemos y que luego no aparece en ninguna pantalla es
+      // un ajuste embrujado: el usuario no puede ni verlo ni deshacerlo.
+      for (const papel of plugin.roles ?? [{ value: undefined }]) {
+        const props = serverPropertiesFor(plugin, papel.value)
+        const desconocidas = Object.keys(props).filter(
+          (key) => !PROPERTY_CATALOG.some((def) => def.key === key)
+        )
+        check(
+          `${plugin.name}${papel.value ? ` (${papel.value})` : ''}: sus ajustes salen en Ajustes`,
+          desconocidas.length === 0,
+          desconocidas.join(', ')
+        )
+      }
+    }
+
+    // Las dos puntas de la red se transfieren jugadores: si una no acepta
+    // transferencias, el jugador rebota y se queda fuera.
+    const hardcore = OFFICIAL_PLUGINS.find((p) => p.id === 'hardcore-utility')!
+    check(
+      'la partida acepta transferencias',
+      serverPropertiesFor(hardcore, 'game')['accepts-transfers'] === 'true'
+    )
+    check(
+      'y el lobby también',
+      serverPropertiesFor(hardcore, 'lobby')['accepts-transfers'] === 'true'
+    )
+    check(
+      'solo la partida activa el modo extremo',
+      serverPropertiesFor(hardcore, 'game')['hardcore'] === 'true' &&
+        serverPropertiesFor(hardcore, 'lobby')['hardcore'] === undefined
+    )
+    check(
+      'un papel desconocido no activa el modo extremo',
+      serverPropertiesFor(hardcore, 'no-existe')['hardcore'] === undefined
+    )
+
+    check('vanilla no ofrece plugins oficiales', officialPluginsFor('vanilla').length === 0)
+    check('paper sí', officialPluginsFor('paper').length > 0)
+  })
+
+  // --- Política de reinicio bajo petición -----------------------------------
+
+  await section('Política de reinicio', async () => {
+    const t0 = Date.now()
+
+    check('permite el primer reinicio', evaluateRestart([], t0).allowed)
+
+    // Se agota el cupo dentro de la ventana, uno por segundo.
+    let seguidos: number[] = []
+    for (let i = 0; i < RESTART_LIMIT; i++) {
+      seguidos = evaluateRestart(seguidos, t0 + i * 1_000).recent
+    }
+    check(
+      `acumula ${RESTART_LIMIT} marcas dentro de la ventana`,
+      seguidos.length === RESTART_LIMIT,
+      `${seguidos.length}`
+    )
+    check(
+      `bloquea el reinicio ${RESTART_LIMIT + 1} dentro de la ventana`,
+      !evaluateRestart(seguidos, t0 + RESTART_LIMIT * 1_000).allowed
+    )
+
+    // Repartidos en 20 minutos, las marcas viejas caducan y no se bloquea
+    // nunca: la ventana es deslizante, no un contador absoluto.
+    const paso = 4 * 60_000
+    let repartidos: number[] = []
+    let todosPermitidos = true
+    for (let i = 0; i < RESTART_LIMIT + 1; i++) {
+      const decision = evaluateRestart(repartidos, t0 + i * paso)
+      if (!decision.allowed) todosPermitidos = false
+      repartidos = decision.recent
+    }
+    check(
+      `${RESTART_LIMIT + 1} reinicios repartidos en 20 minutos se permiten todos`,
+      todosPermitidos
+    )
+    check(
+      'solo conserva las marcas de la ventana',
+      repartidos.every((ts) => t0 + RESTART_LIMIT * paso - ts < RESTART_WINDOW_MS),
+      `${repartidos.length} marcas vivas`
+    )
   })
 
   // --- Red (§10) ------------------------------------------------------------

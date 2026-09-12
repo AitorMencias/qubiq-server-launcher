@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { BackupEstimate, BackupInfo, InstanceState } from '@shared/types'
+import type { BackupEstimate, BackupInfo, InstanceState, UiMode } from '@shared/types'
 
 /** Intervalos ofrecidos, en horas. Más fino que esto no aporta nada. */
 const INTERVALS = [1, 2, 3, 6, 12, 24]
@@ -14,17 +14,20 @@ const INTERVALS = [1, 2, 3, 6, 12, 24]
 
 interface Props {
   state: InstanceState
+  mode: UiMode
   progressDetail: string | null
   onManifestChanged: () => void
 }
 
 export function BackupPanel({
   state,
+  mode,
   progressDetail,
   onManifestChanged
 }: Props): React.JSX.Element {
   const { manifest, status } = state
   const running = status !== 'stopped' && status !== 'crashed'
+  const basic = mode === 'basic'
 
   const [backups, setBackups] = useState<BackupInfo[]>([])
   const [estimate, setEstimate] = useState<BackupEstimate | null>(null)
@@ -170,6 +173,16 @@ export function BackupPanel({
         )}
       </div>
 
+      {basic ? (
+        <div className="card">
+          <h3>Copias automáticas</h3>
+          <p className="hint" style={{ marginBottom: 0 }}>
+            {manifest.backup.enabled
+              ? `Se guarda una copia sola cada ${manifest.backup.intervalHours} horas mientras juegas, y siempre antes de cualquier cambio importante. Se conservan las ${manifest.backup.keep} últimas.`
+              : 'Están desactivadas. Puedes activarlas desde el modo avanzado.'}
+          </p>
+        </div>
+      ) : (
       <div className="card">
         <h3>Copias automáticas</h3>
         <p className="hint">
@@ -231,6 +244,7 @@ export function BackupPanel({
           </>
         )}
       </div>
+      )}
 
       <div className="card">
         <h3>Historial</h3>

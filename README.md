@@ -26,11 +26,19 @@ MVP funcional. Las cuatro distribuciones se instalan, arrancan y paran correctam
 
 Funciones disponibles:
 
-- **Crear** — asistente de 3 pasos, Java automático, EULA explícito
+- **Dos modos** — al crear un servidor eliges entre **básico** (no pregunta versión, memoria ni puerto)
+  y **avanzado** (todo). Cambiable después desde la barra lateral.
+- **Crear** — en básico, asistente paso a paso (una pregunta por pantalla) que acaba en un resumen
+  editable; en avanzado, formulario completo. Java automático y EULA explícito en ambos
 - **Lanzar** — arranque supervisado, consola en vivo, parada limpia
 - **Configurar** — editor visual de `server.properties` con lenguaje llano y modo avanzado
 - **Mundos** — varios mundos por servidor: crear, cambiar de uno a otro y borrar
+- **Plugins y mods** — webs donde descargarlos, guía paso a paso, botón para abrir la carpeta y
+  lista de lo instalado con activar/desactivar (solo en Paper, Fabric y Forge)
+- **Plugins oficiales** — los nuestros viajan dentro de la app: se instalan con un botón y se
+  configuran con un formulario, sin tocar ficheros YAML
 - **Moderar** — jugadores conectados con expulsar, banear y dar OP
+- **Borrar** — elimina el servidor con confirmación escribiendo su nombre
 - **Copias de seguridad** — en caliente, restauración, retención y programadas
 - **Conexión** — direcciones local y de red verificadas con Server List Ping real, y elección entre
   abrir puerto en el router o playit.gg, con guía paso a paso y comprobación desde internet
@@ -53,16 +61,21 @@ npm install
 npm run dev
 ```
 
+O simplemente haz doble clic en **`dev.bat`**: se planta en la carpeta del proyecto, instala lo
+que falte la primera vez y arranca el modo desarrollo.
+
 ### Comandos
 
 | Comando | Qué hace |
 |---|---|
 | `npm run dev` | Arranca la app en modo desarrollo con recarga en caliente |
+| `dev.bat` | Lo mismo con doble clic, comprobando antes Node, las dependencias y el binario de Electron |
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 75 comprobaciones: lógica pura, mundos, red y contrato con las APIs externas |
-| `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia y restauración. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge` |
+| `npm run smoke` | 120 comprobaciones: lógica pura, mundos, red, plugins oficiales y contrato con las APIs externas |
+| `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge` |
+| `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
 para otro; sin esta prueba la app se rompería en silencio.
@@ -129,6 +142,7 @@ src/
 │       ├── install/     Una estrategia por distribución + flags de JVM
 │       ├── runtime/     Supervisor de proceso y parseo de log
 │       ├── config/      server.properties con catálogo de opciones humanas
+│       ├── content/     Plugins y mods: carpeta, listado y los oficiales
 │       ├── backup/      Copias en ZIP, restauración y retención
 │       ├── worlds/      Varios mundos por servidor (level-name)
 │       ├── instances/   Ciclo de vida de las instancias
@@ -165,6 +179,60 @@ gracia y avisando.
 **No edites `ops.json`, `whitelist.json` ni `banned-players.json` con el servidor arrancado.** Los
 mantiene en memoria y los reescribe al cerrarse, descartando cambios externos. Con el servidor en
 marcha se actúa por comando.
+
+**En modo básico, cuidado con qué dirección enseñas.** No es siempre la IP local: si el usuario ha
+elegido abrir el puerto del router, sus amigos necesitan la **IP pública**, y mostrarles una
+`192.168.x` hace que no puedan entrar sin entender por qué. La lógica está en `BasicConnection` y
+depende de `exposure.mode`.
+
+**Si tocas la API del preload, reinicia la app entera.** La recarga en caliente actualiza el
+renderer pero no el puente: quedan desincronizados y la ventana sale en blanco, porque el renderer
+llama a algo que aún no existe.
+
+**Un servidor puede pedir que lo reinicies.** Si al terminar deja `hardcore-restart.request` en su
+directorio de trabajo, el launcher lo vuelve a arrancar a los 3 s. Dos reglas que no se pueden
+relajar: **la parada manual siempre gana** (Parar, cerrar la app o borrar la instancia cancelan la
+petición), y **el fichero se borra antes de decidir nada**, porque si sobrevive a un arranque fallido
+se entra en bucle. El límite anti-bucle vive en
+[`core/runtime/restartPolicy.ts`](src/main/core/runtime/restartPolicy.ts) como función pura, para
+poder probarlo sin levantar servidores.
+
+**Al guardar `server.properties`, manda solo las claves que han cambiado.** Enviar el objeto entero
+reescribe con datos viejos lo que haya cambiado fuera del panel mientras estaba abierto — un plugin
+puede mover `level-name` entre medias, y guardar el antiguo apunta a una carpeta borrada y se lleva
+por delante la partida.
+
+**Los plugins oficiales van empaquetados en `resources/plugins/<id>/`**, con su jar y su plantilla de
+`config.yml`. Se copian fuera del asar (`extraResources`) porque hay que ponerlos como ficheros de
+verdad en la carpeta del servidor. Actualizar uno = copiar el jar nuevo ahí y recompilar la app.
+Si añades un campo al catálogo de [`shared/officialPlugins.ts`](src/shared/officialPlugins.ts), el
+smoke comprueba que esa ruta existe en el YAML real, así que no puede quedarse un control que no
+guarde nada.
+
+**Un plugin oficial puede exigir ajustes de `server.properties`** (HardcoreUtility necesita
+`accepts-transfers`, porque el lobby y la partida se pasan a los jugadores entre sí). Se declaran en
+el catálogo, no en el instalador, y los resuelve una sola función —`serverPropertiesFor()`— que usan
+igual la pantalla y el proceso principal, para que lo que se avisa y lo que se escribe no puedan
+divergir. Toda clave que pongas ahí tiene que existir en `PROPERTY_CATALOG`, y el smoke lo exige: un
+ajuste que la app cambia sola y que no sale en ninguna pantalla no hay quien lo encuentre.
+
+**Nunca llames a `tar.exe` a secas: usa `systemTarPath()`.** Git para Windows y MSYS2 ponen un tar de
+GNU en el PATH que entiende `C:\...` como una máquina remota y falla con `Cannot connect to C:
+resolve failed`. Se llevaría por delante las copias de seguridad y la instalación de Java, solo en
+los equipos que tengan esas herramientas.
+
+**El `config.yml` de un plugin se edita por líneas, nunca con un serializador de YAML.** Está lleno
+de comentarios que explican cada opción y volcarlo los borraría todos. `PluginConfigFile` solo cambia
+valores de claves que ya existen; no crea nada.
+
+**Cuando un plugin estrena opciones, hay que fusionarlas en las instalaciones que ya existen.** El
+`config.yml` del usuario es de la versión vieja y no tiene esas claves; como el editor no las crea,
+el campo saldría en el formulario y al guardarlo no pasaría nada. De eso se encarga
+`addMissingFrom(plantilla)` al instalar, al pulsar **Actualizar** y **también al guardar**: copia de
+la plantilla oficial lo que falte —con sus comentarios y en su sección— sin pisar ningún valor que el
+usuario ya tuviera. Que esté en guardar no es redundante: una opción que se ve en pantalla tiene que
+poder guardarse siempre, sin que el usuario sepa que antes tenía que pulsar otro botón. Y si aun así
+alguna clave no cabe en el fichero, se avisa nombrándola, aunque el resto sí se haya guardado.
 
 **El mundo no siempre se llama `world`.** Lo dice `level-name` en `server.properties`, y el usuario
 puede tener varios mundos y cambiar entre ellos. Nunca escribas `'world'` en el código: usa

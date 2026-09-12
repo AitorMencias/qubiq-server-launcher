@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { InstanceState, WorldInfo } from '@shared/types'
+import type { InstanceState, UiMode, WorldInfo } from '@shared/types'
 import { LEVEL_TYPES } from '@shared/types'
 
 /**
@@ -13,12 +13,14 @@ import { LEVEL_TYPES } from '@shared/types'
 
 interface Props {
   state: InstanceState
+  mode: UiMode
   onChanged: () => void
 }
 
-export function WorldsPanel({ state, onChanged }: Props): React.JSX.Element {
+export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Element {
   const { manifest, status } = state
   const running = status !== 'stopped' && status !== 'crashed'
+  const basic = mode === 'basic'
 
   const [worlds, setWorlds] = useState<WorldInfo[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -223,6 +225,8 @@ export function WorldsPanel({ state, onChanged }: Props): React.JSX.Element {
             </div>
           </div>
 
+          {/* La semilla es un concepto de nicho: fuera del modo básico. */}
+          {!basic && (
           <div className="field">
             <label>Semilla (opcional)</label>
             <input
@@ -235,6 +239,7 @@ export function WorldsPanel({ state, onChanged }: Props): React.JSX.Element {
               obtienes exactamente el mismo mundo.
             </div>
           </div>
+          )}
 
           <div className="row between">
             <button

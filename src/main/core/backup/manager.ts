@@ -4,7 +4,7 @@ import type { Dirent } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { BackupInfo, InstanceManifest } from '@shared/types'
-import { backupsDir, serverDir, ensureDir } from '../paths'
+import { backupsDir, serverDir, ensureDir, systemTarPath } from '../paths'
 import * as worlds from '../worlds/manager'
 
 const execFileAsync = promisify(execFile)
@@ -35,7 +35,7 @@ const BACKED_UP_FILES = ['server.properties', 'ops.json', 'whitelist.json', 'ban
  */
 async function runTar(args: string[]): Promise<void> {
   try {
-    await execFileAsync('tar.exe', args, {
+    await execFileAsync(systemTarPath(), args, {
       windowsHide: true,
       maxBuffer: 1024 * 1024 * 16
     })

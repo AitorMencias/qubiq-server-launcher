@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Diagnosis, InstanceState, LogLine, ProgressUpdate } from '@shared/types'
+import type { Diagnosis, InstanceState, LogLine, ProgressUpdate, UiMode } from '@shared/types'
 import { DISTRIBUTION_LABELS } from '@shared/types'
 import { CreateWizard } from './CreateWizard'
+import { BasicWizard } from './BasicWizard'
+import { ModeChooser } from './ModeChooser'
 import { ServerPanel } from './ServerPanel'
 
 /** Límite de líneas en memoria: la consola no puede crecer sin fin. */
@@ -10,12 +12,19 @@ const MAX_LOG_LINES = 2000
 export function App(): React.JSX.Element {
   const [instances, setInstances] = useState<InstanceState[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
+  /**
+   * Flujo de creación: primero se elige el modo (como Vibe/Spec en Kiro) y
+   * después se entra al asistente correspondiente.
+   */
+  const [creating, setCreating] = useState<null | 'choosing' | UiMode>(null)
   const [logs, setLogs] = useState<Record<string, LogLine[]>>({})
   const [players, setPlayers] = useState<Record<string, string[]>>({})
   const [progress, setProgress] = useState<ProgressUpdate | null>(null)
   const [diagnoses, setDiagnoses] = useState<Record<string, Diagnosis>>({})
   const [loadError, setLoadError] = useState<string | null>(null)
+  // Se arranca en básico hasta saber qué prefiere el usuario: es el valor por
+  // defecto del núcleo y evita un parpadeo a avanzado en el primer render.
+  const [mode, setMode] = useState<UiMode>('basic')
 
   const refresh = useCallback(async () => {
     try {
@@ -34,6 +43,24 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  useEffect(() => {
+    void window.qubiq.settings
+      .get()
+      .then((settings) => setMode(settings.uiMode))
+      .catch(() => undefined)
+  }, [])
+
+  function changeMode(next: UiMode): void {
+    setMode(next)
+    void window.qubiq.settings.update({ uiMode: next }).catch(() => undefined)
+  }
+
+  function onInstanceCreated(id: string): void {
+    setCreating(null)
+    setSelectedId(id)
+    void refresh()
+  }
 
   // Suscripción a los eventos del núcleo.
   useEffect(() => {
@@ -103,7 +130,7 @@ export function App(): React.JSX.Element {
         </div>
 
         <div className="instance-list">
-          {instances.length === 0 && !creating && (
+          {instances.length === 0 && creating === null && (
             <p style={{ color: 'var(--muted)', fontSize: 12, padding: 12 }}>
               Todavía no tienes ningún servidor.
             </p>
@@ -112,11 +139,11 @@ export function App(): React.JSX.Element {
             <div
               key={instance.manifest.id}
               className={`instance-item ${
-                instance.manifest.id === selectedId && !creating ? 'active' : ''
+                instance.manifest.id === selectedId && creating === null ? 'active' : ''
               }`}
               onClick={() => {
                 setSelectedId(instance.manifest.id)
-                setCreating(false)
+                setCreating(null)
               }}
             >
               <div className="name">{instance.manifest.name}</div>
@@ -130,9 +157,26 @@ export function App(): React.JSX.Element {
         </div>
 
         <div className="sidebar-footer">
-          <button className="primary" onClick={() => setCreating(true)}>
+          <button className="primary" onClick={() => setCreating('choosing')}>
             + Crear servidor
           </button>
+
+          <div className="mode-switch">
+            <label htmlFor="ui-mode">Modo</label>
+            <select
+              id="ui-mode"
+              value={mode}
+              onChange={(e) => changeMode(e.target.value as UiMode)}
+            >
+              <option value="basic">Básico</option>
+              <option value="advanced">Avanzado</option>
+            </select>
+          </div>
+          <p className="mode-hint">
+            {mode === 'basic'
+              ? 'Lo esencial para jugar. Elegimos por ti lo técnico.'
+              : 'Todos los ajustes: versión, memoria, puerto y consola.'}
+          </p>
         </div>
 
         <div className="disclaimer">
@@ -151,35 +195,65 @@ export function App(): React.JSX.Element {
           </div>
         )}
 
-        {creating && (
+        {creating !== null && (
           <>
             <div className="topbar">
               <h2>Crear un servidor nuevo</h2>
+              {creating !== 'choosing' && (
+                <span className="status">
+                  Modo {creating === 'basic' ? 'básico' : 'avanzado'}
+                </span>
+              )}
+              {creating !== 'choosing' && (
+                <button onClick={() => setCreating('choosing')}>Cambiar de modo</button>
+              )}
             </div>
-            <CreateWizard
-              progress={progress}
-              onCancel={() => setCreating(false)}
-              onCreated={(id) => {
-                setCreating(false)
-                setSelectedId(id)
-                void refresh()
-              }}
-            />
+
+            {creating === 'choosing' && (
+              <ModeChooser
+                current={mode}
+                onCancel={() => setCreating(null)}
+                onChoose={(chosen) => {
+                  // La elección aquí también fija el modo de la app: es la
+                  // preferencia que el usuario acaba de expresar, y así el
+                  // panel del servidor recién creado le habla igual.
+                  changeMode(chosen)
+                  setCreating(chosen)
+                }}
+              />
+            )}
+
+            {creating === 'basic' && (
+              <BasicWizard
+                progress={progress}
+                onCancel={() => setCreating(null)}
+                onCreated={onInstanceCreated}
+              />
+            )}
+
+            {creating === 'advanced' && (
+              <CreateWizard
+                progress={progress}
+                onCancel={() => setCreating(null)}
+                onCreated={onInstanceCreated}
+              />
+            )}
           </>
         )}
 
-        {!creating && selected && (
+        {creating === null && selected && (
           <ServerPanel
             state={selected}
             logs={logs[selected.manifest.id] ?? []}
             players={players[selected.manifest.id] ?? []}
             diagnosis={diagnoses[selected.manifest.id] ?? null}
             progress={progress?.instanceId === selected.manifest.id ? progress : null}
+            mode={mode}
             onRefresh={() => void refresh()}
           />
         )}
 
-        {!creating && !selected && !loadError && (
+        {creating === null && !selected && !loadError && (
           <div className="empty">
             <div style={{ fontSize: 44 }}>🧊</div>
             <div>
@@ -188,7 +262,7 @@ export function App(): React.JSX.Element {
               </strong>
               Crea el primero y estarás jugando en unos minutos.
             </div>
-            <button className="primary" onClick={() => setCreating(true)}>
+            <button className="primary" onClick={() => setCreating('choosing')}>
               Crear mi primer servidor
             </button>
           </div>

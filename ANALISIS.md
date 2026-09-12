@@ -1042,7 +1042,8 @@ cuanto lo mueve, deja de moverse solo.
 
 **Verificación real, no solo compilación:**
 
-- `npm run smoke` — 75 comprobaciones contra las APIs de verdad (test de contrato, §16).
+- `npm run smoke` — 100 comprobaciones contra las APIs de verdad (test de contrato, §16).
+- `npm run e2e:restart` — reinicio a petición del servidor, con sus cuatro casos (§19.11).
 - `npm run e2e [distribución]` — crea un servidor, lo arranca, le hace un ping como el del juego,
   crea una copia **en caliente**, lo para limpiamente y restaura. **Las cuatro distribuciones pasan**,
   Forge incluido.
@@ -1107,6 +1108,15 @@ no tener vuelta atrás, así que antes de tocar el mundo se crea una copia autom
 
 **No se crean copias vacías.** Una instancia recién creada no tiene mundo; hacerle una copia
 "preventiva" solo llenaría el historial de ruido. Se exige que exista la carpeta `world`.
+
+**El `tar.exe` de Windows se invoca por ruta absoluta, nunca por el PATH.** Windows 10/11 trae
+bsdtar en `System32` y es con el que se hacen los ZIP y se descomprime el JDK. Pero Git para
+Windows, MSYS2 y Cygwin instalan un **tar de GNU**, y si su carpeta está en el PATH gana ese. GNU
+tar lee `C:\Users\...` como «máquina `C`, ruta `\Users\...`» e intenta conectarse por red, así que
+falla con `Cannot connect to C: resolve failed`: un mensaje que no menciona ni ZIP ni permisos ni
+nada que lleve al problema real. Copias de seguridad e instalación de Java se romperían las dos, y
+solo en los equipos que tengan esas herramientas, que es la peor forma de fallar. `systemTarPath()`
+lo resuelve desde `%SystemRoot%` y el `smoke` comprueba que lo que hay ahí responde `bsdtar`.
 
 ### 19.4 Server List Ping, implementado a mano
 
@@ -1176,7 +1186,244 @@ el modelo es ese y explica todas las restricciones.
 viejo sin que nadie entendiera por qué. Lo mismo al cambiar de mundo: la semilla solo actúa al
 generar, pero dejarla puesta contaminaría el siguiente que se cree.
 
-### 19.7 Empaquetado
+### 19.7 Modo básico y modo avanzado
+
+El problema de la interfaz completa no era que fuese complicada, sino que **obliga a decidir**:
+versión, memoria, puerto... preguntas que alguien que nunca ha montado un servidor no sabe
+responder. El modo básico no es la misma pantalla con menos botones: es **no preguntar**.
+
+Se guarda en `settings.json` dentro de la carpeta de datos, aparte de los manifiestos, porque
+describe a la persona que usa la app y no a un servidor concreto. **Por defecto arranca en básico.**
+
+**El asistente básico va paso a paso.** Una pregunta por pantalla —nombre, tipo, jugadores— con
+indicador de progreso, en lugar de un formulario entero donde hay que decidir por dónde empezar. Al
+acabar los tres pasos se muestra un **resumen editable**: lo elegido, lo que hemos decidido nosotros
+(versión y memoria, marcados como tales), el enlace "cambiar" en cada línea para volver al paso
+correspondiente, y ahí es donde se acepta el EULA y se crea. Revisar antes de crear evita descubrir
+después que algo estaba mal.
+
+**La elección se pide al crear, no se esconde en un ajuste.** Al pulsar "Crear servidor" aparecen dos
+tarjetas grandes —básico y avanzado— con lo que implica cada una, al estilo del Vibe/Spec de Kiro.
+El motivo es que no es un ajuste más: decide qué tipo de conversación va a tener la app contigo, y
+dejarlo en un desplegable lateral condenaría a quien no sabe del tema a encontrarse el formulario
+completo sin haber elegido nada. Elegir ahí fija también el modo de la app, para que el panel del
+servidor recién creado le hable igual que el asistente. El selector de la barra lateral sigue estando
+como vía para cambiar de opinión en cualquier momento.
+
+| | Básico | Avanzado |
+|---|---|---|
+| **Versión** | La última estable, elegida sola. Se informa, no se pregunta. | Desplegable con todas |
+| **Memoria** | La recomendada según los jugadores, sin control | Control manual |
+| **Puerto** | El primero libre desde 25565 | Campo editable |
+| **Dirección** | **Una sola**: la que hay que pasar a los amigos | Las tres, con adaptador y latencia |
+| **Consola** | Oculta | Visible |
+| **Ficha técnica** | Oculta (Java, build, memoria) | Visible |
+| **Ajustes** | Solo las opciones básicas | Con interruptor de avanzadas |
+| **Copias** | Botón manual + resumen de las automáticas | Intervalo, retención y estimación |
+| **Mundos** | Nombre y tipo | Añade la semilla |
+| **Reinstalar** | Oculto | Visible |
+| **Borrar servidor** | **Visible** (querer deshacerse de uno es tan básico como crearlo) | Visible |
+
+**Lo que NO se oculta: la dirección del servidor.** Ocultarla del todo dejaría la app inservible
+para lo único que le importa al usuario, que es meter a sus amigos. Lo que se evita es el listado
+técnico donde hay que adivinar cuál de las tres direcciones sirve.
+
+**Y en el puerto se aprovecha para prevenir un fallo:** en vez de fijar 25565 a ciegas, se coge el
+primero libre. Tener ya otro servidor abierto habría producido un `FAILED TO BIND TO PORT` que en
+modo básico no habría sabido interpretar nadie (§7).
+
+### 19.8 Plugins y mods
+
+Pestaña propia, que solo aparece en Paper, Fabric y Forge — vanilla no admite ni una cosa ni otra, y
+mostrarle la pestaña sería prometer algo que no puede cumplir.
+
+**La app no descarga por ti, a propósito.** Descargar y ejecutar código de terceros en nombre del
+usuario es otra responsabilidad, y de momento se prefiere el camino honesto: llevarle a las webs
+buenas, decirle exactamente qué filtrar, abrirle la carpeta correcta y enseñarle qué hay dentro. La
+integración con la API de Modrinth (§4.8) sigue en la hoja de ruta para automatizarlo.
+
+**Lo primero que se ve es el aviso que decide si va a funcionar:**
+
+| | Se instala en | Consecuencia |
+|---|---|---|
+| **Plugins** (Paper) | Solo en el servidor | Los amigos entran con su Minecraft normal, sin instalar nada |
+| **Mods** (Forge/Fabric) | Servidor **y** en el Minecraft de cada jugador | Quien no los tenga **no podrá entrar** |
+
+Confundir esas dos cosas es el motivo número uno de "mis amigos no pueden entrar", así que va arriba
+del todo y con el color del tipo de aviso que corresponde, no escondido en un párrafo.
+
+**Otros detalles que evitan el fallo típico:**
+
+- La versión de Minecraft y el tipo de servidor se muestran destacados **antes** de los enlaces:
+  son los dos filtros que hay que aplicar en la web, y bajarse el archivo equivocado es lo normal.
+- En Fabric se avisa de que **casi todos los mods necesitan Fabric API**, con enlace directo. Sin
+  ella el mod no arranca y el error no lo dice claro.
+- La carpeta se **crea al vuelo** al pulsar el botón: en un servidor recién instalado que aún no ha
+  arrancado, `plugins/` o `mods/` todavía no existe y el botón no llevaría a ninguna parte.
+- Se listan los archivos instalados, para poder comprobar que el que has pegado ha llegado.
+- **Desactivar en vez de borrar**: renombra a `.jar.disabled`, que las tres distribuciones ignoran.
+  Es la salida cuando un mod impide arrancar — se descarta sin perderlo (§16).
+- Los nombres de fichero se validan contra rutas (`..`, barras): la operación de borrado no puede
+  salirse de su carpeta.
+
+### 19.9 Plugins oficiales integrados
+
+Un catálogo de plugins propios que la aplicación sabe **instalar y configurar** sin salir de ella.
+Para todo lo demás sigue estando la pestaña de siempre, que lleva a Modrinth y compañía; la
+diferencia es que de estos conocemos el jar y el formato de su configuración.
+
+**Van empaquetados, no se descargan.** El repositorio del plugin no es ni siquiera un repositorio
+git: no hay releases de las que tirar. La consecuencia hay que asumirla con los ojos abiertos:
+**actualizar el plugin obliga a copiar el jar nuevo y recompilar la aplicación**. El modelo incluye
+`distributions` desde el principio, así que añadir un mod de Fabric o Forge más adelante —o una
+fuente de descarga cuando el plugin se publique— no obliga a rehacer nada.
+
+**La plantilla de `config.yml` también viaja con la app**, y se escribe al instalar. Sin eso habría
+que arrancar el servidor una vez solo para que el plugin generara el fichero, pararlo y entonces
+configurarlo. Bukkit no sobrescribe una configuración que ya existe, así que adelantarla es seguro y
+se ahorra ese baile absurdo.
+
+**El `config.yml` se edita por líneas, no con un serializador de YAML** — misma decisión y mismo
+motivo que `PropertiesFile` para `server.properties` (§8). El fichero del plugin está lleno de
+comentarios que explican cada opción; volcarlo con un serializador los borraría todos y quien lo
+abriera a mano se encontraría un YAML mudo. El editor solo sabe cambiar el valor de una clave que ya
+existe: **nunca crea claves ni secciones**, así que si el plugin cambia su esquema esto no inventa
+nada. Además solo se escriben rutas que el catálogo reconoce, para que la interfaz no pueda tocar
+partes arbitrarias del YAML.
+
+**El aviso de modo extremo.** HardcoreUtility solo tiene sentido en hardcore, así que elegir el papel
+de "partida" muestra un aviso en rojo explicando qué cambia —dificultad a Difícil, al morir se queda
+de espectador y el mundo se reinicia— y el botón pasa a decir *"Entendido, instalar y activar modo
+extremo"*. Al aceptar, **se activa de verdad**: `hardcore=true`, `difficulty=hard` y
+`gamemode=survival`. Prometerlo y no hacerlo dejaría la serie en supervivencia normal sin que nadie
+se enterara hasta morirse y reaparecer tan tranquilo.
+
+**Los ajustes que el plugin necesita se aplican al instalarlo.** HardcoreUtility monta una red de dos
+servidores que se pasan a los jugadores con el paquete de transferencia: el lobby los manda a la
+partida y la partida los devuelve al acabar la run. Un servidor con `accepts-transfers=false`
+—el valor de fábrica— **rechaza a quien llega desde el otro**, y el jugador se queda fuera con un
+error que no menciona ni transferencias ni el plugin. Así que al instalarlo se activa, en los dos
+papeles, y la pantalla lo dice antes de hacerlo.
+
+La lista vive en el catálogo (`serverProperties`), no en el código de instalación, y hay **una sola
+función** —`serverPropertiesFor(plugin, papel)`— que la resuelve para la interfaz y para el proceso
+principal. Calcularlo dos veces terminaría con una pantalla que promete una cosa y un proceso que
+escribe otra. El `smoke` exige además que **toda clave impuesta exista en `PROPERTY_CATALOG`**: un
+ajuste que la aplicación cambia por su cuenta y que luego no aparece en ninguna pantalla es un ajuste
+embrujado, imposible de ver ni de deshacer.
+
+**Las direcciones locales, y el motivo por el que existen.** El lobby y la partida se mandan
+jugadores entre sí dándoles una dirección. Si esa dirección es la IP pública, quien juegue desde la
+propia casa —el anfitrión el primero— no llega: casi ningún router doméstico permite salir a
+internet y volver a entrar a su propia red (NAT loopback). El plugin resolvió esto con una segunda
+dirección para las conexiones locales, y el formulario la expone: *"Dirección del lobby dentro de
+casa"* y su puerto, en los dos papeles. Vacío o 0 significa «usa la de arriba», que es el
+comportamiento de antes.
+
+**Añadir opciones a un plugin rompe las instalaciones anteriores, si no se hace nada.** El fichero
+del usuario es de la versión vieja y no tiene las claves nuevas; como el editor **no crea claves**,
+el campo aparecería en el formulario y al guardarlo no pasaría nada — justo el fallo silencioso que
+el resto del diseño evita. Por eso existe `addMissingFrom(plantilla)`, que no contradice la regla:
+ahí las claves no se inventan, **se copian de la plantilla oficial**, con sus comentarios y en su
+sitio, y jamás pisan un valor que el usuario ya tuviera. Hasta el espaciado se copia de la plantilla
+en vez de adivinarlo, para que el fichero fusionado quede como el original.
+
+La fusión se hace en los dos sitios donde hace falta: al instalar **y al guardar**. Ponerla solo en
+instalar no bastó, y se vio en cuanto se usó de verdad: con una configuración anterior, guardar no
+daba error —porque el resto de opciones sí se escribían— y el campo se vaciaba al recargar. Dos
+lecciones que valen para el resto de la aplicación: **una opción visible en pantalla tiene que poder
+guardarse siempre**, sin que el usuario sepa que antes debía pulsar otro botón; y **lo que no se
+guarda hay que decirlo**, aunque lo demás sí se haya guardado. Antes solo se avisaba si fallaban
+todas, que es justo el caso que nunca pasa.
+
+**Y un botón "Actualizar"**, porque el número de versión no siempre cambia cuando el plugin sí:
+vuelve a copiar el jar que trae la aplicación y fusiona las opciones nuevas conservando las tuyas.
+Que hace falta se detecta **comparando el jar instalado con el empaquetado byte a byte**, no por el
+número de versión: un plugin en desarrollo cambia muchas veces sin tocarlo. Si difieren, la ficha
+marca *"Hay una versión nueva"* y el formulario avisa de que las opciones nuevas no harán efecto
+hasta actualizar — porque guardar una opción que el jar instalado no entiende sí escribe en el
+fichero, pero no hace nada, y eso es otro fallo silencioso con distinto disfraz.
+
+**Quitar conserva la configuración.** Dentro está la clave compartida y las direcciones de los dos
+servidores, que es lo más molesto de rehacer. Los ajustes de `server.properties` tampoco se revierten:
+quien tenga montada la red puede querer seguir aceptando transferencias, y deshacerlo por sorpresa
+sería otra forma del mismo problema.
+
+**Verificación.** 39 comprobaciones en `smoke` contra la **plantilla real** del plugin, no contra un
+YAML inventado — incluida una que valida que **todos los campos del formulario existen de verdad en
+el `config.yml`**, de forma que un cambio de esquema en el plugin se detecta en vez de dejar
+controles que no guardan nada. El `e2e` recorre el ciclo completo: comprobar que de fábrica no acepta
+transferencias, instalar, ver que activa el modo extremo y las transferencias, guardar configuración
+de los tres tipos, desinstalar conservando el YAML, y reinstalar como lobby para comprobar que ese
+papel también acepta transferencias pero **no** se pone en modo extremo. La fusión se prueba en los
+dos sitios: en `smoke` contra una configuración antigua escrita a mano (posición, comentarios, no
+duplicar, idempotencia, y un fichero vacío que se reconstruye entero) y en `e2e` sobre el fichero
+real de un servidor, quitándole las opciones nuevas y comprobando que **guardar** funciona igual
+sobre esa configuración antigua, que el jar cambiado se detecta y que "Actualizar" lo devuelve, todo
+ello sin tocar la clave compartida.
+
+### 19.10 Borrar un servidor
+
+El núcleo sabía borrar desde el principio y el canal IPC estaba puesto, pero **nunca se llegó a poner
+el botón**: la función existía entera y era inalcanzable desde la interfaz. Un recordatorio de que
+"está implementado" y "se puede usar" no son lo mismo.
+
+Al ponerlo, la confirmación **no es un "¿seguro?"**: hay que escribir el nombre del servidor. El
+motivo no es ceremonia, es que obliga a leer qué se está borrando — justo lo que falla cuando alguien
+tiene varios servidores parecidos y pulsa en el equivocado.
+
+El diálogo enumera lo que se va a perder con cifras reales (cuántos mundos, cuántas copias) en lugar
+de un aviso genérico que nadie lee. Y avisa de algo que no es evidente: **las copias de seguridad
+viven dentro de la carpeta del servidor**, así que se van con él; si quieres conservar el mundo hay
+que sacarlo antes con "Abrir carpeta".
+
+Está disponible en los dos modos. Querer deshacerse de un servidor es tan básico como crearlo; lo que
+cambia entre modos es el texto, no el acceso.
+
+### 19.11 Reinicio a petición del servidor
+
+Pedido para integrar **HardcoreUtility**, un plugin de series hardcore que al morir alguien prepara un
+mundo nuevo y necesita que el servidor vuelva a arrancar. El contrato es deliberadamente pobre: el
+plugin deja `hardcore-restart.request` en el directorio de trabajo y se apaga. **No hace falta ninguna
+API ni puerto nuevo** — el launcher ya es dueño de esa carpeta.
+
+**La regla que gobierna todo: la parada manual siempre gana.** Si el usuario pulsa Parar, cierra la
+app o borra la instancia, la petición se descarta aunque el fichero esté ahí. Para poder distinguirlo
+el evento `exit` del supervisor pasó a llevar un segundo dato, `requested`, que dice si el cierre lo
+pidió el usuario o lo decidió el servidor. Sin eso no hay forma de saberlo desde fuera.
+
+**Decisiones que evitan bucles**, que es el riesgo real de reiniciar automáticamente:
+
+| Decisión | Por qué |
+|---|---|
+| El fichero se **borra antes de decidir nada** | Si quedara en disco y el arranque siguiente fallara, se reintentaría sin fin. Y si el borrado falla, no se reinicia. |
+| Si no se puede borrar, **no se reinicia** | Mejor quedarse corto que entrar en bucle. |
+| Máximo **5 reinicios en 10 minutos** | Un plugin que se porte mal no puede dejar el equipo arrancando servidores sin parar. Al superarlo se avisa y se para. |
+| La política es una **función pura** (`restartPolicy.ts`) | Se prueba en `smoke` sin arrancar un solo servidor — es justo el tipo de lógica que se rompe en silencio. |
+
+Se reinicia **aunque el código de salida no sea 0**: que el fichero exista demuestra que el plugin ya
+había hecho su trabajo. Y no hay riesgo de bucle porque un fallo *al arrancar* nunca tendrá fichero,
+que se borró en el paso anterior.
+
+**Un fallo de pérdida de datos que salió al revisar esto.** `ConfigPanel` enviaba **todos** los
+valores cargados al abrir el panel, no solo los tocados. El escenario: el panel de Ajustes queda
+abierto, el plugin cambia `level-name` al terminar una partida, y más tarde el usuario cambia el MOTD
+y guarda → se reescribe el `level-name` viejo, que apunta a una carpeta ya borrada, y **se pierde la
+run en curso**. Ahora solo se mandan las claves que han cambiado. El fallo existía al margen de esta
+integración: afectaba a cualquier clave modificada fuera del panel.
+
+También se añadió **`accepts-transfers`** al catálogo de ajustes (nivel avanzado), que el montaje
+lobby + partida necesita y hasta ahora solo se podía activar editando el fichero a mano.
+
+**Verificación:** `npm run e2e:restart` levanta un Paper real y cubre los cuatro casos — el plugin
+pide reiniciar, se apaga sin pedir nada, la parada manual con petición pendiente, y el usuario
+arrancando a mano durante los 3 s de espera. Los cuatro en verde.
+
+**Fuera de alcance a propósito:** el launcher no borra mundos, no toca `level-name` ni lee el
+historial de runs; todo eso es del plugin. Y no se mezcla con `manifest.autoRestart`, que sería
+reiniciar tras una caída: aquí solo se reinicia si existe el fichero.
+
+### 19.12 Empaquetado
 
 `npm run dist` genera con electron-builder un **instalador NSIS** y un **ejecutable portable**
 (~106 MB cada uno). Verificado ejecutando el portable: abre, carga las instancias existentes,
@@ -1193,7 +1440,7 @@ arranca un servidor de verdad, responde al Server List Ping y hace la parada lim
 | **Icono propio** | Generado para el proyecto: cuadrado redondeado con degradado y monograma. Sin fuentes, texturas ni assets de Minecraft, como exige §13.1. |
 | **Sin firmar** | Por decisión de §13.3. SmartScreen avisará en la primera ejecución; está documentado en el README junto a los dos clics necesarios. |
 
-### 19.8 Siguiente
+### 19.13 Siguiente
 
 **Ahora (uso privado):**
 

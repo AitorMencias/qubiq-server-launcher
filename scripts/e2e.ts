@@ -10,9 +10,9 @@
 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { mkdtemp, rm, access, readdir, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, access, readdir, writeFile, readFile } from 'node:fs/promises'
 
-import { setDataRoot, serverDir } from '../src/main/core/paths'
+import { setDataRoot, setResourcesRoot, serverDir } from '../src/main/core/paths'
 import { service } from '../src/main/core/service'
 import * as catalog from '../src/main/core/versions/catalog'
 import type { Distribution } from '../src/shared/types'
@@ -72,6 +72,9 @@ function waitFor(
 async function main(): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), 'qubiq-e2e-'))
   setDataRoot(root)
+  // Los jars de los plugins oficiales viven en el repositorio; empaquetados irían
+  // junto al ejecutable. Fuera de Electron hay que decírselo a mano.
+  setResourcesRoot(join(process.cwd(), 'resources'))
   await service.initialize()
   console.log(`Distribución: ${DISTRIBUTION}`)
   console.log(`Datos temporales en ${root}\n`)
@@ -301,6 +304,231 @@ async function main(): Promise<void> {
     'guarda copia de seguridad del estado previo antes de sobrescribir',
     afterRestore.length > list.length,
     `${afterRestore.length} copias`
+  )
+
+  // --- Plugins y mods (§4.8) ------------------------------------------------
+
+  console.log('\n== Plugins y mods')
+
+  const content0 = await service.listContent(manifest.id)
+  const expectedKind = DISTRIBUTION === 'paper' ? 'plugins' : DISTRIBUTION === 'vanilla' ? null : 'mods'
+  check('detecta el tipo de contenido', content0.kind === expectedKind, String(content0.kind))
+
+  if (expectedKind !== null) {
+    // La carpeta debe crearse aunque el servidor no la haya generado aún: si
+    // no, el botón "abrir carpeta" no llevaría a ninguna parte.
+    const folder = await service.contentFolder(manifest.id)
+    check('la carpeta existe tras pedirla', folder !== null && (await exists(folder)), folder ?? '')
+
+    // Se simula que el usuario pega un .jar en la carpeta.
+    const fake = join(folder!, 'plugin-de-prueba.jar')
+    await writeFile(fake, 'no es un jar de verdad, solo para la prueba', 'utf8')
+
+    const listed = await service.listContent(manifest.id)
+    const item = listed.items.find((i) => i.fileName === 'plugin-de-prueba.jar')
+    check('aparece el fichero pegado', item !== undefined, `${listed.items.length} elementos`)
+    check('se marca como activo', item?.enabled === true)
+
+    // Desactivar renombra a .jar.disabled: el servidor deja de cargarlo pero
+    // el fichero no se pierde, que es la salida cuando un mod rompe el arranque.
+    const afterOff = await service.setContentEnabled(manifest.id, 'plugin-de-prueba.jar', false)
+    const off = afterOff.items[0]
+    check('desactivar lo renombra', off?.fileName === 'plugin-de-prueba.jar.disabled', off?.fileName)
+    check('y queda marcado como inactivo', off?.enabled === false)
+    check('el .jar original ya no existe', !(await exists(fake)))
+
+    const afterOn = await service.setContentEnabled(
+      manifest.id,
+      'plugin-de-prueba.jar.disabled',
+      true
+    )
+    check('reactivar lo devuelve a .jar', afterOn.items[0]?.fileName === 'plugin-de-prueba.jar')
+
+    // No debe poder salirse de su carpeta.
+    check(
+      'rechaza nombres con ruta',
+      await rejects(() => service.removeContent(manifest.id, '../../server.properties'))
+    )
+    check(
+      'server.properties sigue intacto',
+      await exists(join(dir, 'server.properties'))
+    )
+
+    const afterRemove = await service.removeContent(manifest.id, 'plugin-de-prueba.jar')
+    check('borrar lo elimina', afterRemove.items.length === 0)
+  }
+
+  // --- Plugins oficiales (§4.8) ---------------------------------------------
+
+  if (DISTRIBUTION === 'paper') {
+    console.log('\n== Plugins oficiales')
+
+    const before = await service.listOfficialPlugins(manifest.id)
+    check('hay catálogo para Paper', before.length > 0, `${before.length}`)
+    check('todavía no está instalado', before[0]?.installed === false)
+
+    // Se comprueba el punto de partida: si ya estuviera en true, el "true" de
+    // después no probaría nada.
+    const antes = await service.getProperties(manifest.id)
+    check(
+      'de fábrica no acepta transferencias',
+      antes['accepts-transfers'] === 'false',
+      antes['accepts-transfers']
+    )
+
+    // Instalar con el papel de "partida" tiene que activar el modo extremo:
+    // la interfaz lo promete en el aviso y aquí se comprueba que se cumple.
+    const after = await service.installOfficialPlugin(manifest.id, 'hardcore-utility', 'game')
+    const hu = after.find((p) => p.id === 'hardcore-utility')
+    check('queda instalado y activo', hu?.installed === true && hu?.enabled === true)
+    check('con su configuración ya creada', hu?.hasConfig === true)
+    check('y con el papel elegido', hu?.role === 'game', hu?.role ?? '')
+
+    const jarPath = join(dir, 'plugins', 'HardcoreUtility-0.1.0.jar')
+    check('el jar está en plugins/', await exists(jarPath))
+
+    const props = await service.getProperties(manifest.id)
+    check('activa el modo extremo', props['hardcore'] === 'true', props['hardcore'])
+    check('y pone la dificultad en difícil', props['difficulty'] === 'hard', props['difficulty'])
+    check(
+      'y acepta transferencias desde el lobby',
+      props['accepts-transfers'] === 'true',
+      props['accepts-transfers']
+    )
+
+    // Configurar desde la app, sin abrir el YAML.
+    const saved = await service.setOfficialPluginConfig(manifest.id, 'hardcore-utility', {
+      'api-token': 'clave-de-prueba',
+      'game.lobby-port': 25565,
+      'game.pregeneration.enabled': false
+    })
+    const savedHu = saved.find((p) => p.id === 'hardcore-utility')
+    check('guarda una cadena', savedHu?.config['api-token'] === 'clave-de-prueba')
+    check('guarda un número', savedHu?.config['game.lobby-port'] === '25565')
+    check('guarda un booleano', savedHu?.config['game.pregeneration.enabled'] === 'false')
+
+    const configPath = join(dir, 'plugins', 'HardcoreUtility', 'config.yml')
+    const rawConfig = await readFile(configPath, 'utf8')
+    check('conserva los comentarios del plugin', rawConfig.includes('Clave compartida'))
+
+    // Las direcciones locales (el problema del NAT: desde casa no se entra por
+    // la IP pública) son opciones nuevas del plugin.
+    const conLocal = await service.setOfficialPluginConfig(manifest.id, 'hardcore-utility', {
+      'game.lobby-local-host': '192.168.1.50',
+      'game.lobby-local-port': 25565
+    })
+    const localHu = conLocal.find((p) => p.id === 'hardcore-utility')
+    check('guarda la dirección local del lobby', localHu?.config['game.lobby-local-host'] === '192.168.1.50')
+    check('y su puerto', localHu?.config['game.lobby-local-port'] === '25565')
+
+    // El caso de quien ya tenía el plugin de antes: se le pone una
+    // configuración sin las opciones nuevas y se comprueba que "Actualizar" se
+    // las añade sin tocar lo que él tenía puesto.
+    const antigua = (await readFile(configPath, 'utf8'))
+      .split(/\r?\n/)
+      .filter((line) => !line.includes('-local-host') && !line.includes('-local-port'))
+      .join('\r\n')
+    await writeFile(configPath, antigua, 'utf8')
+
+    const sinOpciones = await service.listOfficialPlugins(manifest.id)
+    check(
+      'una configuración antigua no tiene las opciones nuevas',
+      sinOpciones.find((p) => p.id === 'hardcore-utility')?.config['game.lobby-local-host'] ===
+        undefined
+    )
+
+    // El fallo que se coló: guardar sobre una configuración antigua no daba
+    // error y tampoco escribía nada, así que el campo se vaciaba al recargar.
+    const rescatado = await service.setOfficialPluginConfig(manifest.id, 'hardcore-utility', {
+      'game.lobby-local-host': '10.0.0.7'
+    })
+    const rescatadoHu = rescatado.find((p) => p.id === 'hardcore-utility')
+    check(
+      'guardar sobre una configuración antigua funciona igual',
+      rescatadoHu?.config['game.lobby-local-host'] === '10.0.0.7',
+      rescatadoHu?.config['game.lobby-local-host']
+    )
+    check(
+      'y no se pierde lo que ya había',
+      rescatadoHu?.config['api-token'] === 'clave-de-prueba'
+    )
+
+    // Un jar distinto del que trae la app tiene que detectarse por contenido:
+    // el plugin cambia sin cambiar de número de versión, así que la versión no
+    // sirve para distinguirlos.
+    check('con el jar de la app está al día', rescatadoHu?.upToDate === true)
+    await writeFile(jarPath, 'no soy el jar de verdad', 'utf8')
+    const desfasado = await service.listOfficialPlugins(manifest.id)
+    check(
+      'detecta que el jar instalado es otro',
+      desfasado.find((p) => p.id === 'hardcore-utility')?.upToDate === false
+    )
+
+    const actualizado = await service.installOfficialPlugin(manifest.id, 'hardcore-utility', 'game')
+    check(
+      'actualizar devuelve el jar de la aplicación',
+      actualizado.find((p) => p.id === 'hardcore-utility')?.upToDate === true
+    )
+    const actualizadoHu = actualizado.find((p) => p.id === 'hardcore-utility')
+    check(
+      'actualizar mantiene las opciones nuevas',
+      actualizadoHu?.config['game.lobby-local-host'] === '10.0.0.7',
+      actualizadoHu?.config['game.lobby-local-host']
+    )
+    check(
+      'y conserva lo que el usuario tenía configurado',
+      actualizadoHu?.config['api-token'] === 'clave-de-prueba',
+      actualizadoHu?.config['api-token']
+    )
+    const trasActualizar = await readFile(configPath, 'utf8')
+    check('con el comentario que las explica', trasActualizar.includes('casi ningun router'))
+    check('y sin duplicar nada', trasActualizar.split('lobby-local-host:').length - 1 === 1)
+
+    // Quitar conserva la configuración: rehacer la clave y las direcciones es
+    // lo más molesto de montar esto.
+    const removed = await service.uninstallOfficialPlugin(manifest.id, 'hardcore-utility', false)
+    const removedHu = removed.find((p) => p.id === 'hardcore-utility')
+    check('se puede quitar', removedHu?.installed === false)
+    check('el jar desaparece', !(await exists(jarPath)))
+    check('pero su configuración se conserva', removedHu?.hasConfig === true)
+
+    // El otro papel también recibe jugadores (la partida los devuelve al
+    // acabar), así que también tiene que aceptar transferencias. Se vuelve al
+    // punto de partida para que la comprobación signifique algo.
+    await service.setProperties(manifest.id, { 'accepts-transfers': 'false', hardcore: 'false' })
+    await service.installOfficialPlugin(manifest.id, 'hardcore-utility', 'lobby')
+    const lobbyProps = await service.getProperties(manifest.id)
+    check(
+      'el lobby también acepta transferencias',
+      lobbyProps['accepts-transfers'] === 'true',
+      lobbyProps['accepts-transfers']
+    )
+    check(
+      'pero el lobby no se pone en modo extremo',
+      lobbyProps['hardcore'] === 'false',
+      lobbyProps['hardcore']
+    )
+  }
+
+  // --- Borrado de la instancia ----------------------------------------------
+
+  console.log('\n== Borrar el servidor')
+
+  const instanceRoot = join(root, 'instances', manifest.id)
+  check('la carpeta de la instancia existe antes', await exists(instanceRoot))
+
+  await service.remove(manifest.id)
+
+  check('la carpeta desaparece por completo', !(await exists(instanceRoot)))
+  const remaining = await service.list()
+  check(
+    'ya no aparece en la lista',
+    !remaining.some((i) => i.manifest.id === manifest.id),
+    `${remaining.length} instancias`
+  )
+  check(
+    'consultarla después falla limpiamente',
+    await rejects(() => service.get(manifest.id))
   )
 
   await rm(root, { recursive: true, force: true })

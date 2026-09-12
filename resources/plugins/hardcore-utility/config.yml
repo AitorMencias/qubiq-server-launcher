@@ -1,0 +1,126 @@
+# ─────────────────────────────────────────────────────────────
+#  HardcoreUtility
+#  Instala el MISMO .jar en los dos servidores y cambia "mode".
+# ─────────────────────────────────────────────────────────────
+
+# "lobby" = sala de espera | "game" = servidor de la partida hardcore
+mode: game
+
+# Clave compartida entre lobby y partida. Tiene que ser IGUAL en los dos.
+api-token: "cambia-esta-clave"
+
+# ── Solo se usa con mode: game ───────────────────────────────
+game:
+  # API interna que consulta el lobby. Si los dos servidores están en
+  # el mismo PC deja 127.0.0.1 (no hace falta abrir este puerto).
+  api-bind: "127.0.0.1"
+  api-port: 25580
+
+  # Dirección con la que los JUGADORES entran al lobby.
+  # Se usa para devolverlos al lobby cuando termina la run.
+  lobby-host: "localhost"
+  lobby-port: 25565
+
+  # Direccion del lobby para quien juega desde este mismo PC o desde tu red
+  # local: casi ningun router deja entrar por la IP publica desde dentro de casa.
+  # Vacio o 0 = usar las de arriba.
+  lobby-local-host: ""
+  lobby-local-port: 0
+
+  # Expulsa a quien entre directamente sin pasar por el lobby.
+  # Quien tenga hardcoreutility.admin (OPs) puede entrar siempre.
+  require-transfer: true
+
+  # Segundos entre la muerte y la vuelta al lobby.
+  return-delay-seconds: 8
+
+  # true = mueve el mundo terminado a "hardcore-archive/" en vez de borrarlo.
+  archive-old-worlds: false
+
+  pregeneration:
+    # Requiere el plugin Chunky. Si no está instalado se omite.
+    enabled: true
+    # Radio en bloques alrededor del spawn del mundo normal.
+    radius: 1000
+    # Radio en bloques para el Nether (0 = no pregenerar).
+    nether-radius: 0
+    shape: "square"
+    pattern: "concentric"
+    # true = el lobby no deja empezar hasta que termine la pregeneración.
+    wait-until-complete: true
+
+# ── Solo se usa con mode: lobby ──────────────────────────────
+lobby:
+  # URL de la API de la partida (game.api-bind + game.api-port).
+  api-url: "http://127.0.0.1:25580"
+
+  # Dirección con la que los JUGADORES entran a la partida.
+  game-host: "localhost"
+  game-port: 25566
+
+  # Direccion de la partida para quien juega desde este mismo PC o desde tu red
+  # local: casi ningun router deja entrar por la IP publica desde dentro de casa.
+  # Vacio o 0 = usar las de arriba.
+  game-local-host: ""
+  game-local-port: 0
+
+  # Cada cuántos segundos se consulta el estado de la partida.
+  poll-interval-seconds: 2
+
+  # Jugadores mínimos (todos listos) para empezar.
+  min-players: 1
+
+  # Cuenta atrás cuando todos están listos.
+  countdown-seconds: 5
+
+  # Si hay una run en curso, quien entre al lobby pasa directamente a la partida.
+  auto-join-running-run: true
+
+# ── Mensajes ─────────────────────────────────────────────────
+# Formato MiniMessage: https://docs.papermc.io/adventure/minimessage/format/
+messages:
+  prefix: "<dark_red>☠</dark_red> <gray>"
+  only-players: "<red>Este comando solo lo pueden usar jugadores."
+
+  bossbar-offline: "<gray>Servidor de partida apagado o reiniciando…"
+  bossbar-generating: "<yellow>Generando mundo nuevo…"
+  bossbar-pregenerating: "<yellow>Preparando la run #<run>: <white><progress>%</white> · Listos <white><ready>/<online></white> · <white>/listo"
+  bossbar-ready: "<green>Run #<run> lista · Listos <white><ready>/<online></white> · Escribe <white>/listo"
+  bossbar-running: "<aqua>Run #<run> en curso · <white>/listo</white> para unirte"
+  bossbar-ending: "<red>Run terminada · preparando mundo nuevo…"
+
+  lobby-tab-footer: "<newline><gray>Muertes totales: <red><deaths></red>  ·  Próxima run: <white>#<run></white><newline>"
+  game-tab-footer: "<newline><gray>Run <white>#<run></white>  ·  Tiempo <white><time></white>  ·  Muertes <red><deaths></red><newline>"
+
+  ready-on: "<green>Estás listo.</green> <gray>(<ready>/<online>)"
+  ready-off: "<yellow>Ya no estás listo.</yellow> <gray>(<ready>/<online>)"
+  ready-unavailable: "<red>La partida no está disponible todavía."
+  joining-running-run: "<aqua>Hay una run en curso (#<run>), entrando…"
+
+  countdown-title: "<green><bold><seconds>"
+  countdown-subtitle: "<gray>Entrando a la run #<run>"
+  countdown-cancelled: "<red>Cuenta atrás cancelada."
+  countdown-already-running: "<yellow>Ya hay una cuenta atrás en marcha."
+
+  run-end-title: "<dark_red><bold>RUN #<run> TERMINADA"
+  run-end-subtitle: "<red><player></red> <gray>· <cause>"
+  run-end-chat: "<red><player></red> ha terminado la run #<run> tras <white><duration></white>. Muertes totales: <red><deaths></red>"
+  reset-without-run: "<yellow>Reiniciando el mundo sin registrar la run (nadie había empezado)."
+  manual-end-cause: "Reinicio manual"
+
+  kick-not-ready: "<red>El mundo aún se está generando.<newline><gray>Entra por el lobby: <white><lobby>"
+  kick-direct-join: "<red>Para jugar entra por el lobby:<newline><white><lobby>"
+  kick-run-ended: "<red>La run ha terminado.<newline><gray>Vuelve al lobby: <white><lobby>"
+
+  runs-header: "<gold>Últimas runs</gold> <gray>(<total> runs · <red><deaths></red> muertes)"
+  runs-line: "<gray>#<run> <white><duration></white> · <red><player></red> — <cause>"
+  runs-empty: "<gray>Todavía no hay runs registradas."
+  runs-usage: "<red>Uso: /runs [número de run]"
+  run-not-found: "<red>No existe la run #<run>."
+  run-detail: "<gold>Run #<run></gold><newline><gray>Fecha: <white><date></white><newline><gray>Duración: <white><duration></white><newline><gray>Final: <red><player></red> — <cause><newline><gray>Seed: <white><seed></white> <dark_gray>(clic para copiar)</dark_gray><newline><gray>Jugadores: <white><players>"
+
+  admin-usage-game: "<red>Uso: /hc <status|endrun>"
+  admin-usage-lobby: "<red>Uso: /hc <status|forcestart|cancel>"
+  admin-status-game: "<gray>Estado: <white><state></white> · Run <white>#<run></white> · Seed <white><seed></white> · Pregeneración <white><progress>%</white> · Jugadores <white><online></white> · Muertes <red><deaths>"
+  admin-status-lobby: "<gray>Partida: <white><state></white> · Run <white>#<run></white> · Jugadores en partida <white><game_online></white> · Listos <white><ready>/<online></white> · Error: <white><error>"
+  admin-already-ending: "<yellow>La run ya está terminando."

@@ -1,5 +1,6 @@
 import { ipcMain, shell, type BrowserWindow } from 'electron'
 import type {
+  AppSettings,
   CreateInstanceRequest,
   CreateWorldRequest,
   Distribution,
@@ -29,6 +30,13 @@ import { instanceDir } from './core/paths'
  */
 
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
+  // --- Ajustes de la aplicación ---------------------------------------------
+
+  ipcMain.handle(IPC.getSettings, async () => service.getSettings())
+  ipcMain.handle(IPC.updateSettings, async (_e, changes: Partial<AppSettings>) =>
+    service.updateSettings(changes)
+  )
+
   // --- Catálogo -------------------------------------------------------------
 
   ipcMain.handle(IPC.listVersions, async (_e, distribution: Distribution, includeUnstable = false) =>
@@ -79,6 +87,42 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   )
   ipcMain.handle(IPC.propertyCatalog, () => PROPERTY_CATALOG)
 
+  // --- Plugins y mods -------------------------------------------------------
+
+  ipcMain.handle(IPC.listContent, async (_e, id: string) => service.listContent(id))
+  ipcMain.handle(IPC.setContentEnabled, async (_e, id: string, file: string, on: boolean) =>
+    service.setContentEnabled(id, file, on)
+  )
+  ipcMain.handle(IPC.removeContent, async (_e, id: string, file: string) =>
+    service.removeContent(id, file)
+  )
+  ipcMain.handle(IPC.contentFolder, async (_e, id: string) => {
+    const folder = await service.contentFolder(id)
+    if (folder) await shell.openPath(folder)
+    return folder
+  })
+
+  // --- Plugins oficiales ----------------------------------------------------
+
+  ipcMain.handle(IPC.listOfficialPlugins, async (_e, id: string) =>
+    service.listOfficialPlugins(id)
+  )
+  ipcMain.handle(
+    IPC.installOfficialPlugin,
+    async (_e, id: string, pluginId: string, role?: string) =>
+      service.installOfficialPlugin(id, pluginId, role)
+  )
+  ipcMain.handle(
+    IPC.uninstallOfficialPlugin,
+    async (_e, id: string, pluginId: string, removeConfig: boolean) =>
+      service.uninstallOfficialPlugin(id, pluginId, removeConfig)
+  )
+  ipcMain.handle(
+    IPC.setOfficialPluginConfig,
+    async (_e, id: string, pluginId: string, values: Record<string, string | number | boolean>) =>
+      service.setOfficialPluginConfig(id, pluginId, values)
+  )
+
   // --- Mundos ---------------------------------------------------------------
 
   ipcMain.handle(IPC.listWorlds, async (_e, id: string) => service.listWorlds(id))
@@ -111,6 +155,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.connectionInfo, async (_e, id: string) => service.connectionInfo(id))
   ipcMain.handle(IPC.suggestFreePort, async (_e, from: number) => service.suggestFreePort(from))
   ipcMain.handle(IPC.checkFromInternet, async (_e, id: string) => service.checkFromInternet(id))
+  ipcMain.handle(IPC.publicIp, async () => service.publicIp())
 
   // --- Sistema --------------------------------------------------------------
 
