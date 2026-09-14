@@ -1,6 +1,6 @@
 {
   "name": "qubiq-server-launcher",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Crea y gestiona tu servidor de Minecraft en tres clics",
   "main": "./out/main/index.js",
   "private": true,
@@ -15,7 +15,8 @@
     "e2e:restart": "vite build --config scripts/vite.e2e-restart.config.ts && node out/e2e-restart/e2e-restart.mjs",
     "postinstall": "node -e \"try{require('electron/install.js')}catch(e){}\"",
     "dist": "npm run build && electron-builder --win",
-    "dist:dir": "npm run build && electron-builder --win --dir"
+    "dist:dir": "npm run build && electron-builder --win --dir",
+    "release": "node scripts/release.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.13.4",

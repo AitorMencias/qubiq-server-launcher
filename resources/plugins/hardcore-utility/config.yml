@@ -28,8 +28,23 @@ game:
   lobby-local-port: 0
 
   # Expulsa a quien entre directamente sin pasar por el lobby.
-  # Quien tenga hardcoreutility.admin (OPs) puede entrar siempre.
+  # Solo se lo salta quien tenga el permiso hardcoreutility.bypass (nadie por defecto).
   require-transfer: true
+
+  # true = a quien entre directo se le manda al lobby en vez de expulsarlo.
+  # Es lo que pasa al pulsar "Reconectar", que vuelve a la ultima direccion usada.
+  send-direct-joins-to-lobby: true
+
+  # Con el mundo recién creado, el tiempo y el clima no avanzan hasta que entra
+  # el primer jugador: así la run nunca empieza de noche ni con tormenta.
+  freeze-time-until-start: true
+
+  # Hora a la que empieza la run: 0 = amanecer, 1000 = mañana, 6000 = mediodía.
+  start-time: 1000
+
+  # Muestra los corazones de cada jugador en el tabulador.
+  # Se vuelve a activar en cada mundo nuevo, porque el scoreboard vive dentro del mundo.
+  tab-hearts: true
 
   # Segundos entre la muerte y la vuelta al lobby.
   return-delay-seconds: 8
@@ -73,8 +88,9 @@ lobby:
   # Cuenta atrás cuando todos están listos.
   countdown-seconds: 5
 
-  # Si hay una run en curso, quien entre al lobby pasa directamente a la partida.
-  auto-join-running-run: true
+  # true = quien entre al lobby con una run en curso pasa directamente a la partida.
+  # false = se queda en el lobby y entra cuando quiera con /join.
+  auto-join-running-run: false
 
 # ── Mensajes ─────────────────────────────────────────────────
 # Formato MiniMessage: https://docs.papermc.io/adventure/minimessage/format/
@@ -86,16 +102,18 @@ messages:
   bossbar-generating: "<yellow>Generando mundo nuevo…"
   bossbar-pregenerating: "<yellow>Preparando la run #<run>: <white><progress>%</white> · Listos <white><ready>/<online></white> · <white>/listo"
   bossbar-ready: "<green>Run #<run> lista · Listos <white><ready>/<online></white> · Escribe <white>/listo"
-  bossbar-running: "<aqua>Run #<run> en curso · <white>/listo</white> para unirte"
+  bossbar-running: "<aqua>Run #<run> en curso · escribe <white>/join</white> para entrar"
   bossbar-ending: "<red>Run terminada · preparando mundo nuevo…"
 
-  lobby-tab-footer: "<newline><gray>Muertes totales: <red><deaths></red>  ·  Próxima run: <white>#<run></white><newline>"
-  game-tab-footer: "<newline><gray>Run <white>#<run></white>  ·  Tiempo <white><time></white>  ·  Muertes <red><deaths></red><newline>"
+  lobby-tab-footer: "<newline><gray>Muertes totales: <red><deaths></red>  ·  Próxima run: <white>#<run></white><newline><gray><players><newline>"
+  game-tab-footer: "<newline><gray>Run <white>#<run></white>  ·  Tiempo <white><time></white>  ·  Muertes <red><deaths></red><newline><gray><players><newline>"
 
   ready-on: "<green>Estás listo.</green> <gray>(<ready>/<online>)"
   ready-off: "<yellow>Ya no estás listo.</yellow> <gray>(<ready>/<online>)"
   ready-unavailable: "<red>La partida no está disponible todavía."
   joining-running-run: "<aqua>Hay una run en curso (#<run>), entrando…"
+  run-in-progress: "<yellow>La run #<run> ya está en curso. Escribe <white>/join</white> para entrar."
+  join-unavailable: "<red>Ahora mismo no hay ninguna run en curso."
 
   countdown-title: "<green><bold><seconds>"
   countdown-subtitle: "<gray>Entrando a la run #<run>"
@@ -107,6 +125,7 @@ messages:
   run-end-chat: "<red><player></red> ha terminado la run #<run> tras <white><duration></white>. Muertes totales: <red><deaths></red>"
   reset-without-run: "<yellow>Reiniciando el mundo sin registrar la run (nadie había empezado)."
   manual-end-cause: "Reinicio manual"
+  cancel-cause: "Run cancelada"
 
   kick-not-ready: "<red>El mundo aún se está generando.<newline><gray>Entra por el lobby: <white><lobby>"
   kick-direct-join: "<red>Para jugar entra por el lobby:<newline><white><lobby>"
@@ -115,12 +134,22 @@ messages:
   runs-header: "<gold>Últimas runs</gold> <gray>(<total> runs · <red><deaths></red> muertes)"
   runs-line: "<gray>#<run> <white><duration></white> · <red><player></red> — <cause>"
   runs-empty: "<gray>Todavía no hay runs registradas."
+  deaths-header: "<gold>Muertes por jugador</gold> <gray>(<deaths> en total)"
+  deaths-line: "<gray><position>. <white><player></white> — <red><deaths></red>"
+  deaths-empty: "<gray>Todavía no ha muerto nadie."
   runs-usage: "<red>Uso: /runs [número de run]"
   run-not-found: "<red>No existe la run #<run>."
   run-detail: "<gold>Run #<run></gold><newline><gray>Fecha: <white><date></white><newline><gray>Duración: <white><duration></white><newline><gray>Final: <red><player></red> — <cause><newline><gray>Seed: <white><seed></white> <dark_gray>(clic para copiar)</dark_gray><newline><gray>Jugadores: <white><players>"
 
-  admin-usage-game: "<red>Uso: /hc <status|endrun>"
-  admin-usage-lobby: "<red>Uso: /hc <status|forcestart|cancel>"
-  admin-status-game: "<gray>Estado: <white><state></white> · Run <white>#<run></white> · Seed <white><seed></white> · Pregeneración <white><progress>%</white> · Jugadores <white><online></white> · Muertes <red><deaths>"
+  admin-usage-game: "<red>Uso: /hc <status|delete>"
+  admin-usage-delete: "<red>Uso: /hc delete <número de run>"
+  run-deleted: "<yellow>Borrada la run #<run> del historial.</yellow> <gray>Muertes totales: <red><deaths></red>"
+  run-deleted-remote: "<yellow>Borrada la run #<run> del historial de la partida."
+  delete-unavailable: "<red>No se puede borrar ahora: el servidor de partida no responde."
+  cancel-unavailable: "<red>No se puede cancelar ahora: el servidor de partida no responde."
+  run-cancelled-remote: "<yellow>Run cancelada. La partida se reiniciará en unos segundos."
+  command-only-lobby: "<red>Ese comando solo sirve en el lobby."
+  admin-usage-lobby: "<red>Uso: /hc <status|forcestart|cancel|delete>"
+  admin-status-game: "<gray>Estado: <white><state></white> · Hora <white><time></white> · Run <white>#<run></white> · Seed <white><seed></white> · Pregeneración <white><progress>%</white> · Jugadores <white><online></white> · Muertes <red><deaths>"
   admin-status-lobby: "<gray>Partida: <white><state></white> · Run <white>#<run></white> · Jugadores en partida <white><game_online></white> · Listos <white><ready>/<online></white> · Error: <white><error>"
   admin-already-ending: "<yellow>La run ya está terminando."

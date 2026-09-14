@@ -70,6 +70,7 @@ que falte la primera vez y arranca el modo desarrollo.
 |---|---|
 | `npm run dev` | Arranca la app en modo desarrollo con recarga en caliente |
 | `dev.bat` | Lo mismo con doble clic, comprobando antes Node, las dependencias y el binario de Electron |
+| `release.bat` / `npm run release` | Genera una release: pide la versión, sincroniza la plantilla de cada plugin oficial con su jar, pasa las pruebas y empaqueta. Si algo falla, deja la versión como estaba. Acepta `0.3.0`, `--e2e` y `--no-e2e` para no preguntar |
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
