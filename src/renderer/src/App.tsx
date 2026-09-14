@@ -175,7 +175,7 @@ export function App(): React.JSX.Element {
           <p className="mode-hint">
             {mode === 'basic'
               ? 'Lo esencial para jugar. Elegimos por ti lo técnico.'
-              : 'Todos los ajustes: versión, memoria, puerto y consola.'}
+              : 'La misma pantalla, con todos los ajustes desbloqueados.'}
           </p>
         </div>
 

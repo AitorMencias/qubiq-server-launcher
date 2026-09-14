@@ -1219,12 +1219,17 @@ tocar el disco —solo claves del catálogo, valores de su lista, booleanos bien
 nunca por esta vía— para que un fallo de la interfaz no deje a medio crear un servidor ni, peor, uno
 distinto del que el usuario configuró sin que nadie se entere.
 
-**El día a día se reduce a tres cosas.** La pantalla del servidor en básico es un **botón grande
-INICIAR/PARAR**, la **moderación** de jugadores y la **consola**. Debajo del botón va la dirección
-para los amigos con su botón de copiar: es lo siguiente que hace cualquiera nada más encenderlo.
-Todo lo demás —Ajustes, Conexión, Mundos, Plugins o Mods, Copias, y abrir carpeta o borrar el
-servidor— vive detrás de **Configuración**, que ya se decidió en el asistente y no tiene por qué
-competir por la atención cada vez que se abre la app.
+**El día a día se reduce a tres cosas, en los dos modos.** La pantalla del servidor es un **botón
+grande INICIAR/PARAR**, la **moderación** de jugadores y la **consola**. Debajo del botón va la
+dirección para los amigos con su botón de copiar: es lo siguiente que hace cualquiera nada más
+encenderlo. Todo lo demás —Ajustes, Conexión, Mundos, Plugins o Mods, Copias y Servidor— vive detrás
+de **Configuración**, que no tiene por qué competir por la atención cada vez que se abre la app.
+
+Nació solo para el básico, pero funcionó mejor que la pantalla de pestañas del avanzado, así que
+ahora es **la misma en ambos**. El modo ya no cambia la pantalla, cambia **lo que se desbloquea dentro
+de Configuración**: cada pestaña recibe el modo y el avanzado añade sus opciones. Lo que antes vivía
+en la pestaña «Estado» del avanzado se ha repartido ahí: las tres direcciones con la comprobación
+desde internet en *Conexión*, y la ficha técnica y «Reinstalar» en *Servidor*.
 
 **La elección se pide al crear, no se esconde en un ajuste.** Al pulsar "Crear servidor" aparecen dos
 tarjetas grandes —básico y avanzado— con lo que implica cada una, al estilo del Vibe/Spec de Kiro.
@@ -1240,13 +1245,13 @@ como vía para cambiar de opinión en cualquier momento.
 | **Memoria** | La recomendada según los jugadores, sin control | Control manual |
 | **Puerto** | El primero libre desde 25565 | Campo editable |
 | **Dirección** | **Una sola**: la que hay que pasar a los amigos | Las tres, con adaptador y latencia |
-| **Pantalla principal** | Botón INICIAR/PARAR, jugadores y consola; lo demás en Configuración | Todas las pestañas a la vista |
-| **Consola** | Visible, en la pantalla principal | Visible |
-| **Ficha técnica** | Oculta (Java, build, memoria) | Visible |
+| **Pantalla principal** | Botón INICIAR/PARAR, jugadores y consola; lo demás en Configuración | **La misma** |
+| **Consola** | Visible, en la pantalla principal | Visible, en la pantalla principal |
+| **Ficha técnica** | Oculta (Java, build, memoria) | Visible, en Configuración → Servidor |
 | **Ajustes** | Solo las opciones básicas | Con interruptor de avanzadas |
 | **Copias** | Botón manual + resumen de las automáticas | Intervalo, retención y estimación |
 | **Mundos** | Nombre y tipo | Añade la semilla |
-| **Reinstalar** | Oculto | Visible |
+| **Reinstalar** | Oculto | Visible, en Configuración → Servidor |
 | **Borrar servidor** | **Visible** (querer deshacerse de uno es tan básico como crearlo) | Visible |
 
 **Lo que NO se oculta: la dirección del servidor.** Ocultarla del todo dejaría la app inservible

@@ -41,7 +41,7 @@ const MODES: ModeCard[] = [
     tagline: 'Tú decides todo',
     points: [
       'Eliges versión concreta, memoria y puerto',
-      'Todas las pestañas a la vista y ficha técnica completa',
+      'La misma pantalla, con toda la configuración desbloqueada y ficha técnica',
       'Copias con intervalo y retención, semillas de mundo y ajustes avanzados'
     ]
   }

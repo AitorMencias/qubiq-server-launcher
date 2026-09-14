@@ -27,8 +27,9 @@ MVP funcional. Las cuatro distribuciones se instalan, arrancan y paran correctam
 Funciones disponibles:
 
 - **Dos modos** — al crear un servidor eliges entre **básico** (no pregunta versión, memoria ni puerto)
-  y **avanzado** (todo). Cambiable después desde la barra lateral. En básico, la pantalla del servidor
-  es un botón grande INICIAR/PARAR, los jugadores y la consola; el resto está en *Configuración*.
+  y **avanzado** (todo). Cambiable después desde la barra lateral. En los dos, la pantalla del servidor
+  es un botón grande INICIAR/PARAR, los jugadores y la consola; el resto está en *Configuración*, donde
+  el avanzado desbloquea más opciones.
 - **Crear** — en básico, un recorrido paso a paso (una pregunta por pantalla) por nombre, tipo,
   jugadores, modo de juego, dificultad, tipo de mundo, peleas entre jugadores y conexión, que acaba en
   un resumen editable y deja el servidor ya configurado; en avanzado, formulario completo. Java
