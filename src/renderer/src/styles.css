@@ -762,11 +762,17 @@ select:focus {
 }
 
 .power-button {
-  display: block;
+  /* Alto fijo: al aparecer el dado mientras arranca, el botón no debe crecer
+     y empujar la pantalla hacia abajo. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
   width: 100%;
   max-width: 460px;
+  height: 76px;
   margin: 0 auto 14px;
-  padding: 22px 20px;
+  padding: 0 20px;
   border-radius: 16px;
   font-size: 26px;
   font-weight: 800;
@@ -848,6 +854,14 @@ select:focus {
   color: var(--muted);
   font-size: 11px;
   margin-top: 6px;
+}
+
+/* Tarjeta de espera: el dado a la izquierda y el texto al lado. */
+.loading-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
 }
 
 /* --- Asistente por pasos (modo básico) ------------------------------------ */

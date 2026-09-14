@@ -74,7 +74,7 @@ que falte la primera vez y arranca el modo desarrollo.
 |---|---|
 | `npm run dev` | Arranca la app en modo desarrollo con recarga en caliente |
 | `dev.bat` | Lo mismo con doble clic, comprobando antes Node, las dependencias y el binario de Electron |
-| `release.bat` / `npm run release` | Genera una release: pide la versión, sincroniza la plantilla de cada plugin oficial con su jar, pasa las pruebas y empaqueta en `release-nueva/`; solo si sale bien sustituye `release/` entera, que queda con la versión nueva y nada más. Si algo falla, deja la versión y la release anterior como estaban. Acepta `0.3.0`, `--e2e` y `--no-e2e` para no preguntar |
+| `release.bat` / `npm run release` | Genera una release: pide la versión, sincroniza la plantilla de cada plugin oficial con su jar, pasa las pruebas y empaqueta en `release-nueva/`; solo si sale bien sustituye `release/` entera, que queda con la versión nueva y nada más. Si algo falla, deja la versión y la release anterior como estaban. Si la prueba de humo solo falla por no llegar a un servicio externo, pregunta si seguir. Acepta `0.3.0`, `--e2e`, `--no-e2e` y `--allow-offline` para no preguntar |
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
@@ -84,6 +84,11 @@ que falte la primera vez y arranca el modo desarrollo.
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
 para otro; sin esta prueba la app se rompería en silencio.
+
+Si no consigue **llegar** a un servicio, no lo cuenta como fallo sino como **SIN CONEXIÓN**, y sale con
+código 2 en vez de 1: no poder conectar no dice nada de si la API ha cambiado. Pasa de verdad: los
+operadores españoles bloquean IPs compartidas de Cloudflare durante los partidos de LaLiga, y con
+ellas cae `meta.fabricmc.net`.
 
 `npm run e2e` descarga de verdad (Java ~200 MB + servidor) y tarda unos minutos la primera vez.
 

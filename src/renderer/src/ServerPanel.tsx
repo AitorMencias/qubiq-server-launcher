@@ -10,6 +10,7 @@ import { WorldsPanel } from './WorldsPanel'
 import { ContentPanel } from './ContentPanel'
 import { BackupPanel } from './BackupPanel'
 import { ConfirmDelete } from './ConfirmDelete'
+import { D20Loader } from './D20Loader'
 
 /**
  * Pantalla de un servidor, igual en los dos modos.
@@ -304,6 +305,7 @@ function PowerCard({ state, diagnosis, progress, error, onRun }: PowerCardProps)
           )
         }
       >
+        {busy && <D20Loader size={40} />}
         {label}
       </button>
 
@@ -324,13 +326,12 @@ function PowerCard({ state, diagnosis, progress, error, onRun }: PowerCardProps)
       {progress && status === 'installing' && (
         <div className="power-progress">
           <p className="hint">{progress.detail ?? 'Trabajando...'}</p>
-          <div className="progress">
-            <div
-              style={{
-                width: progress.progress != null ? `${Math.round(progress.progress * 100)}%` : '35%'
-              }}
-            />
-          </div>
+          {/* El botón ya lleva el dado girando: la barra solo con porcentaje real. */}
+          {progress.progress != null && (
+            <div className="progress">
+              <div style={{ width: `${Math.round(progress.progress * 100)}%` }} />
+            </div>
+          )}
         </div>
       )}
 

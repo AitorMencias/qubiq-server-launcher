@@ -14,7 +14,9 @@
  *      nuevas del plugin, sin ningún error que lo delatara.
  *   3. Cambia la versión con `npm version`, que toca package.json y
  *      package-lock.json a la vez (a mano se desincronizan).
- *   4. typecheck + smoke, y e2e contra un servidor real si se pide.
+ *   4. typecheck + smoke, y e2e contra un servidor real si se pide. Si la
+ *      prueba de humo solo falla por no llegar a un servicio externo (sale con
+ *      2), se pregunta si seguir; `--allow-offline` lo acepta sin preguntar.
  *   5. `npm run dist` en release-nueva/ y, si sale bien, sustituye release/
  *      entera: la carpeta queda solo con la versión nueva.
  *
@@ -56,11 +58,40 @@ function fail(message) {
 
 /** Ejecuta un comando npm mostrando su salida. Devuelve true si acaba bien. */
 function npm(args) {
+  return npmStatus(args) === 0
+}
+
+/** Igual, pero devuelve el código de salida para distinguir tipos de fallo. */
+function npmStatus(args) {
   // `shell: true` es obligatorio para lanzar npm.cmd en Windows desde Node 20, y
   // con él Node pide el comando en una sola cadena. Es seguro: los argumentos
   // son fijos y la versión ya ha pasado por la expresión regular.
   const result = spawnSync(`npm ${args.join(' ')}`, { stdio: 'inherit', shell: true })
-  return result.status === 0
+  return result.status ?? 1
+}
+
+/**
+ * La prueba de humo sale con 2 cuando todo lo comprobable está bien pero no se
+ * pudo llegar a algún servicio externo. No es un cambio de API, así que no debe
+ * bloquear igual que un fallo, pero tampoco seguir en silencio: se pregunta.
+ *
+ * Se abre una lectura nueva solo para esto: mantener la de antes abierta
+ * mientras corren las pruebas dejaría la consola en modo crudo y Ctrl+C no
+ * podría cortar un empaquetado.
+ */
+async function acceptOffline() {
+  if (process.argv.includes('--allow-offline')) return true
+  if (!process.stdin.isTTY) return false
+  const rl = createInterface({ input: process.stdin, output: process.stdout })
+  try {
+    const answer = await rl.question(
+      '\nLa prueba de humo no pudo conectar con algún servicio (arriba pone cuál, como SIN CONEXIÓN).\n' +
+        'Lo que sí se pudo comprobar está bien. ¿Seguir sin comprobar ese servicio? [s/N]: '
+    )
+    return /^s/i.test(answer.trim())
+  } finally {
+    rl.close()
+  }
 }
 
 function compare(a, b) {
@@ -243,6 +274,7 @@ async function main() {
     }
 
     // --- 4. Comprobaciones ---------------------------------------------------
+    let skippedServices = false
     const steps = [
       ['Comprobación de tipos', ['run', 'typecheck']],
       ['Prueba de humo', ['run', 'smoke']],
@@ -250,7 +282,20 @@ async function main() {
     ]
     for (const [name, args] of steps) {
       title(name)
-      if (!npm(args)) {
+      const status = npmStatus(args)
+      if (status === 2 && name === 'Prueba de humo') {
+        if (await acceptOffline()) {
+          skippedServices = true
+          continue
+        }
+        restore()
+        fail(
+          'La prueba de humo no pudo conectar con algún servicio y no se ha confirmado seguir. ' +
+            'Vuelve a intentarlo más tarde, o usa --allow-offline para continuar sin preguntar.'
+        )
+        return
+      }
+      if (status !== 0) {
         restore()
         fail(`Ha fallado: ${name}. No se ha generado ninguna release.`)
         return
@@ -288,6 +333,9 @@ async function main() {
       console.log(`  release\\${file}  (${mb} MB)`)
     }
     if (!withE2e) console.log('\n  Aviso: se ha generado SIN la prueba con servidor real.')
+    if (skippedServices) {
+      console.log('  Aviso: la prueba de humo no pudo comprobar algún servicio externo (SIN CONEXIÓN).')
+    }
     console.log('\n  No se ha hecho commit ni tag.')
 
     // Solo con alguien delante. explorer.exe devuelve 1 aunque funcione: no se comprueba.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Distribution, ExposureMode } from '@shared/types'
 import { DISTRIBUTIONS, DISTRIBUTION_LABELS } from '@shared/types'
+import { D20Loader } from './D20Loader'
 
 /**
  * Asistente en modo básico (§3).
@@ -257,27 +258,29 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
   if (busy) {
     return (
       <div className="panel">
-        <div className="card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
-          <h3>Preparando tu servidor</h3>
-          <p className="hint">
-            Estamos descargando todo lo necesario. La primera vez tarda unos minutos porque hay que
-            bajar bastantes megas; las siguientes irá mucho más rápido.
-          </p>
-          <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
-          <div className="progress">
-            <div
-              style={{
-                width:
-                  progress?.progress != null ? `${Math.round(progress.progress * 100)}%` : '35%'
-              }}
-            />
+        <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
+          <D20Loader size={84} />
+          <div>
+            <h3>Preparando tu servidor</h3>
+            <p className="hint">
+              Estamos descargando todo lo necesario. La primera vez tarda unos minutos porque hay
+              que bajar bastantes megas; las siguientes irá mucho más rápido.
+            </p>
+            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
+            {/* Solo con un porcentaje real: si no lo hay, el dado ya dice que
+                se está trabajando sin inventarse cuánto falta. */}
+            {progress?.progress != null && (
+              <div className="progress">
+                <div style={{ width: `${Math.round(progress.progress * 100)}%` }} />
+              </div>
+            )}
+            {error && (
+              <div className="alert error" style={{ marginTop: 16 }}>
+                <strong>No se pudo preparar el servidor</strong>
+                <p>{error}</p>
+              </div>
+            )}
           </div>
-          {error && (
-            <div className="alert error" style={{ marginTop: 16 }}>
-              <strong>No se pudo preparar el servidor</strong>
-              <p>{error}</p>
-            </div>
-          )}
         </div>
       </div>
     )

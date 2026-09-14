@@ -43,6 +43,9 @@ function createWindow(): void {
     useContentSize: true,
     backgroundColor: '#12141a',
     title: 'QubiQ Server Launcher',
+    // Empaquetada, Windows toma el icono del propio .exe. En desarrollo no hay
+    // .exe propio y saldría el de Electron: se le pasa el de build/.
+    ...(app.isPackaged ? {} : { icon: join(app.getAppPath(), 'build', 'icon.ico') }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

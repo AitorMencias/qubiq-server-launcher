@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { D20Loader } from './D20Loader'
 import type { BackupEstimate, BackupInfo, InstanceState, UiMode } from '@shared/types'
 
 /** Intervalos ofrecidos, en horas. Más fino que esto no aporta nada. */
@@ -151,14 +152,14 @@ export function BackupPanel({
         </p>
 
         {busy ? (
-          <>
-            <p style={{ fontSize: 13, margin: '0 0 4px' }}>
+          // Antes había una barra fija al 45 %: un progreso inventado. Una copia
+          // no sabe cuánto le falta, así que se indica actividad y el paso real.
+          <div className="row" style={{ gap: 12 }}>
+            <D20Loader size={44} />
+            <p style={{ fontSize: 13, margin: 0 }}>
               {progressDetail ?? (busy === 'creando' ? 'Creando la copia...' : 'Restaurando...')}
             </p>
-            <div className="progress">
-              <div style={{ width: '45%' }} />
-            </div>
-          </>
+          </div>
         ) : (
           <div className="row">
             <button className="primary" onClick={() => void create()}>

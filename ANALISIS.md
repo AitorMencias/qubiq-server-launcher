@@ -1467,7 +1467,9 @@ arranca un servidor de verdad, responde al Server List Ping y hace la parada lim
 | **Instalación por usuario** | `perMachine: false`. No pide administrador, coherente con §12. |
 | **Desinstalar no borra datos** | `deleteAppDataOnUninstall: false`. Los mundos no son datos de la aplicación: son del usuario. |
 | **React fuera de `dependencies`** | Vite lo inlinea en el bundle del renderer, así que enviarlo también como módulo solo engordaba el paquete. |
-| **Icono propio** | Generado para el proyecto: cuadrado redondeado con degradado y monograma. Sin fuentes, texturas ni assets de Minecraft, como exige §13.1. |
+| **Icono propio** | Un D20 (icosaedro) con las aristas iluminadas, las caras invisibles y un punto de luz azul en cada vértice, en tres cuartos y sobre placa oscura. Geometría real, no dibujada a ojo. Sin fuentes, texturas ni assets de Minecraft, como exige §13.1. |
+| **Tamaños pequeños redibujados** | `build/icon.ico` lleva 256, 128, 64, 48, 32, 24 y 16 px, y los pequeños no son el grande reducido: engordan líneas y puntos y recortan el desenfoque. A 16 px las 30 aristas se volvían una mancha, así que ahí solo va el contorno y el triángulo de la cara más cercana. 256 va en PNG y el resto en BMP de 32 bits, que es lo que acepta cualquier herramienta, NSIS incluido. |
+| **Cargador con el mismo dado** | Las esperas sin porcentaje real (crear un servidor, el botón mientras arranca, las copias) muestran el D20 sin placa girando de forma semi-errática (`D20Loader`, velocidad 0.6 y nerviosismo 1). Sustituye a barras que estaban fijas al 35 % y al 45 %: un progreso inventado. La barra solo aparece cuando hay un porcentaje de verdad. |
 | **Sin firmar** | Por decisión de §13.3. SmartScreen avisará en la primera ejecución; está documentado en el README junto a los dos clics necesarios. |
 
 ### 19.13 Siguiente
