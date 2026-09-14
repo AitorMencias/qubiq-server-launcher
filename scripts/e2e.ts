@@ -112,7 +112,18 @@ async function main(): Promise<void> {
     memoryMb: 2048,
     expectedPlayers: 12,
     port: PORT,
-    eulaAccepted: true
+    eulaAccepted: true,
+    // Lo mismo que manda el asistente básico al terminar el recorrido. Modo
+    // extremo: `hardcore` es una clave aparte, no un valor de `gamemode`, y la
+    // dificultad pedida (normal) debe quedar forzada a Difícil.
+    properties: {
+      gamemode: 'survival',
+      hardcore: 'true',
+      difficulty: 'normal',
+      'level-type': 'minecraft:normal',
+      pvp: 'false'
+    },
+    exposure: { mode: 'router' }
   })
 
   const installSeconds = Math.round((Date.now() - started) / 1000)
@@ -125,13 +136,33 @@ async function main(): Promise<void> {
   check('creó server.properties', await exists(join(dir, 'server.properties')))
   check('fijó max-players con los jugadores esperados', manifest.expectedPlayers === 12)
 
-  // Modo extremo: `hardcore` es una clave aparte, no un valor de `gamemode`.
-  // Se escribe antes de arrancar para comprobar que el servidor la acepta.
-  await service.setProperties(manifest.id, {
-    hardcore: 'true',
-    gamemode: 'survival',
-    difficulty: 'hard'
-  })
+  // Lo elegido en el asistente tiene que estar ya en disco antes del primer
+  // arranque: la idea es no tener que pasar por Ajustes después.
+  const chosen = await service.getProperties(manifest.id)
+  check('aplica el modo elegido al crear', chosen['hardcore'] === 'true', chosen['hardcore'])
+  check('el modo extremo fuerza Difícil', chosen['difficulty'] === 'hard', chosen['difficulty'])
+  check('aplica las peleas entre jugadores', chosen['pvp'] === 'false', chosen['pvp'])
+  check('guarda cómo se conectarán', manifest.exposure?.mode === 'router', manifest.exposure?.mode)
+
+  let rejected = ''
+  try {
+    await service.create({
+      name: 'No debe existir',
+      distribution: DISTRIBUTION,
+      minecraftVersion: version,
+      memoryMb: 2048,
+      port: PORT + 1,
+      eulaAccepted: true,
+      properties: { 'server-port': '1' }
+    })
+  } catch (err) {
+    rejected = err instanceof Error ? err.message : String(err)
+  }
+  check('rechaza ajustes que no son del catálogo', rejected.includes('server-port'), rejected)
+  check(
+    'y no deja un servidor a medio crear',
+    (await service.list()).every((i) => i.manifest.name !== 'No debe existir')
+  )
 
   console.log('\n== Arrancando el servidor')
   await service.start(manifest.id)
@@ -157,6 +188,7 @@ async function main(): Promise<void> {
   const applied = await service.getProperties(manifest.id)
   check('el servidor acepta la clave hardcore', applied['hardcore'] === 'true', applied['hardcore'])
   check('y mantiene gamemode como supervivencia', applied['gamemode'] === 'survival')
+  check('respeta las peleas desactivadas', applied['pvp'] === 'false', applied['pvp'])
   check('conserva max-players', applied['max-players'] === '12', applied['max-players'])
 
   // --- Red: Server List Ping real (§10) ------------------------------------

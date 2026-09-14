@@ -29,7 +29,8 @@ import {
 import {
   PropertiesFile,
   PROPERTY_CATALOG,
-  defaultProperties
+  defaultProperties,
+  initialProperties
 } from '../src/main/core/config/properties'
 import { parseLine, diagnose } from '../src/main/core/runtime/logParser'
 import { slugify } from '../src/main/core/paths'
@@ -147,6 +148,38 @@ async function main(): Promise<void> {
     const props12 = defaultProperties(25565, 'Mi servidor', 12)
     check('los jugadores esperados fijan max-players', props12['max-players'] === '12')
     check('sin ese dato, queda el valor por defecto', defaultProperties(25565, 'x')['max-players'] === '10')
+
+    // Lo elegido en el recorrido del modo básico se aplica encima, validado.
+    const elegidos = initialProperties(25565, 'Mi servidor', 8, {
+      gamemode: 'creative',
+      difficulty: 'peaceful',
+      'level-type': 'minecraft:flat',
+      pvp: 'false'
+    })
+    check(
+      'aplica lo elegido en el asistente',
+      elegidos['gamemode'] === 'creative' &&
+        elegidos['difficulty'] === 'peaceful' &&
+        elegidos['level-type'] === 'minecraft:flat' &&
+        elegidos['pvp'] === 'false'
+    )
+    check('y conserva el resto por defecto', elegidos['online-mode'] === 'true' && elegidos['max-players'] === '8')
+    check(
+      'el modo extremo fuerza Difícil aunque se pida otra',
+      initialProperties(25565, 'x', 8, { hardcore: 'true', difficulty: 'easy' })['difficulty'] === 'hard'
+    )
+    const lanza = (overrides: Record<string, string>): boolean => {
+      try {
+        initialProperties(25565, 'x', 8, overrides)
+        return false
+      } catch {
+        return true
+      }
+    }
+    check('rechaza una clave fuera del catálogo', lanza({ 'clave-inventada': 'x' }))
+    check('no deja cambiar el puerto por esta vía', lanza({ 'server-port': '1' }))
+    check('rechaza un valor que no está en la lista', lanza({ gamemode: 'hardcore' }))
+    check('rechaza un booleano mal escrito', lanza({ pvp: 'si' }))
 
     // La regla de oro de §8: no perder claves desconocidas al guardar.
     const original = [

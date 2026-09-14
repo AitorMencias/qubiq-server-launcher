@@ -27,11 +27,11 @@ const MODES: ModeCard[] = [
   {
     mode: 'basic',
     title: 'Básico',
-    tagline: 'Lo decidimos por ti',
+    tagline: 'Te guiamos paso a paso',
     points: [
-      'Solo eliges nombre, tipo de servidor y cuánta gente sois',
-      'Ponemos la última versión, la memoria adecuada y un puerto libre',
-      'Una única dirección para pasarle a tus amigos'
+      'Una pregunta por pantalla: modo de juego, dificultad, mundo y cómo os conectáis',
+      'Lo técnico lo ponemos nosotros: versión, memoria y puerto',
+      'Después, solo un botón para encender y apagar, tus jugadores y la consola'
     ],
     recommended: true
   },
@@ -41,7 +41,7 @@ const MODES: ModeCard[] = [
     tagline: 'Tú decides todo',
     points: [
       'Eliges versión concreta, memoria y puerto',
-      'Consola del servidor y ficha técnica completa',
+      'Todas las pestañas a la vista y ficha técnica completa',
       'Copias con intervalo y retención, semillas de mundo y ajustes avanzados'
     ]
   }

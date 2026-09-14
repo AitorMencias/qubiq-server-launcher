@@ -27,9 +27,12 @@ MVP funcional. Las cuatro distribuciones se instalan, arrancan y paran correctam
 Funciones disponibles:
 
 - **Dos modos** — al crear un servidor eliges entre **básico** (no pregunta versión, memoria ni puerto)
-  y **avanzado** (todo). Cambiable después desde la barra lateral.
-- **Crear** — en básico, asistente paso a paso (una pregunta por pantalla) que acaba en un resumen
-  editable; en avanzado, formulario completo. Java automático y EULA explícito en ambos
+  y **avanzado** (todo). Cambiable después desde la barra lateral. En básico, la pantalla del servidor
+  es un botón grande INICIAR/PARAR, los jugadores y la consola; el resto está en *Configuración*.
+- **Crear** — en básico, un recorrido paso a paso (una pregunta por pantalla) por nombre, tipo,
+  jugadores, modo de juego, dificultad, tipo de mundo, peleas entre jugadores y conexión, que acaba en
+  un resumen editable y deja el servidor ya configurado; en avanzado, formulario completo. Java
+  automático y EULA explícito en ambos
 - **Lanzar** — arranque supervisado, consola en vivo, parada limpia
 - **Configurar** — editor visual de `server.properties` con lenguaje llano y modo avanzado
 - **Mundos** — varios mundos por servidor: crear, cambiar de uno a otro y borrar
@@ -70,11 +73,11 @@ que falte la primera vez y arranca el modo desarrollo.
 |---|---|
 | `npm run dev` | Arranca la app en modo desarrollo con recarga en caliente |
 | `dev.bat` | Lo mismo con doble clic, comprobando antes Node, las dependencias y el binario de Electron |
-| `release.bat` / `npm run release` | Genera una release: pide la versión, sincroniza la plantilla de cada plugin oficial con su jar, pasa las pruebas y empaqueta. Si algo falla, deja la versión como estaba. Acepta `0.3.0`, `--e2e` y `--no-e2e` para no preguntar |
+| `release.bat` / `npm run release` | Genera una release: pide la versión, sincroniza la plantilla de cada plugin oficial con su jar, pasa las pruebas y empaqueta en `release-nueva/`; solo si sale bien sustituye `release/` entera, que queda con la versión nueva y nada más. Si algo falla, deja la versión y la release anterior como estaban. Acepta `0.3.0`, `--e2e` y `--no-e2e` para no preguntar |
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 120 comprobaciones: lógica pura, mundos, red, plugins oficiales y contrato con las APIs externas |
+| `npm run smoke` | 127 comprobaciones: lógica pura, mundos, red, plugins oficiales y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge` |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
 

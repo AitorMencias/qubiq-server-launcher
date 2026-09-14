@@ -15,14 +15,24 @@
  *   3. Cambia la versión con `npm version`, que toca package.json y
  *      package-lock.json a la vez (a mano se desincronizan).
  *   4. typecheck + smoke, y e2e contra un servidor real si se pide.
- *   5. `npm run dist`.
+ *   5. `npm run dist` en release-nueva/ y, si sale bien, sustituye release/
+ *      entera: la carpeta queda solo con la versión nueva.
  *
  * Si algo falla después de cambiar la versión, se restaura la anterior: una
  * versión subida sin release que la respalde confunde la siguiente vez.
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline/promises'
@@ -70,6 +80,41 @@ function nextPatch(version) {
   const m = VERSION.exec(version)
   if (!m) return null
   return m[4] ? `${m[1]}.${m[2]}.${m[3]}` : `${m[1]}.${m[2]}.${Number(m[3]) + 1}`
+}
+
+const RELEASE = 'release'
+const STAGING = 'release-nueva'
+
+/**
+ * Cambia release/ por la recién empaquetada. Si release/ no se deja borrar
+ * (un ejecutable abierto, el Explorador dentro de la carpeta), se avisa y la
+ * nueva queda en release-nueva/ en lugar de mezclar versiones en release/.
+ */
+function replaceRelease() {
+  try {
+    rmSync(RELEASE, { recursive: true, force: true, maxRetries: 5, retryDelay: 400 })
+  } catch (err) {
+    fail(
+      `No se pudo borrar la release anterior (${err.code ?? err.message}). ¿Tienes abierto algún ` +
+        `ejecutable de release/? La nueva está en ${STAGING}/.`
+    )
+    return false
+  }
+  try {
+    renameSync(STAGING, RELEASE)
+  } catch {
+    // Windows a veces niega renombrar una carpeta recién escrita (antivirus
+    // revisándola, indexador): copiar y borrar tarda más pero no depende de eso.
+    try {
+      cpSync(STAGING, RELEASE, { recursive: true })
+      rmSync(STAGING, { recursive: true, force: true, maxRetries: 5, retryDelay: 400 })
+    } catch (err) {
+      fail(`No se pudo mover la release nueva a release/ (${err.code ?? err.message}). Está en ${STAGING}/.`)
+      return false
+    }
+  }
+  console.log('  release/ contiene ahora solo la versión nueva')
+  return true
 }
 
 function readVersion() {
@@ -213,20 +258,29 @@ async function main() {
     }
 
     // --- 5. Empaquetar -------------------------------------------------------
+    // Se empaqueta en una carpeta aparte y solo si sale bien sustituye a
+    // release/. Borrar la release anterior ANTES de empaquetar dejaría sin
+    // ningún instalador si el empaquetado falla a medias.
     title('Empaquetando')
-    if (!npm(['run', 'dist'])) {
+    rmSync(STAGING, { recursive: true, force: true })
+    // npm añade lo que va tras `--` al final del script: le llega a electron-builder.
+    if (!npm(['run', 'dist', '--', `--config.directories.output=${STAGING}`])) {
+      rmSync(STAGING, { recursive: true, force: true })
       restore()
-      fail('Ha fallado el empaquetado.')
+      fail('Ha fallado el empaquetado. La release anterior sigue en release/.')
       return
     }
 
-    const artifacts = existsSync('release')
-      ? readdirSync('release').filter((f) => f.includes(version) && f.endsWith('.exe'))
-      : []
+    const artifacts = readdirSync(STAGING).filter((f) => f.includes(version) && f.endsWith('.exe'))
     if (artifacts.length === 0) {
-      fail(`El empaquetado terminó pero no hay ningún .exe de la ${version} en release/.`)
+      rmSync(STAGING, { recursive: true, force: true })
+      restore()
+      fail(`El empaquetado terminó pero no generó ningún .exe de la ${version}. La release anterior sigue en release/.`)
       return
     }
+
+    title('Sustituyendo la release anterior')
+    if (!replaceRelease()) return
 
     title(`Release ${version} lista`)
     for (const file of artifacts) {

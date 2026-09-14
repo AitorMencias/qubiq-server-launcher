@@ -153,6 +153,15 @@ export interface CreateInstanceRequest {
   expectedPlayers?: number
   port: number
   eulaAccepted: boolean
+  /**
+   * Ajustes de `server.properties` elegidos en el asistente (modo de juego,
+   * dificultad, tipo de mundo…). Se aplican encima de los valores por defecto
+   * al crear, para que el servidor arranque ya como el usuario lo quiso y no
+   * haya que ir después a Ajustes. Solo se aceptan claves del catálogo.
+   */
+  properties?: Record<string, string>
+  /** Cómo se conectarán los jugadores, si se eligió al crear. */
+  exposure?: ExposureSettings
 }
 
 /** Una versión ofrecible para una distribución concreta. */

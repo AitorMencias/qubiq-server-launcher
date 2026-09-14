@@ -12,7 +12,7 @@ import {
   slugify
 } from '../paths'
 import { defaultJvmArgs, suggestedMemoryMb } from '../install/jvmArgs'
-import { PropertiesFile, defaultProperties } from '../config/properties'
+import { PropertiesFile, initialProperties } from '../config/properties'
 import * as catalog from '../versions/catalog'
 
 /**
@@ -82,6 +82,20 @@ export async function createInstance(request: CreateInstanceRequest): Promise<In
     throw new Error('Hay que aceptar el EULA de Minecraft antes de crear el servidor.')
   }
 
+  const name = request.name.trim() || 'Servidor'
+
+  // Se valida ANTES de tocar el disco: un ajuste no válido no debe dejar a
+  // medio crear una carpeta de servidor que luego aparezca en la lista.
+  const properties = initialProperties(
+    request.port,
+    name,
+    request.expectedPlayers,
+    request.properties
+  )
+  if (request.exposure && !['local', 'router', 'tunnel'].includes(request.exposure.mode)) {
+    throw new Error(`Forma de conexión desconocida: ${request.exposure.mode}`)
+  }
+
   const id = await uniqueId(request.name)
   const javaMajor = await catalog.javaMajorFor(request.minecraftVersion)
   const memoryMb = request.memoryMb > 0 ? request.memoryMb : suggestedMemoryMb()
@@ -89,7 +103,7 @@ export async function createInstance(request: CreateInstanceRequest): Promise<In
   const manifest: InstanceManifest = {
     schemaVersion: 1,
     id,
-    name: request.name.trim() || 'Servidor',
+    name,
     distribution: request.distribution,
     minecraftVersion: request.minecraftVersion,
     build: request.build,
@@ -100,6 +114,7 @@ export async function createInstance(request: CreateInstanceRequest): Promise<In
     port: request.port,
     autoRestart: false,
     backup: { enabled: true, intervalHours: 6, keep: 10 },
+    ...(request.exposure ? { exposure: request.exposure } : {}),
     createdAt: new Date().toISOString(),
     eulaAccepted: true
   }
@@ -109,9 +124,9 @@ export async function createInstance(request: CreateInstanceRequest): Promise<In
   await ensureDir(backupsDir(id))
   await writeManifest(manifest)
 
-  // server.properties inicial con los valores por defecto de la app.
+  // server.properties inicial: valores por defecto más lo elegido al crear.
   const props = await PropertiesFile.load(join(serverDir(id), 'server.properties'))
-  props.setAll(defaultProperties(request.port, manifest.name, request.expectedPlayers))
+  props.setAll(properties)
   await props.save(join(serverDir(id), 'server.properties'))
 
   // eula.txt solo porque el usuario ya lo aceptó de forma explícita.

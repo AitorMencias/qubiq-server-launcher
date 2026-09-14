@@ -274,6 +274,43 @@ export const PROPERTY_CATALOG: PropertyDefinition[] = [
  */
 export const COMPOSITE_KEYS = new Set(['hardcore'])
 
+/**
+ * Valores iniciales de una instancia nueva con lo elegido en el asistente
+ * encima.
+ *
+ * Una clave que no esté en el catálogo es un error y no se ignora: el asistente
+ * solo manda claves conocidas, así que otra cosa sería un fallo de la interfaz,
+ * y tragárselo dejaría un servidor distinto del que el usuario configuró sin
+ * que nadie se enterase. El puerto tampoco se acepta aquí: viene aparte, ya
+ * comprobado como libre.
+ */
+export function initialProperties(
+  port: number,
+  name: string,
+  expectedPlayers?: number,
+  overrides: Record<string, string> = {}
+): Record<string, string> {
+  const values = defaultProperties(port, name, expectedPlayers)
+
+  for (const [key, value] of Object.entries(overrides)) {
+    const def = PROPERTY_CATALOG.find((d) => d.key === key)
+    if (!def) throw new Error(`Ajuste desconocido al crear el servidor: ${key}`)
+    if (def.type === 'enum' && !def.options?.some((o) => o.value === value)) {
+      throw new Error(`Valor no válido para "${def.label}": ${value}`)
+    }
+    if (def.type === 'boolean' && value !== 'true' && value !== 'false') {
+      throw new Error(`Valor no válido para "${def.label}": ${value}`)
+    }
+    values[key] = value
+  }
+
+  // El juego fuerza Difícil en modo extremo; el fichero lo refleja para no
+  // mostrar en Ajustes una dificultad que no es la real.
+  if (values['hardcore'] === 'true') values['difficulty'] = 'hard'
+
+  return values
+}
+
 /** Valores iniciales de una instancia nueva. */
 export function defaultProperties(
   port: number,

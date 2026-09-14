@@ -1042,7 +1042,7 @@ cuanto lo mueve, deja de moverse solo.
 
 **Verificación real, no solo compilación:**
 
-- `npm run smoke` — 100 comprobaciones contra las APIs de verdad (test de contrato, §16).
+- `npm run smoke` — 127 comprobaciones contra las APIs de verdad (test de contrato, §16).
 - `npm run e2e:restart` — reinicio a petición del servidor, con sus cuatro casos (§19.11).
 - `npm run e2e [distribución]` — crea un servidor, lo arranca, le hace un ping como el del juego,
   crea una copia **en caliente**, lo para limpiamente y restaura. **Las cuatro distribuciones pasan**,
@@ -1195,12 +1195,36 @@ responder. El modo básico no es la misma pantalla con menos botones: es **no pr
 Se guarda en `settings.json` dentro de la carpeta de datos, aparte de los manifiestos, porque
 describe a la persona que usa la app y no a un servidor concreto. **Por defecto arranca en básico.**
 
-**El asistente básico va paso a paso.** Una pregunta por pantalla —nombre, tipo, jugadores— con
-indicador de progreso, en lugar de un formulario entero donde hay que decidir por dónde empezar. Al
-acabar los tres pasos se muestra un **resumen editable**: lo elegido, lo que hemos decidido nosotros
-(versión y memoria, marcados como tales), el enlace "cambiar" en cada línea para volver al paso
-correspondiente, y ahí es donde se acepta el EULA y se crea. Revisar antes de crear evita descubrir
-después que algo estaba mal.
+**El asistente básico es un recorrido completo, no un mínimo.** La primera versión preguntaba solo
+nombre, tipo y jugadores: el servidor arrancaba, pero en supervivencia fácil con mundo normal, y
+adaptarlo al gusto obligaba a ir después a Ajustes, que es justo el formulario que el modo básico
+quiere evitar. Ahora pregunta, una cosa por pantalla y siempre con una opción ya marcada:
+
+1. Nombre · 2. Tipo de servidor · 3. Jugadores a la vez
+4. **Modo de juego** — Supervivencia, Creativo, Aventura o Extremo
+5. **Dificultad** — *se salta en Extremo*: el juego la fija en Difícil y preguntarla sería ofrecer
+   una elección que luego no se respeta
+6. **Tipo de mundo** — Normal, Superplano, Biomas grandes, Amplificado
+7. **Peleas entre jugadores**
+8. **Desde dónde se conectan** — solo en casa, abriendo el router o con playit.gg
+
+Al terminar, un **resumen editable** con "cambiar" en cada línea, lo que decidimos nosotros (versión
+y memoria) marcado como tal, y el EULA. Editar desde el resumen vuelve a él, con una excepción:
+salir de Extremo hace aparecer la pregunta de la dificultad, que nunca se contestó, así que se pasa
+por ella antes de volver en vez de dejar un valor por defecto sin que nadie lo haya elegido.
+
+Todo eso se manda **en la propia petición de creación** (`properties` y `exposure`), no con un
+guardado posterior: el `server.properties` nace ya con lo elegido. El núcleo lo valida antes de
+tocar el disco —solo claves del catálogo, valores de su lista, booleanos bien escritos, y el puerto
+nunca por esta vía— para que un fallo de la interfaz no deje a medio crear un servidor ni, peor, uno
+distinto del que el usuario configuró sin que nadie se entere.
+
+**El día a día se reduce a tres cosas.** La pantalla del servidor en básico es un **botón grande
+INICIAR/PARAR**, la **moderación** de jugadores y la **consola**. Debajo del botón va la dirección
+para los amigos con su botón de copiar: es lo siguiente que hace cualquiera nada más encenderlo.
+Todo lo demás —Ajustes, Conexión, Mundos, Plugins o Mods, Copias, y abrir carpeta o borrar el
+servidor— vive detrás de **Configuración**, que ya se decidió en el asistente y no tiene por qué
+competir por la atención cada vez que se abre la app.
 
 **La elección se pide al crear, no se esconde en un ajuste.** Al pulsar "Crear servidor" aparecen dos
 tarjetas grandes —básico y avanzado— con lo que implica cada una, al estilo del Vibe/Spec de Kiro.
@@ -1216,7 +1240,8 @@ como vía para cambiar de opinión en cualquier momento.
 | **Memoria** | La recomendada según los jugadores, sin control | Control manual |
 | **Puerto** | El primero libre desde 25565 | Campo editable |
 | **Dirección** | **Una sola**: la que hay que pasar a los amigos | Las tres, con adaptador y latencia |
-| **Consola** | Oculta | Visible |
+| **Pantalla principal** | Botón INICIAR/PARAR, jugadores y consola; lo demás en Configuración | Todas las pestañas a la vista |
+| **Consola** | Visible, en la pantalla principal | Visible |
 | **Ficha técnica** | Oculta (Java, build, memoria) | Visible |
 | **Ajustes** | Solo las opciones básicas | Con interruptor de avanzadas |
 | **Copias** | Botón manual + resumen de las automáticas | Intervalo, retención y estimación |

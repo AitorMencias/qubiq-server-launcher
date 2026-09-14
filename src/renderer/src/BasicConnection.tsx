@@ -24,11 +24,24 @@ const MODE_LABELS: Record<ExposureMode, string> = {
   tunnel: 'También desde fuera, con playit.gg'
 }
 
-export function BasicConnection({ state, onManifestChanged }: Props): React.JSX.Element {
+export interface ShareAddress {
+  /** La dirección que sirve, o null si todavía no hay ninguna que dar. */
+  address: string | null
+  /** Qué significa esa dirección, sin medias verdades. */
+  note: string
+  /** Por qué no hay dirección, cuando no la hay. */
+  missing: string
+  info: ConnectionInfo | null
+  refresh: () => Promise<void>
+}
+
+/**
+ * La dirección que hay que pasarle a los amigos, según cómo esté expuesto el
+ * servidor. La usan esta tarjeta y la pantalla principal del modo básico.
+ */
+export function useShareAddress(state: InstanceState): ShareAddress {
   const { manifest, status } = state
   const [info, setInfo] = useState<ConnectionInfo | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [showHelp, setShowHelp] = useState(false)
   const [publicIp, setPublicIp] = useState<string | null>(null)
 
   const exposure = manifest.exposure ?? { mode: 'local' as const }
@@ -83,15 +96,7 @@ export function BasicConnection({ state, onManifestChanged }: Props): React.JSX.
     return local ? `${local}:${manifest.port}` : `localhost:${manifest.port}`
   })()
 
-  async function copy(): Promise<void> {
-    if (!address) return
-    await navigator.clipboard.writeText(address)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1600)
-  }
-
-  /** Qué significa la dirección que se está mostrando, sin medias verdades. */
-  const addressNote = (() => {
+  const note = (() => {
     if (exposure.mode === 'local') {
       return 'Vale para quien esté conectado a tu mismo wifi o router.'
     }
@@ -100,6 +105,28 @@ export function BasicConnection({ state, onManifestChanged }: Props): React.JSX.
     }
     return 'Es tu dirección de playit.gg: vale para tus amigos estén donde estén.'
   })()
+
+  const missing =
+    exposure.mode === 'tunnel'
+      ? 'Falta pegar la dirección que te da playit.gg. En Configuración → Conexión, pulsa "¿Cómo se hace?" para verlo paso a paso.'
+      : 'No se ha podido averiguar tu dirección de internet. Comprueba que tienes conexión.'
+
+  return { address, note, missing, info, refresh }
+}
+
+export function BasicConnection({ state, onManifestChanged }: Props): React.JSX.Element {
+  const { manifest, status } = state
+  const [copied, setCopied] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const exposure = manifest.exposure ?? { mode: 'local' as const }
+  const { address, note: addressNote, missing, info, refresh } = useShareAddress(state)
+
+  async function copy(): Promise<void> {
+    if (!address) return
+    await navigator.clipboard.writeText(address)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1600)
+  }
 
   return (
     <>
@@ -133,11 +160,7 @@ export function BasicConnection({ state, onManifestChanged }: Props): React.JSX.
         ) : (
           <div className="alert info" style={{ marginBottom: 0 }}>
             <strong>Todavía no hay dirección que dar</strong>
-            <p>
-              {exposure.mode === 'tunnel'
-                ? 'Falta pegar la dirección que te da playit.gg. Pulsa "¿Cómo se hace?" para verlo paso a paso.'
-                : 'No se ha podido averiguar tu dirección de internet. Comprueba que tienes conexión y vuelve a entrar aquí.'}
-            </p>
+            <p>{missing}</p>
           </div>
         )}
       </div>

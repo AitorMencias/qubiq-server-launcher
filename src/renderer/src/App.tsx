@@ -243,6 +243,9 @@ export function App(): React.JSX.Element {
 
         {creating === null && selected && (
           <ServerPanel
+            // Cambiar de servidor vuelve a su pantalla principal, en vez de
+            // arrastrar la pestaña o la configuración que tenía abiertas el otro.
+            key={selected.manifest.id}
             state={selected}
             logs={logs[selected.manifest.id] ?? []}
             players={players[selected.manifest.id] ?? []}

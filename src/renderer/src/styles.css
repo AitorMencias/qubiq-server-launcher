@@ -752,6 +752,104 @@ select:focus {
   color: #ff9d97;
 }
 
+/* --- Pantalla del servidor en modo básico --------------------------------- */
+
+/* El botón de encendido es LA acción de esta pantalla: se ve antes que nada. */
+.power-area {
+  padding: 22px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.power-button {
+  display: block;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto 14px;
+  padding: 22px 20px;
+  border-radius: 16px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #fff;
+  border: none;
+  transition: background 0.15s, transform 0.08s, box-shadow 0.15s;
+}
+
+.power-button:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.power-button.off {
+  background: var(--ok);
+  box-shadow: 0 6px 22px rgba(63, 191, 127, 0.25);
+}
+
+.power-button.off:hover:not(:disabled) {
+  background: #35a86f;
+  border-color: transparent;
+}
+
+.power-button.on {
+  background: var(--danger);
+  box-shadow: 0 6px 22px rgba(229, 84, 75, 0.25);
+}
+
+.power-button.on:hover:not(:disabled) {
+  background: #cf4940;
+  border-color: transparent;
+}
+
+/* Arrancando, parando o instalando: se ve que está ocupado, no apagado. */
+.power-button:disabled {
+  opacity: 1;
+  background: var(--panel-2);
+  color: var(--warn);
+  box-shadow: none;
+  cursor: progress;
+}
+
+.power-area .alert {
+  max-width: 620px;
+  margin: 0 auto 12px;
+}
+
+.power-progress {
+  max-width: 460px;
+  margin: 0 auto 12px;
+}
+
+.share-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.share-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.share-address {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  user-select: text;
+}
+
+.share-note {
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 6px;
+}
+
 /* --- Asistente por pasos (modo básico) ------------------------------------ */
 
 .wizard {
@@ -808,6 +906,13 @@ select:focus {
   margin: 0 0 24px;
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Notas bajo las opciones de un paso: `.help` solo tenía estilo dentro de un campo. */
+.step-frame .help {
+  font-size: 12px;
+  color: var(--muted);
   line-height: 1.5;
 }
 
