@@ -311,23 +311,28 @@ eventos. Eso permite reutilizarlo tal cual si en v3 se añade un panel web o una
         └── launcher.log      log propio de la app, separado del del servidor
 ```
 
-`instance.json` describe **intención**, no estado derivado:
+`instance.json` describe **intención**, no estado derivado. Desde la v0.4 (esquema 2, §19.13) lo
+común va en la raíz y lo propio del juego dentro de `data`:
 
 ```json
 {
-  "schemaVersion": 1,
-  "id": "01J8...",
+  "schemaVersion": 2,
+  "id": "survival-amigos",
   "name": "Survival con amigos",
-  "distribution": "paper",
-  "minecraftVersion": "26.2",
-  "build": "123",
-  "javaMajor": 25,
-  "memoryMb": 4096,
-  "jvmArgs": ["-XX:+UseG1GC"],
+  "game": "minecraft",
   "port": 25565,
   "autoRestart": true,
   "backup": { "enabled": true, "intervalHours": 6, "keep": 10 },
-  "createdAt": "2026-09-10T18:00:00Z"
+  "createdAt": "2026-09-10T18:00:00Z",
+  "agreements": ["minecraft-eula"],
+  "data": {
+    "distribution": "paper",
+    "minecraftVersion": "26.2",
+    "build": "123",
+    "javaMajor": 25,
+    "memoryMb": 4096,
+    "jvmArgs": ["-XX:+UseG1GC"]
+  }
 }
 ```
 
@@ -1472,7 +1477,146 @@ arranca un servidor de verdad, responde al Server List Ping y hace la parada lim
 | **Cargador con el mismo dado** | Las esperas sin porcentaje real (crear un servidor, el botón mientras arranca, las copias) muestran el D20 sin placa girando de forma semi-errática (`D20Loader`, velocidad 0.6 y nerviosismo 1). Sustituye a barras que estaban fijas al 35 % y al 45 %: un progreso inventado. La barra solo aparece cuando hay un porcentaje de verdad. |
 | **Sin firmar** | Por decisión de §13.3. SmartScreen avisará en la primera ejecución; está documentado en el README junto a los dos clics necesarios. |
 
-### 19.13 Siguiente
+### 19.13 Varios juegos: el contrato y la migración (Fase 0)
+
+Primera fase de [HOJA-DE-RUTA-MULTIJUEGO.md](HOJA-DE-RUTA-MULTIJUEGO.md). La arquitectura pasa a
+hablar de *juegos* y no de *distribuciones de Minecraft*, sin añadir todavía ningún juego y sin
+cambios visibles. Estructura resultante en el README (§ Arquitectura).
+
+**El contrato (`core/games/types.ts`).** Un juego aporta:
+
+| Pieza | Qué hace | En Minecraft |
+|---|---|---|
+| `prepareCreate` / `writeInitialFiles` | Valida la petición y devuelve su `data`; después escribe los ficheros iniciales | Memoria, flags de JVM, `server.properties`, `eula.txt` |
+| `install` | Descarga lo necesario; devuelve lo que haya cambiado en `data` | Java + jar de la distribución |
+| `applyChanges` | Recalcula lo derivado cuando el usuario cambia algo | Regenera `jvmArgs` si cambia la memoria |
+| `launch` | Ejecutable, argumentos y carpeta | `java` + flags + `nogui` |
+| `stop` | Estrategia de parada. Hoy solo existe `stdin` | `stop` por stdin |
+| `parseLine` / `diagnoseExit` | Lectura del log y del cierre inesperado | Los tres formatos de log (§19.2) |
+| `backupEntries` / `restoreTargets` / `backupMeta` | Qué se copia, qué se sustituye al restaurar y qué se anota | Carpetas del mundo activo y ficheros de jugadores |
+| `holdSaves` / `resumeSaves` | Opcionales: dejar la partida consistente para copiar en marcha. Un juego sin ellos solo copia parado | `save-off` → `save-all flush` → confirmación → `save-on` |
+| `ping` / `checkFromInternet` | ¿Se puede entrar? Desde dentro y desde fuera | Server List Ping y mcstatus.io |
+
+Lo que el juego declara hacia la interfaz (nombre, condiciones que aceptar, aviso legal y
+**capacidades**: mundos, contenido, plugins oficiales, memoria, reinstalar, comandos) vive en
+`shared/games/index.ts`. Las capacidades deciden qué pestañas salen en Configuración; la interfaz de
+cada juego (`renderer/src/games/<juego>/`) aporta asistentes, pestañas y filas de la ficha técnica.
+Lo exclusivo de Minecraft que no encaja en el contrato (mundos, plugins, `server.properties`) está en
+`core/games/minecraft/service.ts`, expuesto como `service.minecraft` y por canales IPC `minecraft:`.
+
+**Decisiones:**
+
+| Asunto | Resolución |
+|---|---|
+| **Registro sin ciclos** | `instances/manager.ts` recibe el adaptador como parámetro en vez de importar el registro: el registro importa a Minecraft, que usa las instancias. |
+| **Condiciones genéricas** | `eulaAccepted` pasa a `agreements: AgreementId[]`. Crear y arrancar comprueban las que declare el juego, así que el acuerdo de Steam de la fase 1 no necesita código nuevo. Un EULA no aceptado en la v1 **no** se da por aceptado al migrar. |
+| **Juego desconocido** | Un servidor de un juego que esta versión no conoce (creado con una app más nueva) no sale en la lista, porque la interfaz no sabría pintarlo, y se queda intacto en disco. Operar con él por id da un error explicado. |
+| **Esquema más nuevo** | Se rechaza sin tocar el fichero: bajar de versión la app no puede estropear un servidor creado con una más nueva. |
+| **Parseo del log** | No se ha partido en estructura común + patrones. Lo común resultó ser solo el tipo `ParsedEvent`, que vive en el contrato; el parser entero es de Minecraft. |
+| **Editor clave=valor** | Extraído a `core/formats/keyValue.ts`: `servertest.ini` de Project Zomboid usa el mismo formato. Minecraft lo reexporta como `PropertiesFile`. |
+| **Copias antiguas** | Los sidecar anteriores guardaban `minecraftVersion`/`distribution`; se normalizan al leer a `game`/`version`/`variant`, sin reescribirlos. |
+| **Textos** | Siguen hablando de Minecraft donde la interfaz es común (subtítulo, «mundo», el aviso de playit). Se generalizan cuando haya un segundo juego que los necesite, en la fase 1, para que esta fase no cambie nada visible. |
+
+**Migración v1 → v2** (`instances/migrations.ts`). Función pura e idempotente, ejecutada al leer:
+si el manifiesto era antiguo, se guarda antes una copia literal en `instance.v1.json` (nunca se pisa
+si ya existe) y se escribe el nuevo. Los datos en disco (`server/`, `backups/`, `runtimes/`) no se
+mueven.
+
+**Cómo se ha comprobado:**
+
+- `smoke` (156): migración con un manifiesto v1 real (campos, idempotencia, EULA no aceptado,
+  esquema futuro, copia en disco que no se pisa), juego desconocido, sidecar antiguo y un **juego falso** que no tiene
+  nada de Minecraft (un proceso de Node que imprime `LISTO` y se para con `salir`): crear, instalar,
+  arrancar, detectar listo y jugadores con su propio parser, parar con su orden, copiar sus rutas y
+  borrar. Si el contrato dependiera de Minecraft, esta prueba no compilaría o fallaría.
+- `e2e paper` y `e2e:restart`: en verde, igual que antes.
+- **Copias de los tres servidores reales** (hc-lobby, hc-partida, los-tilted-hardcock) en una carpeta
+  aislada: migran con todos los campos iguales, leen sus copias antiguas, conservan el plugin
+  oficial, arrancan, responden al ping, hacen copia en caliente y paran limpio. Los originales,
+  comparados por checksum fichero a fichero, no se tocaron.
+- **Interfaz:** recorrido de Playwright por los dos modos, el asistente básico y Configuración, con
+  capturas comparadas píxel a píxel con las de antes. Las únicas diferencias venían de la v0.3.1 y
+  la v0.3.2, no de este cambio.
+
+**Fallo encontrado por el camino (anterior a esta fase).** Server List Ping no escuchaba el cierre
+de la conexión. Un servidor que corta sin responder —vanilla lo hace justo al terminar de arrancar un
+mundo nuevo— no dispara ni `error` ni `timeout` (el temporizador muere con el socket), y la promesa
+no se resolvía nunca: la pantalla de conexión se quedaba en «comprobando» y la verificación se colgó
+así. Ahora el cierre resuelve «no responde», y el smoke lo prueba con un servidor que acepta y
+cierra. De paso, `route print` tiene un límite de 10 s.
+
+### 19.14 Cimientos de Steam (Fase 1)
+
+Segunda fase de [HOJA-DE-RUTA-MULTIJUEGO.md](HOJA-DE-RUTA-MULTIJUEGO.md): lo que necesitan los
+juegos que no son Minecraft, sin añadir todavía ninguno. Para Minecraft no cambia nada visible.
+
+#### Prototipo 1: parar un servidor sin stdin (Valheim)
+
+Valheim no lee órdenes: su propio `.bat` dice "PRESS CTRL-C to exit". Se probó lanzándolo como lo
+hará la app (tuberías y ventana oculta, desde Node y desde Electron) y enviándole señales con un
+PowerShell que se engancha a su consola (`AttachConsole` + `GenerateConsoleCtrlEvent`).
+
+| Prueba | Resultado |
+|---|---|
+| **Ctrl+C** | **No llega.** `GenerateConsoleCtrlEvent` no da error, pero el proceso hijo hereda la orden de ignorar Ctrl+C y Windows la respeta. Confirmado con un proceso de control que escuchaba SIGINT. |
+| **Ctrl+Break** | **Funciona.** No se puede ignorar de esa forma. Valheim ejecuta `OnApplicationQuit`, guarda el mundo ("World save (5/5) done") y sale con código 0 en unos 3 s. |
+| **Durante la generación del mundo** | Se ignora. Hay que esperar a que el servidor esté listo ("Opened Steam server"). |
+| **Auxiliar** | PowerShell en línea (`-EncodedCommand`, ruta absoluta): sin dependencias npm ni ejecutable propio, y sin que le afecte la política de scripts. Tarda ~0,5 s. |
+
+**Decisión:** la vía es Ctrl+Break y el orden de las fases se mantiene. Enshrouded lo reutilizará.
+
+#### Prototipo 2: SteamCMD
+
+Instalados de forma anónima Valheim (2 GB), Enshrouded (8,8 GB), Satisfactory (15,5 GB), Project
+Zomboid y Rust (5,5 GB), observando todo lo que escribe.
+
+| Hallazgo | Consecuencia |
+|---|---|
+| Por una tubería, **la salida llega entera al final** | El progreso en vivo se lee de `logs/console_log.txt`, que se escribe cada ~2 s con las mismas líneas. Ni el `.acf` ni la carpeta de descarga sirven: el primero se actualiza al terminar y la segunda se reserva entera al principio. |
+| Las líneas generales salen **traducidas** ("Buscando actualizaciones disponibles...") | Solo se interpretan `Update state (0x61) downloading, progress: 12.66 (a / b)`, `Success! App ...` y `ERROR! Failed to install app ... (motivo)`, que salen en inglés. |
+| La primera ejecución sale con **código 7** tras autoactualizarse | Se repite la orden. |
+| **Código 8** vale para "Missing configuration" (pasajero: el primer login tras instalar SteamCMD) y para "No subscription" (permanente) | Se decide por el motivo, no por el código. Lo pasajero se reintenta. |
+| Segunda ejecución: "already up to date" en ~4 s | Actualizar es volver a instalar. |
+| Versión publicada: `app_info_print` → `branches.public.buildid`; instalada: `appmanifest_<id>.acf` → `buildid` | Comprobación de actualizaciones sin cuenta. |
+| `force_install_dir` tiene que ir **antes** de `login` | Si no, se ignora. |
+| Valve no publica hash de `steamcmd.zip`, pero el ejecutable va **firmado** | Se valida la firma (Authenticode) antes de ejecutarlo. El del zip lleva el certificado antiguo ("O=Valve"); el autoactualizado, el nuevo ("O=Valve Corp."). |
+
+#### Piezas comunes construidas
+
+| Pieza | Dónde | Estado |
+|---|---|---|
+| Gestor de SteamCMD (descarga, firma, cola única, reintentos, progreso, actualizaciones) | `core/tools/steamcmd.ts`, `steamcmdOutput.ts` | Probado con servidores reales (`e2e:steam`) |
+| Estrategias de parada: stdin, Ctrl+Break, RCON, WebRCON, API | `core/runtime/stop.ts`, contrato `stop(manifest)` con plazo de gracia por juego | Minecraft ya usa la genérica (stdin) |
+| Cliente Source RCON | `core/net/rcon.ts` | Contra la grabación real de Project Zomboid |
+| Cliente WebRCON (WebSocket nativo) | `core/net/webrcon.ts` | Contra el formato documentado de Rust, **sin grabación real** |
+| Consulta A2S (estado y jugadores, reto, respuestas partidas) | `core/net/a2s.ts` | Contra la grabación real de Project Zomboid |
+| Puertos múltiples y UDP | `serverPorts()` en `shared/games`, `isUdpPortInUse`, `findFreePortBlock` | Las guías del router y de playit se generan por puerto y protocolo |
+| Comprobación desde internet para Steam | `core/net/steamServers.ts` (`GetServersAtAddress`, sin clave) | Solo dice si Steam conoce el servidor, **no** que se pueda entrar: el alta la hace el servidor hacia fuera |
+| Visual C++ Redistributable | `core/system/windows.ts` | Detección; qué juego lo exige, por confirmar en cada fase |
+| Actualizaciones del servidor | `checkUpdate` en el contrato, `service.checkForUpdate` / `updateServer`, IPC | Sin interfaz hasta que un juego lo use |
+| Variables de entorno al lanzar | `LaunchSpec.env` | Valheim necesita `SteamAppId` |
+| Vocabulario por juego | `GameInfo.save`, `backupScope`, `tunnelAddressExample` | Los textos comunes ya no dicen «mundo» a fuego |
+
+**Decisiones:**
+
+| Asunto | Resolución |
+|---|---|
+| **Grabaciones como prueba** | `scripts/smoke/fixtures/steam/` guarda salidas y tráfico reales, sin rutas del usuario. Si un juego cambia su protocolo, se vuelve a grabar y el smoke dice qué se ha roto. Lo sintético está marcado como tal en cada comprobación. |
+| **Aislamiento de Project Zomboid** | Por defecto escribe en `%USERPROFILE%\Zomboid`, la misma carpeta del juego del usuario. Con `-Duser.home` y `-cachedir` queda dentro de la instancia; comprobado que la carpeta real no se toca. |
+| **A2S de Valheim** | Con `-public 0` abre el puerto de consulta pero no contesta. Grabarlo exige publicar el servidor en la lista de Steam con la IP del usuario: pendiente de su decisión. |
+| **WebRCON de Rust** | Mismo motivo: el servidor de Rust se anuncia siempre en la lista. Instalado, pendiente de grabar. |
+| **Detección de UDP** | Reservar el puerto no basta (ver README): se confirma con `netstat`. |
+
+**Fallo encontrado por el camino (Minecraft).** Paper publicó 26.3 con builds solo experimentales, y el
+catálogo la proponía por defecto: el instalador la rechaza, así que crear un servidor de plugins con
+el asistente habría fallado. Ahora, sin el modo inestable, se saltan las versiones de Paper cuyo
+último build no es estable, y el smoke lo comprueba.
+
+**Cómo se ha comprobado:** smoke 213/0; `e2e:steam` completo desde cero; `e2e paper` y `e2e:restart`
+en verde; guías de conexión renderizadas con la versión anterior y la nueva dando el mismo texto; y
+recorrido de Playwright por los dos modos, igual que tras la fase 0.
+
+### 19.15 Siguiente
 
 **Ahora (uso privado):**
 

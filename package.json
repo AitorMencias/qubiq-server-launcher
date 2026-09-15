@@ -13,6 +13,7 @@
     "smoke": "vite build --config scripts/vite.smoke.config.ts && node out/smoke/smoke.mjs",
     "e2e": "vite build --config scripts/vite.e2e.config.ts && node out/e2e/e2e.mjs",
     "e2e:restart": "vite build --config scripts/vite.e2e-restart.config.ts && node out/e2e-restart/e2e-restart.mjs",
+    "e2e:steam": "vite build --config scripts/vite.e2e-steam.config.ts && node out/e2e-steam/e2e-steam.mjs",
     "postinstall": "node -e \"try{require('electron/install.js')}catch(e){}\"",
     "dist": "npm run build && electron-builder --win",
     "dist:dir": "npm run build && electron-builder --win --dir",

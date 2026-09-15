@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Diagnosis, InstanceState, LogLine, ProgressUpdate, UiMode } from '@shared/types'
-import { DISTRIBUTION_LABELS } from '@shared/types'
-import { CreateWizard } from './CreateWizard'
-import { BasicWizard } from './BasicWizard'
+import type { Diagnosis, GameId, InstanceState, LogLine, ProgressUpdate, UiMode } from '@shared/types'
+import { GAME_IDS, appSubtitle, gameInfo, summaryLabel } from '@shared/games'
+import { GAME_UI } from './games'
+import { GameChooser } from './GameChooser'
 import { ModeChooser } from './ModeChooser'
 import { ServerPanel } from './ServerPanel'
 
@@ -13,10 +13,11 @@ export function App(): React.JSX.Element {
   const [instances, setInstances] = useState<InstanceState[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   /**
-   * Flujo de creación: primero se elige el modo (como Vibe/Spec en Kiro) y
-   * después se entra al asistente correspondiente.
+   * Flujo de creación: juego (solo si hay más de uno), modo (como Vibe/Spec en
+   * Kiro) y el asistente de ese juego en ese modo.
    */
-  const [creating, setCreating] = useState<null | 'choosing' | UiMode>(null)
+  const [creating, setCreating] = useState<null | 'game' | 'choosing' | UiMode>(null)
+  const [createGame, setCreateGame] = useState<GameId>(GAME_IDS[0]!)
   const [logs, setLogs] = useState<Record<string, LogLine[]>>({})
   const [players, setPlayers] = useState<Record<string, string[]>>({})
   const [progress, setProgress] = useState<ProgressUpdate | null>(null)
@@ -54,6 +55,16 @@ export function App(): React.JSX.Element {
   function changeMode(next: UiMode): void {
     setMode(next)
     void window.qubiq.settings.update({ uiMode: next }).catch(() => undefined)
+  }
+
+  /** Empieza a crear: con un único juego se salta la elección de juego. */
+  function startCreate(): void {
+    if (GAME_IDS.length > 1) {
+      setCreating('game')
+      return
+    }
+    setCreateGame(GAME_IDS[0]!)
+    setCreating('choosing')
   }
 
   function onInstanceCreated(id: string): void {
@@ -126,7 +137,7 @@ export function App(): React.JSX.Element {
       <aside className="sidebar">
         <div className="brand">
           <h1>QubiQ Server Launcher</h1>
-          <p>Servidores de Minecraft, sin complicaciones</p>
+          <p>{appSubtitle()}</p>
         </div>
 
         <div className="instance-list">
@@ -149,15 +160,14 @@ export function App(): React.JSX.Element {
               <div className="name">{instance.manifest.name}</div>
               <div className="meta">
                 <span className={`dot ${instance.status}`} style={{ display: 'inline-block' }} />{' '}
-                {DISTRIBUTION_LABELS[instance.manifest.distribution].name} ·{' '}
-                {instance.manifest.minecraftVersion}
+                {summaryLabel(instance.manifest)}
               </div>
             </div>
           ))}
         </div>
 
         <div className="sidebar-footer">
-          <button className="primary" onClick={() => setCreating('choosing')}>
+          <button className="primary" onClick={startCreate}>
             + Crear servidor
           </button>
 
@@ -180,8 +190,11 @@ export function App(): React.JSX.Element {
         </div>
 
         <div className="disclaimer">
-          NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR
-          MICROSOFT.
+          {GAME_IDS.map((id) => (
+            <p key={id} style={{ margin: 0 }}>
+              {gameInfo(id).disclaimer}
+            </p>
+          ))}
         </div>
       </aside>
 
@@ -198,16 +211,29 @@ export function App(): React.JSX.Element {
         {creating !== null && (
           <>
             <div className="topbar">
-              <h2>Crear un servidor nuevo</h2>
-              {creating !== 'choosing' && (
+              <h2>
+                Crear un servidor nuevo
+                {GAME_IDS.length > 1 && creating !== 'game' && ` de ${gameInfo(createGame).name}`}
+              </h2>
+              {creating !== 'choosing' && creating !== 'game' && (
                 <span className="status">
                   Modo {creating === 'basic' ? 'básico' : 'avanzado'}
                 </span>
               )}
-              {creating !== 'choosing' && (
+              {creating !== 'choosing' && creating !== 'game' && (
                 <button onClick={() => setCreating('choosing')}>Cambiar de modo</button>
               )}
             </div>
+
+            {creating === 'game' && (
+              <GameChooser
+                onCancel={() => setCreating(null)}
+                onChoose={(game) => {
+                  setCreateGame(game)
+                  setCreating('choosing')
+                }}
+              />
+            )}
 
             {creating === 'choosing' && (
               <ModeChooser
@@ -223,21 +249,27 @@ export function App(): React.JSX.Element {
               />
             )}
 
-            {creating === 'basic' && (
-              <BasicWizard
-                progress={progress}
-                onCancel={() => setCreating(null)}
-                onCreated={onInstanceCreated}
-              />
-            )}
+            {creating === 'basic' && (() => {
+              const Wizard = GAME_UI[createGame].BasicWizard
+              return (
+                <Wizard
+                  progress={progress}
+                  onCancel={() => setCreating(null)}
+                  onCreated={onInstanceCreated}
+                />
+              )
+            })()}
 
-            {creating === 'advanced' && (
-              <CreateWizard
-                progress={progress}
-                onCancel={() => setCreating(null)}
-                onCreated={onInstanceCreated}
-              />
-            )}
+            {creating === 'advanced' && (() => {
+              const Wizard = GAME_UI[createGame].AdvancedWizard
+              return (
+                <Wizard
+                  progress={progress}
+                  onCancel={() => setCreating(null)}
+                  onCreated={onInstanceCreated}
+                />
+              )
+            })()}
           </>
         )}
 
@@ -265,7 +297,7 @@ export function App(): React.JSX.Element {
               </strong>
               Crea el primero y estarás jugando en unos minutos.
             </div>
-            <button className="primary" onClick={() => setCreating('choosing')}>
+            <button className="primary" onClick={startCreate}>
               Crear mi primer servidor
             </button>
           </div>

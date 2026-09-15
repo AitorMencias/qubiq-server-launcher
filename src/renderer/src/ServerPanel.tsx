@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import type { Diagnosis, InstanceState, LogLine, UiMode } from '@shared/types'
-import { DISTRIBUTION_LABELS, contentKindFor } from '@shared/types'
+import { capabilitiesFor, gameInfo, theSave, versionLabel } from '@shared/games'
+import { uiFor } from './games'
 import { useShareAddress, BasicConnection } from './BasicConnection'
 import { ConnectionCard } from './ConnectionCard'
 import { PlayersPanel } from './PlayersPanel'
 import { ConsolePanel } from './ConsolePanel'
-import { ConfigPanel } from './ConfigPanel'
-import { WorldsPanel } from './WorldsPanel'
-import { ContentPanel } from './ContentPanel'
 import { BackupPanel } from './BackupPanel'
 import { ConfirmDelete } from './ConfirmDelete'
 import { D20Loader } from './D20Loader'
@@ -23,10 +21,14 @@ import { D20Loader } from './D20Loader'
  * Configuración: cada pestaña recibe `mode` y el avanzado añade sus opciones
  * (memoria, semillas, retención de copias, las tres direcciones, la ficha
  * técnica, reinstalar...).
+ *
+ * No nombra ningún juego: las pestañas propias (Ajustes, Mundos, Plugins…) y la
+ * ficha técnica las aporta el juego del servidor (`games/<juego>`).
  */
 
 type MainTab = 'jugadores' | 'consola'
-type ConfigTab = 'ajustes' | 'conexion' | 'mundos' | 'contenido' | 'copias' | 'servidor'
+/** Pestañas comunes; las del juego llegan con su propio id. */
+type CommonConfigTab = 'conexion' | 'copias' | 'servidor'
 
 interface Props {
   state: InstanceState
@@ -51,10 +53,11 @@ export function ServerPanel({
   const advanced = mode === 'advanced'
   const [configuring, setConfiguring] = useState(false)
   const [mainTab, setMainTab] = useState<MainTab>('jugadores')
-  const [configTab, setConfigTab] = useState<ConfigTab>('ajustes')
+  const [configTab, setConfigTab] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const contentKind = contentKindFor(manifest.distribution)
+  const gameUi = uiFor(manifest)
+  const capabilities = capabilitiesFor(manifest)
 
   const running = status === 'running'
   const busy = status === 'starting' || status === 'stopping' || status === 'installing'
@@ -85,16 +88,18 @@ export function ServerPanel({
   )
 
   if (configuring) {
-    const tabs: { id: ConfigTab; label: string }[] = [
-      { id: 'ajustes', label: 'Ajustes' },
-      { id: 'conexion', label: 'Conexión' },
-      { id: 'mundos', label: 'Mundos' },
-      ...(contentKind !== null
-        ? [{ id: 'contenido' as const, label: contentKind === 'mods' ? 'Mods' : 'Plugins' }]
-        : []),
-      { id: 'copias', label: 'Copias' },
-      { id: 'servidor', label: 'Servidor' }
+    const gameTabs = gameUi.configTabs({ state, mode, onRefresh })
+    const common = (id: CommonConfigTab, label: string): { id: string; label: string } => ({ id, label })
+    const tabs = [
+      ...gameTabs.filter((t) => t.slot === 'first'),
+      common('conexion', 'Conexión'),
+      ...gameTabs.filter((t) => t.slot === 'afterConnection'),
+      common('copias', 'Copias'),
+      common('servidor', 'Servidor')
     ]
+    // Sin elección previa se abre la primera pestaña, sea cual sea el juego.
+    const activeTab = configTab && tabs.some((t) => t.id === configTab) ? configTab : tabs[0]!.id
+    const activeGameTab = gameTabs.find((t) => t.id === activeTab)
 
     return (
       <>
@@ -103,7 +108,7 @@ export function ServerPanel({
           {tabs.map((t) => (
             <button
               key={t.id}
-              className={`tab ${configTab === t.id ? 'active' : ''}`}
+              className={`tab ${activeTab === t.id ? 'active' : ''}`}
               onClick={() => setConfigTab(t.id)}
             >
               {t.label}
@@ -111,9 +116,9 @@ export function ServerPanel({
           ))}
         </div>
 
-        {configTab === 'ajustes' && <ConfigPanel state={state} mode={mode} onSaved={onRefresh} />}
+        {activeGameTab?.render()}
 
-        {configTab === 'conexion' && (
+        {activeTab === 'conexion' && (
           <div className="panel">
             {/* Básico: una sola dirección, la que hay que pasar. Avanzado: las
                 tres, con latencia y la comprobación desde internet. */}
@@ -125,13 +130,7 @@ export function ServerPanel({
           </div>
         )}
 
-        {configTab === 'mundos' && <WorldsPanel state={state} mode={mode} onChanged={onRefresh} />}
-
-        {configTab === 'contenido' && contentKind !== null && (
-          <ContentPanel state={state} mode={mode} />
-        )}
-
-        {configTab === 'copias' && (
+        {activeTab === 'copias' && (
           <BackupPanel
             state={state}
             mode={mode}
@@ -144,7 +143,7 @@ export function ServerPanel({
           />
         )}
 
-        {configTab === 'servidor' && (
+        {activeTab === 'servidor' && (
           <div className="panel">
             {error && (
               <div className="alert error">
@@ -158,22 +157,22 @@ export function ServerPanel({
             {advanced && (
               <div className="card">
                 <h3>Detalles</h3>
-                <DetailRow label="Tipo" value={DISTRIBUTION_LABELS[manifest.distribution].name} />
-                <DetailRow label="Versión de Minecraft" value={manifest.minecraftVersion} />
-                {manifest.build && <DetailRow label="Build" value={manifest.build} />}
-                <DetailRow label="Java" value={String(manifest.javaMajor)} />
-                <DetailRow label="Memoria" value={`${(manifest.memoryMb / 1024).toFixed(1)} GB`} last />
+                {gameUi.detailRows(manifest).map((row, i, rows) => (
+                  <DetailRow key={row.label} label={row.label} value={row.value} last={i === rows.length - 1} />
+                ))}
               </div>
             )}
 
             <div className="card">
               <h3>{advanced ? 'Mantenimiento' : 'Carpeta del servidor'}</h3>
-              <p className="hint">Ahí están el mundo, la configuración y los registros.</p>
+              <p className="hint">
+                Ahí están {theSave(gameInfo(manifest.game).save)}, la configuración y los registros.
+              </p>
               <div className="row">
                 <button onClick={() => void window.qubiq.instances.openFolder(manifest.id)}>
                   Abrir carpeta
                 </button>
-                {advanced && (
+                {advanced && capabilities.reinstall && (
                   <button
                     disabled={running || busy}
                     onClick={() => run(() => window.qubiq.instances.reinstall(manifest.id))}
@@ -189,7 +188,8 @@ export function ServerPanel({
             <div className="card danger-zone">
               <h3>Borrar este servidor</h3>
               <p className="hint">
-                Se elimina para siempre, con su mundo y sus copias de seguridad.
+                Se elimina para siempre, con su {gameInfo(manifest.game).save.singular} y sus copias
+                de seguridad.
                 {!advanced && ' Si solo quieres dejar de jugar un tiempo, basta con pararlo.'}
               </p>
               <button className="danger" disabled={busy} onClick={() => setConfirmingDelete(true)}>
@@ -349,7 +349,7 @@ function PowerCard({ state, diagnosis, progress, error, onRun }: PowerCardProps)
         )}
       </div>
       <div className="share-note">
-        {address && `${note} `}Minecraft {manifest.minecraftVersion}.
+        {address && `${note} `}{versionLabel(manifest)}.
       </div>
     </div>
   )

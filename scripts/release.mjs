@@ -161,14 +161,20 @@ function readFromJar(jarPath, entry) {
   return result.status === 0 && result.stdout.length > 0 ? result.stdout : null
 }
 
-function syncPluginTemplates() {
-  const base = join('resources', 'plugins')
-  if (!existsSync(base)) return true
+/** Carpetas de plugins oficiales de cada juego: `resources/<juego>/plugins/<plugin>`. */
+function pluginDirs() {
+  const base = 'resources'
+  if (!existsSync(base)) return []
+  return readdirSync(base)
+    .map((game) => join(base, game, 'plugins'))
+    .filter((dir) => existsSync(dir) && statSync(dir).isDirectory())
+    .flatMap((dir) => readdirSync(dir).map((plugin) => ({ plugin, dir: join(dir, plugin) })))
+    .filter(({ dir }) => statSync(dir).isDirectory())
+}
 
+function syncPluginTemplates() {
   let ok = true
-  for (const plugin of readdirSync(base)) {
-    const dir = join(base, plugin)
-    if (!statSync(dir).isDirectory()) continue
+  for (const { plugin, dir } of pluginDirs()) {
 
     const jars = readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.jar'))
     if (jars.length !== 1) {

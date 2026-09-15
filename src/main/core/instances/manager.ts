@@ -1,7 +1,8 @@
 import { join } from 'node:path'
-import { readFile, writeFile, readdir, rm, access } from 'node:fs/promises'
+import { readFile, writeFile, readdir, rm, access, copyFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import type { CreateInstanceRequest, InstanceManifest } from '@shared/types'
+import type { CreateInstanceRequest, InstanceManifest, ManifestChanges } from '@shared/types'
+import { requiredAgreements } from '@shared/games'
 import {
   ensureDir,
   instanceDir,
@@ -11,15 +12,16 @@ import {
   backupsDir,
   slugify
 } from '../paths'
-import { defaultJvmArgs, suggestedMemoryMb } from '../install/jvmArgs'
-import { PropertiesFile, initialProperties } from '../config/properties'
-import * as catalog from '../versions/catalog'
+import type { GameAdapter } from '../games/types'
+import { migrateManifest } from './migrations'
 
 /**
- * Ciclo de vida de las instancias (§5.1).
+ * Ciclo de vida de las instancias (§5.1), para cualquier juego.
  *
  * El manifiesto guarda INTENCIÓN (qué quiso el usuario), no estado derivado.
- * Lo que hay realmente en disco se consulta al disco.
+ * Lo que hay realmente en disco se consulta al disco. Lo propio de cada juego
+ * lo resuelve su adaptador, que llega como parámetro: este módulo no importa el
+ * registro de juegos para no crear un ciclo de dependencias.
  */
 
 export async function listInstances(): Promise<InstanceManifest[]> {
@@ -37,11 +39,31 @@ export async function listInstances(): Promise<InstanceManifest[]> {
   return manifests
 }
 
+/**
+ * Lee el manifiesto y, si es de un esquema anterior, lo migra y lo guarda.
+ *
+ * Antes de sobrescribir se deja una copia del original (`instance.v1.json`),
+ * y solo si no existía ya: una segunda migración nunca debe pisar la copia del
+ * fichero auténtico con uno ya migrado.
+ */
 export async function readManifest(id: string): Promise<InstanceManifest | null> {
+  let raw: unknown
   try {
-    const raw = await readFile(manifestPath(id), 'utf8')
-    return JSON.parse(raw) as InstanceManifest
+    raw = JSON.parse(await readFile(manifestPath(id), 'utf8'))
   } catch {
+    return null
+  }
+
+  try {
+    const { manifest, fromSchema } = migrateManifest(raw)
+    if (fromSchema !== manifest.schemaVersion) {
+      const backup = join(instanceDir(id), `instance.v${fromSchema}.json`)
+      if (!(await exists(backup))) await copyFile(manifestPath(id), backup)
+      await writeManifest(manifest)
+    }
+    return manifest
+  } catch {
+    // Un manifiesto que no se entiende no debe tumbar la lista entera.
     return null
   }
 }
@@ -73,125 +95,80 @@ async function uniqueId(name: string): Promise<string> {
 }
 
 /**
- * Crea la instancia en disco: manifiesto, carpetas y server.properties inicial.
- * NO descarga nada todavía; de eso se encarga el instalador.
+ * Crea la instancia en disco: manifiesto, carpetas y ficheros iniciales del
+ * juego. NO descarga nada todavía; de eso se encarga la instalación.
  */
-export async function createInstance(request: CreateInstanceRequest): Promise<InstanceManifest> {
-  if (!request.eulaAccepted) {
-    // El EULA se acepta explícitamente; nunca se marca por nosotros (§6).
-    throw new Error('Hay que aceptar el EULA de Minecraft antes de crear el servidor.')
+export async function createInstance(
+  request: CreateInstanceRequest,
+  game: GameAdapter
+): Promise<InstanceManifest> {
+  // Las condiciones se aceptan explícitamente; nunca se marcan por el usuario (§6).
+  for (const agreement of requiredAgreements(request.game)) {
+    if (!request.agreements.includes(agreement.id)) {
+      throw new Error(`Hay que aceptar ${agreement.label} antes de crear el servidor.`)
+    }
   }
 
   const name = request.name.trim() || 'Servidor'
 
-  // Se valida ANTES de tocar el disco: un ajuste no válido no debe dejar a
-  // medio crear una carpeta de servidor que luego aparezca en la lista.
-  const properties = initialProperties(
-    request.port,
-    name,
-    request.expectedPlayers,
-    request.properties
-  )
   if (request.exposure && !['local', 'router', 'tunnel'].includes(request.exposure.mode)) {
     throw new Error(`Forma de conexión desconocida: ${request.exposure.mode}`)
   }
 
-  const id = await uniqueId(request.name)
-  const javaMajor = await catalog.javaMajorFor(request.minecraftVersion)
-  const memoryMb = request.memoryMb > 0 ? request.memoryMb : suggestedMemoryMb()
+  // Se valida ANTES de tocar el disco: una petición no válida no debe dejar a
+  // medio crear una carpeta de servidor que luego aparezca en la lista.
+  const data = await game.prepareCreate(request, name)
 
+  const id = await uniqueId(request.name)
   const manifest: InstanceManifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id,
     name,
-    distribution: request.distribution,
-    minecraftVersion: request.minecraftVersion,
-    build: request.build,
-    javaMajor,
+    game: request.game,
     expectedPlayers: request.expectedPlayers,
-    memoryMb,
-    jvmArgs: defaultJvmArgs(memoryMb),
     port: request.port,
     autoRestart: false,
-    backup: { enabled: true, intervalHours: 6, keep: 10 },
     ...(request.exposure ? { exposure: request.exposure } : {}),
+    backup: { enabled: true, intervalHours: 6, keep: 10 },
     createdAt: new Date().toISOString(),
-    eulaAccepted: true
+    agreements: [...request.agreements],
+    data
   }
 
   await ensureDir(instanceDir(id))
   await ensureDir(serverDir(id))
   await ensureDir(backupsDir(id))
   await writeManifest(manifest)
-
-  // server.properties inicial: valores por defecto más lo elegido al crear.
-  const props = await PropertiesFile.load(join(serverDir(id), 'server.properties'))
-  props.setAll(properties)
-  await props.save(join(serverDir(id), 'server.properties'))
-
-  // eula.txt solo porque el usuario ya lo aceptó de forma explícita.
-  await writeFile(
-    join(serverDir(id), 'eula.txt'),
-    [
-      '# Aceptado desde QubiQ Server Launcher por decision explicita del usuario.',
-      '# https://aka.ms/MinecraftEULA',
-      'eula=true',
-      ''
-    ].join('\r\n'),
-    'utf8'
-  )
+  await game.writeInitialFiles(manifest, request)
 
   return manifest
 }
 
 export async function updateInstance(
   id: string,
-  changes: Partial<Omit<InstanceManifest, 'id' | 'schemaVersion'>>
+  changes: ManifestChanges,
+  game?: GameAdapter
 ): Promise<InstanceManifest> {
   const current = await readManifest(id)
   if (!current) throw new Error(`No existe la instancia ${id}.`)
 
-  const updated: InstanceManifest = { ...current, ...changes, id: current.id, schemaVersion: 1 }
-
-  // Si cambia la memoria, hay que regenerar los flags de JVM que dependen de ella.
-  if (changes.memoryMb && changes.memoryMb !== current.memoryMb) {
-    updated.jvmArgs = defaultJvmArgs(changes.memoryMb)
+  const { data, ...rest } = changes
+  let updated: InstanceManifest = {
+    ...current,
+    ...rest,
+    id: current.id,
+    schemaVersion: current.schemaVersion,
+    game: current.game,
+    data: { ...current.data, ...data }
   }
+
+  if (game?.applyChanges) updated = game.applyChanges(current, updated, changes)
 
   await writeManifest(updated)
   return updated
 }
 
-/** Borra la instancia entera, mundo incluido. Irreversible. */
+/** Borra la instancia entera, partida incluida. Irreversible. */
 export async function deleteInstance(id: string): Promise<void> {
   await rm(instanceDir(id), { recursive: true, force: true })
-}
-
-/** Lee server.properties de una instancia. */
-export async function readProperties(id: string): Promise<Record<string, string>> {
-  const props = await PropertiesFile.load(join(serverDir(id), 'server.properties'))
-  return props.entries()
-}
-
-/**
- * Escribe server.properties preservando claves desconocidas y comentarios (§8).
- * El servidor debe estar parado: si está arrancado, reescribe el fichero al
- * cerrarse y machacaría estos cambios.
- */
-export async function writeProperties(
-  id: string,
-  values: Record<string, string>
-): Promise<Record<string, string>> {
-  const path = join(serverDir(id), 'server.properties')
-  const props = await PropertiesFile.load(path)
-  props.setAll(values)
-  await props.save(path)
-
-  // El puerto vive en dos sitios; mantenemos el manifiesto sincronizado.
-  const port = values['server-port']
-  if (port && Number.isFinite(Number(port))) {
-    await updateInstance(id, { port: Number(port) })
-  }
-
-  return props.entries()
 }

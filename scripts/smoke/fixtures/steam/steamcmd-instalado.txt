@@ -1,0 +1,28 @@
+Steam Console Client (c) Valve Corporation - version 1788292693
+-- type 'quit' to exit --
+Loading Steam API...OK
+
+Connecting anonymously to Steam Public...OK
+Waiting for client config...OK
+Waiting for user info...OK
+ Update state (0x3) reconfiguring, progress: 0.00 (0 / 0)
+ Update state (0x61) downloading, progress: 2.08 (43593160 / 2091190717)
+ Update state (0x61) downloading, progress: 12.66 (264692986 / 2091190717)
+ Update state (0x61) downloading, progress: 24.66 (515762032 / 2091190717)
+ Update state (0x61) downloading, progress: 37.21 (778041596 / 2091190717)
+ Update state (0x61) downloading, progress: 48.46 (1013432809 / 2091190717)
+ Update state (0x61) downloading, progress: 60.75 (1270419654 / 2091190717)
+ Update state (0x61) downloading, progress: 72.85 (1523497041 / 2091190717)
+ Update state (0x61) downloading, progress: 84.85 (1774299142 / 2091190717)
+ Update state (0x61) downloading, progress: 96.97 (2027751303 / 2091190717)
+ Update state (0x81) verifying update, progress: 9.48 (198187764 / 2091190717)
+ Update state (0x81) verifying update, progress: 22.27 (465603730 / 2091190717)
+ Update state (0x81) verifying update, progress: 61.77 (1291732434 / 2091190717)
+ Update state (0x81) verifying update, progress: 91.33 (1909947578 / 2091190717)
+ Update state (0x0) unknown, progress: 0.00 (0 / 0)
+Success! App '896660' fully installed.
+Unloading Steam API...OK
+Redirecting stderr to 'C:\QubiQ\data\tools\steamcmd\logs\stderr.txt'
+Logging directory: 'C:\QubiQ\data\tools\steamcmd/logs'
+[  0%] Buscando actualizaciones disponibles...
+[----] Verificando instalación...

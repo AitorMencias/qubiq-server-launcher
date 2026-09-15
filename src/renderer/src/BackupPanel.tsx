@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { D20Loader } from './D20Loader'
 import type { BackupEstimate, BackupInfo, InstanceState, UiMode } from '@shared/types'
+import { gameInfo, saveParticiple, theSave, type SaveNoun } from '@shared/games'
 
 /** Intervalos ofrecidos, en horas. Más fino que esto no aporta nada. */
 const INTERVALS = [1, 2, 3, 6, 12, 24]
@@ -27,6 +28,7 @@ export function BackupPanel({
   onManifestChanged
 }: Props): React.JSX.Element {
   const { manifest, status } = state
+  const game = gameInfo(manifest.game)
   const running = status !== 'stopped' && status !== 'crashed'
   const basic = mode === 'basic'
 
@@ -106,7 +108,7 @@ export function BackupPanel({
     setNotice(null)
     try {
       await window.qubiq.backups.restore(manifest.id, backup.fileName)
-      setNotice('Mundo restaurado. Ya puedes arrancar el servidor.')
+      setNotice(`${saveParticiple(game.save, 'restaurado')}. Ya puedes arrancar el servidor.`)
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -146,10 +148,7 @@ export function BackupPanel({
 
       <div className="card">
         <h3>Copias de seguridad</h3>
-        <p className="hint">
-          Se guarda el mundo y la configuración. Los jars no hacen falta: se pueden volver a
-          descargar.
-        </p>
+        <p className="hint">{game.backupScope}</p>
 
         {busy ? (
           // Antes había una barra fija al 45 %: un progreso inventado. Una copia
@@ -241,7 +240,7 @@ export function BackupPanel({
               </div>
             </div>
 
-            <StorageEstimate estimate={estimate} keep={keep} />
+            <StorageEstimate estimate={estimate} keep={keep} save={game.save} />
           </>
         )}
       </div>
@@ -261,7 +260,7 @@ export function BackupPanel({
                 <div className="grow" style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>{formatDate(backup.createdAt)}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                    {formatSize(backup.sizeBytes)} · {backup.minecraftVersion}
+                    {formatSize(backup.sizeBytes)} · {backup.version}
                     {backup.automatic && ' · automática'}
                     {backup.reason && ` · ${backup.reason}`}
                   </div>
@@ -288,6 +287,7 @@ export function BackupPanel({
 interface StorageEstimateProps {
   estimate: BackupEstimate | null
   keep: number
+  save: SaveNoun
 }
 
 /**
@@ -297,7 +297,7 @@ interface StorageEstimateProps {
  * la cifra es fiable; sin ellas es una aproximación a partir del mundo, y decir
  * lo contrario sería engañar sobre algo que ocupa gigas en el disco del usuario.
  */
-function StorageEstimate({ estimate, keep }: StorageEstimateProps): React.JSX.Element | null {
+function StorageEstimate({ estimate, keep, save }: StorageEstimateProps): React.JSX.Element | null {
   if (!estimate) return null
 
   const total = estimate.perBackupBytes * keep
@@ -307,7 +307,7 @@ function StorageEstimate({ estimate, keep }: StorageEstimateProps): React.JSX.El
   if (estimate.perBackupBytes === 0) {
     return (
       <div className="help">
-        Todavía no se puede estimar el espacio: el mundo aún no se ha generado.
+        Todavía no se puede estimar el espacio: {theSave(save)} aún no se ha generado.
       </div>
     )
   }
@@ -328,13 +328,14 @@ function StorageEstimate({ estimate, keep }: StorageEstimateProps): React.JSX.El
           ? `Calculado sobre ${estimate.sampleCount} ${
               estimate.sampleCount === 1 ? 'copia real' : 'copias reales'
             }: unos ${formatSize(estimate.perBackupBytes)} cada una.`
-          : `Estimado a partir del mundo actual (${formatSize(
+          : `Estimado a partir ${save.feminine ? 'de la' : 'del'} ${save.singular} actual (${formatSize(
               estimate.worldBytes
             )} sin comprimir): unos ${formatSize(estimate.perBackupBytes)} por copia.`}
         {free !== null && ` Tienes ${formatSize(free)} libres.`}
         {noRoom && ' No hay espacio suficiente: reduce el número de copias.'}
         {tight && ' Se te va una parte notable del disco libre.'}
-        {!measured && ' El mundo crece según lo exploréis, así que esto subirá con el tiempo.'}
+        {!measured &&
+          ` ${theSave(save).charAt(0).toUpperCase()}${theSave(save).slice(1)} crece según lo exploréis, así que esto subirá con el tiempo.`}
       </p>
     </div>
   )

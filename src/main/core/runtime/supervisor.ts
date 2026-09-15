@@ -2,20 +2,18 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { createInterface } from 'node:readline'
 import type { Diagnosis, LogLine, ServerStatus } from '@shared/types'
-import { parseLine, diagnoseExit } from './logParser'
+import type { ParsedEvent, StopStrategy, SupervisorHandle } from '../games/types'
+import { DEFAULT_STOP_GRACE_MS, requestStop } from './stop'
 
 /**
- * Supervisión del proceso del servidor (§7).
+ * Supervisión del proceso de un servidor, de cualquier juego (§7).
  *
  * ⚠ LO MÁS CRÍTICO DE TODO EL PROYECTO:
- * Windows no tiene SIGTERM. La única forma de parar un servidor de Minecraft
- * sin corromper chunks es escribir `stop` en su stdin y esperar a que termine
- * solo. Matar el proceso (`taskkill` / `child.kill()`) rompe el mundo.
- * El kill solo se usa como último recurso tras agotar el plazo de gracia.
+ * Windows no tiene SIGTERM: `child.kill()` mata el proceso de golpe y el
+ * servidor no llega a guardar. Por eso cada juego declara su forma limpia de
+ * parar (en Minecraft, escribir `stop` en stdin) y el kill solo se usa como
+ * último recurso tras agotar el plazo de gracia.
  */
-
-/** Tiempo que se espera a que el servidor guarde y cierre por su cuenta. */
-const STOP_GRACE_MS = 60_000
 
 /** Ventana y umbral para detectar un bucle de fallos (§7). */
 const CRASH_WINDOW_MS = 5 * 60_000
@@ -39,12 +37,19 @@ export interface SupervisorEvents {
 }
 
 export interface StartOptions {
-  javaPath: string
+  command: string
   args: string[]
   cwd: string
+  env?: Record<string, string>
+  /** Cómo se para sin perder partida. */
+  stop: StopStrategy
+  /** Cómo se interpreta cada línea del registro. */
+  parseLine: (raw: string) => ParsedEvent
+  /** Qué se le dice al usuario si el proceso muere solo. */
+  diagnoseExit: (code: number | null, recentLines: string[]) => Diagnosis
 }
 
-export class ServerSupervisor extends EventEmitter {
+export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
   private child: ChildProcessWithoutNullStreams | null = null
   private currentStatus: ServerStatus = 'stopped'
   private readonly onlinePlayers = new Set<string>()
@@ -55,6 +60,8 @@ export class ServerSupervisor extends EventEmitter {
   /** Se pone a true cuando la parada la pide el usuario, no un fallo. */
   private stopRequested = false
   private autoRestartEnabled = false
+  /** Lo propio del juego del arranque en curso. */
+  private options: StartOptions | null = null
 
   constructor(readonly instanceId: string) {
     super()
@@ -91,8 +98,10 @@ export class ServerSupervisor extends EventEmitter {
     this.recent.length = 0
     this.setStatus('starting')
 
-    const child = spawn(options.javaPath, options.args, {
+    this.options = options
+    const child = spawn(options.command, options.args, {
       cwd: options.cwd,
+      env: options.env ? { ...process.env, ...options.env } : process.env,
       windowsHide: true,
       // stdin abierto es imprescindible: es el canal de comandos y de parada.
       stdio: ['pipe', 'pipe', 'pipe']
@@ -100,6 +109,10 @@ export class ServerSupervisor extends EventEmitter {
 
     this.child = child
     this.startedAt = Date.now()
+
+    // Escribir en stdin justo cuando el proceso muere da EPIPE como evento; sin
+    // oyente tumbaría la app entera. El cierre ya lo trata 'close'.
+    child.stdin.on('error', () => undefined)
 
     createInterface({ input: child.stdout }).on('line', (line) => this.handleLine(line))
     createInterface({ input: child.stderr }).on('line', (line) => this.handleLine(line))
@@ -122,12 +135,25 @@ export class ServerSupervisor extends EventEmitter {
 
     this.stopRequested = true
     this.setStatus('stopping')
-    this.pushLog('system', 'Guardando el mundo y cerrando el servidor...')
+    this.pushLog('system', 'Guardando la partida y cerrando el servidor...')
 
-    try {
-      child.stdin.write('stop\n')
-    } catch {
-      // Si stdin ya está cerrado no queda más remedio que esperar al cierre.
+    const strategy = this.options?.stop
+    const graceMs = strategy?.graceMs ?? DEFAULT_STOP_GRACE_MS
+    const closed = new Promise<void>((resolve) => child.once('close', () => resolve()))
+
+    if (strategy) {
+      // Si la petición falla (RCON caído, consola ya cerrada...) no se mata nada
+      // todavía: puede que el servidor se esté cerrando igualmente.
+      await Promise.race([
+        closed,
+        requestStop(strategy, {
+          pid: child.pid,
+          writeStdin: (text) => child.stdin.write(text)
+        }).catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err)
+          this.pushLog('warn', `No se pudo pedir el cierre limpio: ${message}`)
+        })
+      ])
     }
 
     await new Promise<void>((resolve) => {
@@ -140,18 +166,18 @@ export class ServerSupervisor extends EventEmitter {
         resolve()
       }
 
-      child.once('close', done)
+      void closed.then(done)
 
       this.stopTimer = setTimeout(() => {
-        // Último recurso tras 60 s. Se avisa porque puede haber pérdida de datos.
+        // Último recurso. Se avisa porque puede haber pérdida de datos.
         this.pushLog(
           'warn',
-          'El servidor no respondió al cierre en 60 segundos. Se fuerza el cierre; ' +
-            'puede que los últimos cambios del mundo no se hayan guardado.'
+          `El servidor no respondió al cierre en ${Math.round(graceMs / 1000)} segundos. ` +
+            'Se fuerza el cierre; puede que los últimos cambios de la partida no se hayan guardado.'
         )
         child.kill()
         done()
-      }, STOP_GRACE_MS)
+      }, graceMs)
     })
   }
 
@@ -181,28 +207,6 @@ export class ServerSupervisor extends EventEmitter {
     })
   }
 
-  /**
-   * Deja el mundo consistente en disco y suspende el autoguardado.
-   * Copiar sin esto produce backups corruptos (§12).
-   * Devuelve false si el servidor no confirmó el volcado a tiempo.
-   */
-  async flushAndHoldSaves(): Promise<boolean> {
-    if (!this.isRunning) return true
-
-    this.sendCommand('save-off')
-    // El acuse varía entre versiones y distribuciones: "Saved the game",
-    // "Saved the world" o "Saved the chunks".
-    const confirmed = this.waitForLog(/Saved the (game|world|chunks)/i, 60_000)
-    this.sendCommand('save-all flush')
-    return confirmed
-  }
-
-  /** Reanuda el autoguardado tras una copia. */
-  resumeSaves(): void {
-    if (!this.isRunning) return
-    this.sendCommand('save-on')
-  }
-
   /** Envía un comando por stdin, que es como se moderan los jugadores (§9). */
   sendCommand(command: string): void {
     const child = this.child
@@ -221,7 +225,7 @@ export class ServerSupervisor extends EventEmitter {
     this.recent.push(raw)
     if (this.recent.length > RECENT_LINES) this.recent.shift()
 
-    const event = parseLine(raw)
+    const event = this.options?.parseLine(raw) ?? { level: 'system' as const, text: raw }
     this.pushLog(event.level, event.text)
 
     if (event.ready) {
@@ -266,7 +270,11 @@ export class ServerSupervisor extends EventEmitter {
 
     // Salida inesperada: diagnosticamos antes de decidir si reintentar.
     this.setStatus('crashed')
-    const diagnosis = diagnoseExit(code, this.recent)
+    const diagnosis = this.options?.diagnoseExit(code, this.recent) ?? {
+      code: 'unknown-exit',
+      title: 'El servidor se cerró inesperadamente',
+      detail: `Código de salida ${code}.`
+    }
     this.emit('diagnosis', diagnosis)
     this.emit('exit', code, wasRequested)
 

@@ -13,7 +13,7 @@ export default defineConfig({
     alias: { '@shared': resolve(root, 'src/shared') }
   },
   build: {
-    ssr: resolve(root, 'scripts/e2e.ts'),
+    ssr: resolve(root, 'scripts/e2e/minecraft.ts'),
     outDir: resolve(root, 'out/e2e'),
     emptyOutDir: true,
     target: 'node22',

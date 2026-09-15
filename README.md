@@ -9,7 +9,9 @@ la línea de comandos.
 > NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
 
 El análisis completo —decisiones, arquitectura, fuentes de datos y hoja de ruta— está en
-[ANALISIS.md](ANALISIS.md).
+[ANALISIS.md](ANALISIS.md). La ampliación a otros juegos está investigada en
+[INVESTIGACION-JUEGOS.md](INVESTIGACION-JUEGOS.md) y planificada en
+[HOJA-DE-RUTA-MULTIJUEGO.md](HOJA-DE-RUTA-MULTIJUEGO.md).
 
 ---
 
@@ -78,9 +80,10 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 127 comprobaciones: lógica pura, mundos, red, plugins oficiales y contrato con las APIs externas |
+| `npm run smoke` | 213 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio y red. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Minecraft: lógica pura, mundos, plugins oficiales y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge` |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
+| `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%TEMP%\qubiq-e2e-steam`); `-- --limpio` empieza de cero |
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
 para otro; sin esta prueba la app se rompería en silencio.
@@ -139,36 +142,66 @@ puerta abierta a una CLI o un panel web sin reescribir nada.
 
 ```
 src/
-├── shared/              Tipos y contrato IPC (los usan ambos lados)
+├── shared/                  Tipos y contrato IPC (los usan ambos lados)
+│   ├── types.ts             Lo común: manifiesto v2, estado, copias, conexión
+│   └── games/               Catálogo de juegos (nombre, condiciones, capacidades)
+│       └── minecraft/       Tipos de Minecraft y catálogo de plugins oficiales
 ├── main/
-│   ├── index.ts         Proceso principal: ventana, cierre limpio, antisuspensión
-│   ├── ipc.ts           Puente comandos/eventos
-│   └── core/            EL NÚCLEO — sin dependencias de Electron
-│       ├── paths.ts     Rutas en disco (todo lo específico de Windows vive aquí)
-│       ├── net/         HTTP con caché degradable, descargas verificadas y
-│       │                Server List Ping (network.ts)
-│       ├── versions/    Mojang, Paper, Fabric, Forge + catálogo unificado
-│       ├── java/        Descarga y gestión de JDK (Adoptium)
-│       ├── install/     Una estrategia por distribución + flags de JVM
-│       ├── runtime/     Supervisor de proceso y parseo de log
-│       ├── config/      server.properties con catálogo de opciones humanas
-│       ├── content/     Plugins y mods: carpeta, listado y los oficiales
-│       ├── backup/      Copias en ZIP, restauración y retención
-│       ├── worlds/      Varios mundos por servidor (level-name)
-│       ├── instances/   Ciclo de vida de las instancias
-│       └── service.ts   Orquestador
-├── preload/             Superficie expuesta al renderer (nada de Node)
-└── renderer/            Interfaz React
+│   ├── index.ts             Proceso principal: ventana, cierre limpio, antisuspensión
+│   ├── ipc/                 Puente comandos/eventos: común + canales `minecraft:`
+│   └── core/                EL NÚCLEO — sin dependencias de Electron
+│       ├── paths.ts         Rutas en disco (todo lo específico de Windows vive aquí)
+│       ├── net/             HTTP con caché degradable, descargas verificadas, IPs y puertos
+│       │                    (TCP y UDP), RCON, WebRCON, consulta A2S y servidores de Steam
+│       ├── formats/         Clave=valor que preserva comentarios y VDF de Valve (solo lectura)
+│       ├── runtime/         Supervisor de proceso, estrategias de parada y política de reinicio
+│       ├── tools/           SteamCMD: instalación, progreso en vivo y actualizaciones
+│       ├── system/          PowerShell seguro, Ctrl+Break a una consola, Visual C++ y firmas
+│       ├── backup/          Copias en ZIP de lo que diga el juego, restauración y retención
+│       ├── instances/       Ciclo de vida de las instancias y migraciones del manifiesto
+│       ├── games/
+│       │   ├── types.ts     El contrato de un juego (GameAdapter)
+│       │   ├── registry.ts  Registro de juegos
+│       │   └── minecraft/   Todo lo de Minecraft:
+│       │       ├── adapter.ts   Implementación del contrato
+│       │       ├── service.ts   Mundos, plugins/mods y server.properties
+│       │       ├── versions/    Mojang, Paper, Fabric, Forge + catálogo unificado
+│       │       ├── java/        Descarga y gestión de JDK (Adoptium)
+│       │       ├── install/     Una estrategia por distribución + flags de JVM
+│       │       ├── config/      Catálogo de opciones humanas de server.properties
+│       │       ├── content/     Plugins y mods: carpeta, listado y los oficiales
+│       │       ├── worlds/      Varios mundos por servidor (level-name)
+│       │       ├── logParser.ts Formatos de log y diagnósticos
+│       │       └── ping.ts      Server List Ping y comprobación desde internet
+│       └── service.ts       Orquestador: lo común, y delega en el juego
+├── preload/                 Superficie expuesta al renderer (nada de Node)
+└── renderer/src/            Interfaz React
+    ├── App.tsx, ServerPanel.tsx…   Armazón común (botón grande, jugadores, consola, copias)
+    └── games/
+        ├── types.ts         Lo que aporta cada juego a la interfaz (GameUi)
+        └── minecraft/       Asistentes, Ajustes, Mundos, Plugins/Mods, plugins oficiales
+
+resources/<juego>/           Ficheros que se empaquetan por juego (resources/minecraft/plugins/)
+scripts/smoke/               Prueba de humo: common.ts + un fichero por juego
+scripts/e2e/                 Ciclo completo con servidores reales, un fichero por juego
 ```
+
+**Añadir un juego** es escribir su adaptador en `core/games/<juego>/`, registrarlo en
+`registry.ts`, darlo de alta en `shared/games/index.ts` (nombre, condiciones y capacidades) y aportar
+su interfaz en `renderer/src/games/<juego>/`. El armazón común no se toca: las pestañas de
+Configuración salen de lo que declare el juego. El plan completo está en
+[HOJA-DE-RUTA-MULTIJUEGO.md](HOJA-DE-RUTA-MULTIJUEGO.md).
 
 Los datos del usuario viven fuera del proyecto, en `%APPDATA%/qubiq-server-launcher/`:
 
 ```
 runtimes/          JDKs compartidos (jdk-21, jdk-25...)
+tools/steamcmd/    SteamCMD, compartido por los juegos de Steam
 cache/             Manifiestos e instaladores
 instances/
   <id>/
-    instance.json  Manifiesto: la INTENCIÓN del usuario
+    instance.json  Manifiesto v2: la INTENCIÓN del usuario (juego, condiciones y `data` del juego)
+    instance.v1.json  Copia del manifiesto antiguo, si se migró (no se borra sola)
     server/        Directorio real del servidor (mundo, jars, config)
     backups/
     launcher.log   Log de la app, separado del del servidor
@@ -181,6 +214,22 @@ instances/
 **No compares versiones de Minecraft como strings.** Conviven el versionado por año (`26.2`) y el
 histórico (`1.21.8`), y `26.2` es *más nueva* que `1.21.11`. El orden autoritativo es el índice del
 manifiesto de Mojang. Usa `compareVersions` y el tipo `VersionId`.
+
+**Para parar un juego que no lee stdin, Ctrl+Break, nunca Ctrl+C.** El servidor hereda de la app la
+orden de ignorar Ctrl+C y Windows la respeta: el evento se genera sin error y no llega nunca. Ctrl+Break
+no se puede ignorar así, y Valheim lo trata igual (guarda y sale). Lo manda
+[`core/system/consoleSignal.ts`](src/main/core/system/consoleSignal.ts) con un PowerShell auxiliar.
+Y no antes de que el mundo termine de cargarse: durante la generación se ignora.
+
+**No leas el progreso de SteamCMD por su salida estándar.** Por una tubería, SteamCMD no vacía el
+búfer y lo suelta todo al final. Las mismas líneas se escriben cada 2 s en `logs/console_log.txt`,
+que es de donde se leen. Tampoco interpretes sus frases: salen traducidas al idioma de Windows. Solo
+`Update state`, `Success!` y `ERROR!` salen siempre en inglés. Y el código de salida no basta: 8
+vale igual para un fallo pasajero que para uno permanente, y 7 es "me he autoactualizado".
+
+**Un puerto UDP "reservable" no es un puerto libre.** Si un servidor abre el suyo permitiendo
+compartirlo (Valheim), Windows deja reservarlo encima sin error. `isUdpPortInUse` lo confirma con
+`netstat`.
 
 **Nunca mates el proceso del servidor.** Windows no tiene `SIGTERM`. La única parada segura es
 escribir `stop` en `stdin` y esperar; matarlo corrompe chunks. El `kill` solo entra tras 60 s de
@@ -207,15 +256,22 @@ se entra en bucle. El límite anti-bucle vive en
 [`core/runtime/restartPolicy.ts`](src/main/core/runtime/restartPolicy.ts) como función pura, para
 poder probarlo sin levantar servidores.
 
+**El manifiesto tiene versión de esquema y se migra solo, nunca a mano.** Cada cambio de forma sube
+`schemaVersion` y añade un paso puro en
+[`core/instances/migrations.ts`](src/main/core/instances/migrations.ts), probado en el smoke. Al leer
+un manifiesto antiguo se guarda antes una copia (`instance.v1.json`) que no se pisa nunca, y uno de un
+esquema más nuevo que la app no se toca: se rechaza. Lo específico de un juego va en `data`, no en la
+raíz.
+
 **Al guardar `server.properties`, manda solo las claves que han cambiado.** Enviar el objeto entero
 reescribe con datos viejos lo que haya cambiado fuera del panel mientras estaba abierto — un plugin
 puede mover `level-name` entre medias, y guardar el antiguo apunta a una carpeta borrada y se lleva
 por delante la partida.
 
-**Los plugins oficiales van empaquetados en `resources/plugins/<id>/`**, con su jar y su plantilla de
+**Los plugins oficiales van empaquetados en `resources/minecraft/plugins/<id>/`**, con su jar y su plantilla de
 `config.yml`. Se copian fuera del asar (`extraResources`) porque hay que ponerlos como ficheros de
 verdad en la carpeta del servidor. Actualizar uno = copiar el jar nuevo ahí y recompilar la app.
-Si añades un campo al catálogo de [`shared/officialPlugins.ts`](src/shared/officialPlugins.ts), el
+Si añades un campo al catálogo de [`shared/games/minecraft/officialPlugins.ts`](src/shared/games/minecraft/officialPlugins.ts), el
 smoke comprueba que esa ruta existe en el YAML real, así que no puede quedarse un control que no
 guarde nada.
 
@@ -263,7 +319,9 @@ copia, porque el mundo dejaría de guardarse sin que nadie se entere. Además ha
 **Para comprobar si un servidor acepta conexiones, usa Server List Ping, no un connect TCP.** El
 puerto está abierto desde que la JVM lo reserva, mucho antes de que se pueda entrar: un sondeo TCP
 diría "todo bien" mientras el usuario recibe un error. Está implementado en
-[`core/net/network.ts`](src/main/core/net/network.ts).
+[`core/games/minecraft/ping.ts`](src/main/core/games/minecraft/ping.ts), y tiene que resolverse
+siempre: si el servidor corta sin responder (pasa justo al terminar de arrancar) no llega ni error ni
+tiempo agotado, y sin escuchar el cierre la promesa se quedaba colgada para siempre.
 
 **Y para saber si se puede entrar DESDE FUERA, hay que preguntar desde fuera.** Comprobarlo desde
 esta máquina no dice nada: el servidor siempre se ve desde dentro, esté o no expuesto. Por eso
@@ -280,7 +338,7 @@ nuevas añaden las suyas; borrarlas es un bug silencioso y destructivo. De eso s
 **`hardcore`**, aparte (comprobado leyendo las 65 claves que genera un servidor real). Añadirlo como
 quinto valor de `gamemode` haría que el servidor lo rechazara. En la interfaz se presenta como una
 opción más del selector, pero escribe dos claves — ver `GameModeField` en
-[`ConfigPanel.tsx`](src/renderer/src/ConfigPanel.tsx). Además el juego fuerza la dificultad a Difícil,
+[`ConfigPanel.tsx`](src/renderer/src/games/minecraft/ConfigPanel.tsx). Además el juego fuerza la dificultad a Difícil,
 así que el selector de dificultad se bloquea al activarlo.
 
 **Cada distribución imprime el log en un formato distinto.** Verificado ejecutando los tres:

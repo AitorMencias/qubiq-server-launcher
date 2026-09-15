@@ -1,0 +1,44 @@
+"AppState"
+{
+	"appid"		"896660"
+	"Universe"		"1"
+	"LauncherPath"		"C:\\QubiQ\\data\\tools\\steamcmd\\steamcmd.exe"
+	"name"		"Valheim Dedicated Server"
+	"StateFlags"		"4"
+	"installdir"		"Valheim dedicated server"
+	"LastUpdated"		"1789484505"
+	"LastPlayed"		"0"
+	"SizeOnDisk"		"2091190717"
+	"StagingSize"		"0"
+	"buildid"		"25253791"
+	"LastOwner"		"0"
+	"DownloadType"		"1"
+	"UpdateResult"		"0"
+	"BytesToDownload"		"1872358160"
+	"BytesDownloaded"		"1872358160"
+	"BytesToStage"		"2091190717"
+	"BytesStaged"		"2091190717"
+	"TargetBuildID"		"25253791"
+	"AutoUpdateBehavior"		"0"
+	"AllowOtherDownloadsWhileRunning"		"0"
+	"ScheduledAutoUpdate"		"0"
+	"InstalledDepots"
+	{
+		"1004"
+		{
+			"manifest"		"5612541580377302256"
+			"size"		"64647928"
+		}
+		"896662"
+		{
+			"manifest"		"110731841284750869"
+			"size"		"2026542789"
+		}
+	}
+	"UserConfig"
+	{
+	}
+	"MountedConfig"
+	{
+	}
+}

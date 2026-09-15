@@ -6,40 +6,33 @@ import type {
   BackupEstimate,
   BackupInfo,
   ConnectionInfo,
-  ContentInfo,
   CreateInstanceRequest,
-  CreateWorldRequest,
   Diagnosis,
   ExternalCheck,
   InstanceManifest,
   InstanceState,
   LogLine,
+  ManifestChanges,
   ProgressUpdate,
-  ServerStatus,
-  WorldInfo
+  ServerStatus
 } from '@shared/types'
+import { requiredAgreements, type UpdateCheck } from '@shared/games'
 import { ServerSupervisor } from './runtime/supervisor'
-import { installerFor } from './install'
-import type { InstallContext } from './install'
 import * as instances from './instances/manager'
-import * as java from './java/manager'
 import * as backups from './backup/manager'
-import * as worlds from './worlds/manager'
-import * as content from './content/manager'
-import * as official from './content/official'
-import type { OfficialPluginStatus } from './content/official'
-import { officialPluginById, serverPropertiesFor } from '@shared/officialPlugins'
 import * as network from './net/network'
 import * as settings from './settings/manager'
 import { serverDir, launcherLogPath, ensureBaseDirs } from './paths'
 import { evaluateRestart } from './runtime/restartPolicy'
+import { gameFor, gameOf, isKnownGame } from './games/registry'
+import { createMinecraftService, type GameHost } from './games/minecraft/service'
 
 /**
  * Orquestador del núcleo (§5).
  *
- * Une catálogo, Java, instalador y supervisor, y expone una superficie de
- * comandos + eventos. No conoce la interfaz: eso permite reutilizarlo tal cual
- * desde una CLI o un panel web más adelante.
+ * Une instancias, juegos, supervisor y copias, y expone una superficie de
+ * comandos + eventos. No conoce la interfaz ni ningún juego en concreto: lo
+ * propio de cada uno lo pide al adaptador de su juego (`games/registry.ts`).
  */
 
 export interface ServiceEvents {
@@ -60,7 +53,7 @@ const RESTART_REQUEST_FILE = 'hardcore-restart.request'
 /** Margen antes de volver a arrancar, para que el proceso anterior suelte todo. */
 const RESTART_DELAY_MS = 3_000
 
-class LauncherService extends EventEmitter {
+class LauncherService extends EventEmitter implements GameHost {
   private readonly supervisors = new Map<string, ServerSupervisor>()
   /** Instancias con una instalación en curso. */
   private readonly installing = new Set<string>()
@@ -70,6 +63,9 @@ class LauncherService extends EventEmitter {
   private readonly pendingRestarts = new Map<string, NodeJS.Timeout>()
   /** Marcas de tiempo de reinicios recientes, para la política anti-bucle. */
   private readonly restartHistory = new Map<string, number[]>()
+
+  /** Operaciones exclusivas de Minecraft (propiedades, plugins, mundos). */
+  readonly minecraft = createMinecraftService(this)
 
   async initialize(): Promise<void> {
     await ensureBaseDirs()
@@ -89,13 +85,26 @@ class LauncherService extends EventEmitter {
 
   async list(): Promise<InstanceState[]> {
     const manifests = await instances.listInstances()
-    return manifests.map((manifest) => this.stateFor(manifest))
+    // Un servidor de un juego que esta versión no conoce (creado con una app
+    // más nueva) no se enseña: la interfaz no sabría pintarlo. Queda intacto en
+    // disco y vuelve a aparecer al actualizar.
+    return manifests
+      .filter((manifest) => isKnownGame(manifest.game))
+      .map((manifest) => this.stateFor(manifest))
   }
 
   async get(id: string): Promise<InstanceState> {
+    return this.stateFor(await this.requireManifest(id))
+  }
+
+  readManifest(id: string): Promise<InstanceManifest | null> {
+    return instances.readManifest(id)
+  }
+
+  private async requireManifest(id: string): Promise<InstanceManifest> {
     const manifest = await instances.readManifest(id)
     if (!manifest) throw new Error(`No existe la instancia ${id}.`)
-    return this.stateFor(manifest)
+    return manifest
   }
 
   private stateFor(manifest: InstanceManifest): InstanceState {
@@ -115,19 +124,18 @@ class LauncherService extends EventEmitter {
 
   /**
    * Crea la instancia y la deja instalada y lista para arrancar.
-   * Es la operación larga del asistente: descarga Java, el servidor y, en el
-   * caso de Forge, ejecuta el instalador oficial.
+   * Es la operación larga del asistente: descarga todo lo que el juego necesite.
    */
   async create(request: CreateInstanceRequest): Promise<InstanceManifest> {
-    const manifest = await instances.createInstance(request)
+    const manifest = await instances.createInstance(request, gameFor(request.game))
     await this.install(manifest.id)
     return manifest
   }
 
   async install(id: string): Promise<void> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    const manifest = await this.requireManifest(id)
     if (this.installing.has(id)) throw new Error('Ya hay una instalación en curso.')
+    const game = gameOf(manifest)
 
     this.installing.add(id)
     this.emitStatus(id, 'installing')
@@ -138,32 +146,14 @@ class LauncherService extends EventEmitter {
     }
 
     try {
-      // Reinstalar sobre un mundo existente es una operación de riesgo: se
-      // guarda una copia antes de tocar nada (§12). Si aún no hay mundo, falla
-      // silenciosamente porque no hay nada que perder.
+      // Reinstalar sobre una partida existente es una operación de riesgo: se
+      // guarda una copia antes de tocar nada (§12). Si aún no hay partida,
+      // falla en silencio porque no hay nada que perder.
       await this.createBackup(id, 'Copia previa a reinstalar', true).catch(() => undefined)
 
-      // 1. Java. El usuario nunca lo instala a mano (§4.7).
-      progress('java', null, `Comprobando Java ${manifest.javaMajor}`)
-      const runtime = await java.ensureJava(manifest.javaMajor, (phase, value, detail) => {
-        progress(phase === 'download' ? 'java-download' : 'java-extract', value, detail)
-      })
-
-      // 2. La distribución elegida.
-      const installer = installerFor(manifest.distribution)
-      const ctx: InstallContext = {
-        instanceId: id,
-        serverDir: serverDir(id),
-        minecraftVersion: manifest.minecraftVersion,
-        build: manifest.build,
-        javaPath: runtime.javaPath,
-        memoryMb: manifest.memoryMb,
-        onProgress: progress
-      }
-
-      const result = await installer.install(ctx)
-      if (result.build && result.build !== manifest.build) {
-        await instances.updateInstance(id, { build: result.build })
+      const changes = await game.install(manifest, progress)
+      if (changes && Object.keys(changes).length > 0) {
+        await instances.updateInstance(id, { data: changes }, game)
       }
 
       progress('done', 1, 'Servidor listo')
@@ -182,11 +172,26 @@ class LauncherService extends EventEmitter {
     }
   }
 
-  async update(
-    id: string,
-    changes: Partial<Omit<InstanceManifest, 'id' | 'schemaVersion'>>
-  ): Promise<InstanceManifest> {
-    return instances.updateInstance(id, changes)
+  /** Null si el juego no gestiona actualizaciones (Minecraft). */
+  async checkForUpdate(id: string): Promise<UpdateCheck | null> {
+    const manifest = await this.requireManifest(id)
+    const game = gameOf(manifest)
+    return game.checkUpdate ? game.checkUpdate(manifest) : null
+  }
+
+  /** Actualiza el servidor instalado. Solo parado: se sustituyen sus ficheros. */
+  async updateServer(id: string): Promise<void> {
+    this.assertStopped(id, 'actualizarlo')
+    await this.install(id)
+  }
+
+  async update(id: string, changes: ManifestChanges): Promise<InstanceManifest> {
+    return this.updateInstance(id, changes)
+  }
+
+  async updateInstance(id: string, changes: ManifestChanges): Promise<InstanceManifest> {
+    const manifest = await this.requireManifest(id)
+    return instances.updateInstance(id, changes, gameOf(manifest))
   }
 
   async remove(id: string): Promise<void> {
@@ -207,38 +212,28 @@ class LauncherService extends EventEmitter {
     // Si el usuario arranca a mano durante la espera del reinicio, gana él.
     this.cancelPendingRestart(id)
 
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
-    if (!manifest.eulaAccepted) {
-      throw new Error('Hay que aceptar el EULA de Minecraft antes de arrancar el servidor.')
+    const manifest = await this.requireManifest(id)
+    const game = gameOf(manifest)
+
+    const missing = requiredAgreements(manifest.game).find(
+      (agreement) => !manifest.agreements.includes(agreement.id)
+    )
+    if (missing) {
+      throw new Error(`Hay que aceptar ${missing.label} antes de arrancar el servidor.`)
     }
 
     const existing = this.supervisors.get(id)
     if (existing?.isRunning) throw new Error('Este servidor ya está arrancado.')
 
-    const runtime = await java.ensureJava(manifest.javaMajor)
-    const installer = installerFor(manifest.distribution)
-
-    const ctx: InstallContext = {
-      instanceId: id,
-      serverDir: serverDir(id),
-      minecraftVersion: manifest.minecraftVersion,
-      build: manifest.build,
-      javaPath: runtime.javaPath,
-      memoryMb: manifest.memoryMb,
-      onProgress: () => undefined
-    }
-
-    // El plan de arranque se recalcula siempre desde el disco: en Forge el
-    // argfile puede haber cambiado tras una reinstalación (§6).
-    const plan = await installer.buildLaunchPlan(ctx)
+    const spec = await game.launch(manifest)
 
     const supervisor = this.supervisorFor(id)
     supervisor.setAutoRestart(manifest.autoRestart)
     supervisor.start({
-      javaPath: runtime.javaPath,
-      args: plan.args,
-      cwd: serverDir(id)
+      ...spec,
+      stop: game.stop(manifest),
+      parseLine: (raw) => game.parseLine(raw),
+      diagnoseExit: (code, recent) => game.diagnoseExit(code, recent)
     })
   }
 
@@ -270,6 +265,14 @@ class LauncherService extends EventEmitter {
 
   hasRunningServers(): boolean {
     return [...this.supervisors.values()].some((s) => s.isRunning)
+  }
+
+  /** Lanza un error legible si el servidor está en marcha. */
+  assertStopped(id: string, action: string): void {
+    const supervisor = this.supervisors.get(id)
+    if (supervisor?.isRunning) {
+      throw new Error(`Hay que parar el servidor para ${action}.`)
+    }
   }
 
   // --- Reinicio bajo petición del servidor ----------------------------------
@@ -404,165 +407,6 @@ class LauncherService extends EventEmitter {
     }
   }
 
-  // --- Configuración --------------------------------------------------------
-
-  async getProperties(id: string): Promise<Record<string, string>> {
-    return instances.readProperties(id)
-  }
-
-  async setProperties(
-    id: string,
-    values: Record<string, string>
-  ): Promise<Record<string, string>> {
-    const supervisor = this.supervisors.get(id)
-    if (supervisor?.isRunning) {
-      throw new Error(
-        'Hay que parar el servidor para cambiar su configuración. ' +
-          'Si no, la sobrescribirá al cerrarse.'
-      )
-    }
-    return instances.writeProperties(id, values)
-  }
-
-  // --- Plugins y mods (§4.8) ------------------------------------------------
-
-  async listContent(id: string): Promise<ContentInfo> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
-    return content.listContent(id, manifest.distribution)
-  }
-
-  /** Ruta de la carpeta de plugins/mods, creada si hacía falta. */
-  async contentFolder(id: string): Promise<string | null> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
-    return content.contentFolder(id, manifest.distribution)
-  }
-
-  async setContentEnabled(id: string, fileName: string, enabled: boolean): Promise<ContentInfo> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
-    this.assertStopped(id, 'activar o desactivar plugins y mods')
-    return content.setEnabled(id, manifest.distribution, fileName, enabled)
-  }
-
-  async removeContent(id: string, fileName: string): Promise<ContentInfo> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
-    this.assertStopped(id, 'borrar plugins o mods')
-    return content.removeContent(id, manifest.distribution, fileName)
-  }
-
-  // --- Plugins oficiales ----------------------------------------------------
-
-  async listOfficialPlugins(id: string): Promise<OfficialPluginStatus[]> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
-    return official.listOfficial(id, manifest.distribution)
-  }
-
-  /**
-   * Instala un plugin oficial y aplica los ajustes de `server.properties` que
-   * necesita: aceptar transferencias siempre, y el modo extremo si el papel
-   * elegido lo exige.
-   *
-   * La interfaz ya ha avisado de lo que va a cambiar; prometerlo y no hacerlo
-   * dejaría la partida en supervivencia normal sin que nadie se diera cuenta
-   * hasta morirse y reaparecer tan tranquilo, o con un lobby incapaz de mandar
-   * a nadie a jugar.
-   */
-  async installOfficialPlugin(
-    id: string,
-    pluginId: string,
-    role?: string
-  ): Promise<OfficialPluginStatus[]> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
-    this.assertStopped(id, 'instalar un plugin')
-
-    const result = await official.install(id, manifest.distribution, pluginId, role)
-
-    const plugin = officialPluginById(pluginId)
-    if (plugin) {
-      const properties = serverPropertiesFor(plugin, role)
-      if (Object.keys(properties).length > 0) {
-        await instances.writeProperties(id, properties)
-      }
-    }
-
-    return result
-  }
-
-  async uninstallOfficialPlugin(
-    id: string,
-    pluginId: string,
-    removeConfig = false
-  ): Promise<OfficialPluginStatus[]> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
-    this.assertStopped(id, 'quitar un plugin')
-    return official.uninstall(id, manifest.distribution, pluginId, removeConfig)
-  }
-
-  async setOfficialPluginConfig(
-    id: string,
-    pluginId: string,
-    values: Record<string, string | number | boolean>
-  ): Promise<OfficialPluginStatus[]> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
-    // El plugin lee su configuración al arrancar: cambiarla en caliente no
-    // tendría efecto y daría una falsa sensación de haberlo aplicado.
-    this.assertStopped(id, 'cambiar la configuración de un plugin')
-    return official.writeConfig(id, manifest.distribution, pluginId, values)
-  }
-
-  // --- Mundos ---------------------------------------------------------------
-
-  async listWorlds(id: string): Promise<WorldInfo[]> {
-    return worlds.listWorlds(id)
-  }
-
-  /**
-   * Las tres operaciones de mundos escriben en server.properties, así que
-   * exigen el servidor parado: en marcha lo reescribe al cerrarse y se
-   * perderían los cambios (§8).
-   */
-  private assertStopped(id: string, action: string): void {
-    const supervisor = this.supervisors.get(id)
-    if (supervisor?.isRunning) {
-      throw new Error(`Hay que parar el servidor para ${action}.`)
-    }
-  }
-
-  async createWorld(id: string, request: CreateWorldRequest): Promise<WorldInfo[]> {
-    this.assertStopped(id, 'crear un mundo')
-    await worlds.createWorld(id, request)
-    return worlds.listWorlds(id)
-  }
-
-  async activateWorld(id: string, name: string): Promise<WorldInfo[]> {
-    this.assertStopped(id, 'cambiar de mundo')
-    await worlds.activateWorld(id, name)
-    return worlds.listWorlds(id)
-  }
-
-  async deleteWorld(id: string, name: string): Promise<WorldInfo[]> {
-    this.assertStopped(id, 'borrar un mundo')
-
-    // Un mundo borrado no se recupera, así que antes se guarda una copia,
-    // igual que se hace antes de reinstalar o restaurar (§12).
-    const active = await worlds.activeWorldName(id)
-    if (name === active) {
-      // No debería llegar aquí (el gestor lo impide), pero si el mundo activo
-      // fuera el que se borra, la copia previa sería justo la que hace falta.
-      await this.createBackup(id, `Copia previa a borrar "${name}"`, true).catch(() => undefined)
-    }
-
-    await worlds.deleteWorld(id, name)
-    return worlds.listWorlds(id)
-  }
-
   // --- Copias de seguridad (§12) -------------------------------------------
 
   async listBackups(id: string): Promise<BackupInfo[]> {
@@ -570,13 +414,14 @@ class LauncherService extends EventEmitter {
   }
 
   /**
-   * Crea una copia. Si el servidor está arrancado aplica la secuencia segura:
-   *   save-off -> save-all flush -> esperar confirmación -> copiar -> save-on
-   * Sin ella el ZIP puede salir corrupto y no se nota hasta que hace falta.
+   * Crea una copia. Si el servidor está arrancado, primero pide al juego que
+   * deje la partida consistente en disco (en Minecraft: save-off -> save-all
+   * flush -> confirmación) y la reanuda al terminar. Sin eso el ZIP puede salir
+   * corrupto y no se nota hasta que hace falta.
    */
   async createBackup(id: string, reason?: string, automatic = false): Promise<BackupInfo> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    const manifest = await this.requireManifest(id)
+    const game = gameOf(manifest)
 
     const supervisor = this.supervisors.get(id)
     const running = supervisor?.isRunning ?? false
@@ -586,37 +431,51 @@ class LauncherService extends EventEmitter {
     }
 
     if (running && supervisor) {
-      progress('Pidiendo al servidor que guarde el mundo')
-      const flushed = await supervisor.flushAndHoldSaves()
+      if (!game.holdSaves) {
+        throw new Error('Este juego no permite copias con el servidor en marcha. Páralo primero.')
+      }
+      progress('Pidiendo al servidor que guarde la partida')
+      const flushed = await game.holdSaves(supervisor)
       if (!flushed) {
-        // Se reanuda el autoguardado antes de rendirse: dejarlo apagado sería
-        // mucho peor que no tener la copia.
-        supervisor.resumeSaves()
+        // Se reanuda el guardado automático antes de rendirse: dejarlo apagado
+        // sería mucho peor que no tener la copia.
+        game.resumeSaves?.(supervisor)
         throw new Error(
-          'El servidor no confirmó que había guardado el mundo. ' +
+          'El servidor no confirmó que había guardado la partida. ' +
             'No se hace la copia para no guardar datos a medias.'
         )
       }
     }
 
     try {
-      return await backups.createBackup({ manifest, automatic, reason, onProgress: progress })
+      return await backups.createBackup({
+        manifest,
+        entries: await game.backupEntries(manifest),
+        meta: game.backupMeta(manifest),
+        automatic,
+        reason,
+        onProgress: progress
+      })
     } finally {
-      if (running && supervisor) supervisor.resumeSaves()
+      if (running && supervisor) game.resumeSaves?.(supervisor)
     }
   }
 
   async restoreBackup(id: string, fileName: string): Promise<void> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    const manifest = await this.requireManifest(id)
+    const game = gameOf(manifest)
 
     const supervisor = this.supervisors.get(id)
     if (supervisor?.isRunning) {
       throw new Error('Hay que parar el servidor antes de restaurar una copia.')
     }
 
-    await backups.restoreBackup(manifest, fileName, (detail) => {
-      this.emit('progress', { instanceId: id, phase: 'restore', progress: null, detail })
+    await backups.restoreBackup(manifest, fileName, {
+      targets: await game.restoreTargets(manifest),
+      saveCurrent: () => this.createBackup(id, `Estado previo a restaurar ${fileName}`, true),
+      onProgress: (detail) => {
+        this.emit('progress', { instanceId: id, phase: 'restore', progress: null, detail })
+      }
     })
   }
 
@@ -626,7 +485,8 @@ class LauncherService extends EventEmitter {
 
   /** Cuánto ocupa una copia y cuánto espacio queda (§12). */
   async backupEstimate(id: string): Promise<BackupEstimate> {
-    return backups.estimate(id)
+    const manifest = await this.requireManifest(id)
+    return backups.estimate(id, await gameOf(manifest).backupEntries(manifest))
   }
 
   async applyRetention(id: string): Promise<number> {
@@ -667,12 +527,12 @@ class LauncherService extends EventEmitter {
 
   /**
    * Estado de conexión de una instancia.
-   * El sondeo usa Server List Ping, que es lo que hace el juego de verdad:
-   * que el puerto acepte conexiones no significa que se pueda entrar.
+   * El sondeo lo hace el juego con su propio protocolo, que es lo que hace un
+   * cliente de verdad: que el puerto acepte conexiones no significa que se
+   * pueda entrar.
    */
   async connectionInfo(id: string): Promise<ConnectionInfo> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    const manifest = await this.requireManifest(id)
 
     const supervisor = this.supervisors.get(id)
     const running = supervisor?.status === 'running'
@@ -689,7 +549,7 @@ class LauncherService extends EventEmitter {
 
     if (!running) return info
 
-    const ping = await network.serverListPing('127.0.0.1', manifest.port)
+    const ping = await gameOf(manifest).ping(manifest)
     info.ping = ping.ok
       ? {
           state: 'ok',
@@ -731,8 +591,8 @@ class LauncherService extends EventEmitter {
    * se ve, esté o no abierto al exterior.
    */
   async checkFromInternet(id: string): Promise<ExternalCheck> {
-    const manifest = await instances.readManifest(id)
-    if (!manifest) throw new Error(`No existe la instancia ${id}.`)
+    const manifest = await this.requireManifest(id)
+    const game = gameOf(manifest)
 
     const exposure = manifest.exposure ?? { mode: 'local' as const }
     const checkedAt = new Date().toISOString()
@@ -760,8 +620,8 @@ class LauncherService extends EventEmitter {
         }
       }
 
-      const [host, portText] = splitAddress(address, manifest.port)
-      const result = await network.checkFromInternet(host, portText)
+      const [host, port] = splitAddress(address, manifest.port)
+      const result = await game.checkFromInternet(host, port)
       return { ...result, address, checkedAt }
     }
 
@@ -775,7 +635,7 @@ class LauncherService extends EventEmitter {
       }
     }
 
-    const result = await network.checkFromInternet(ip, manifest.port)
+    const result = await game.checkFromInternet(ip, manifest.port)
     return { ...result, address: `${ip}:${manifest.port}`, publicIp: ip, checkedAt }
   }
 }

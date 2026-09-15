@@ -5,6 +5,7 @@ import type {
   ExternalCheck,
   InstanceState
 } from '@shared/types'
+import { gameInfo, theSave, versionLabel } from '@shared/games'
 import { ExposureHelp } from './ExposureHelp'
 
 /**
@@ -108,7 +109,7 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
         <h3>Cómo conectarse</h3>
         <p className="hint">
           {running
-            ? 'En Minecraft: Multijugador → Añadir servidor, y pega una de estas direcciones.'
+            ? `${gameInfo(manifest.game).joinHint.replace(/\.$/, '')}, y pega una de estas direcciones.`
             : 'Arranca el servidor para poder conectarte.'}
         </p>
 
@@ -147,7 +148,7 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
                 <strong>El servidor responde correctamente</strong>
                 <p>
                   {ping.motd ? `"${ping.motd}" · ` : ''}
-                  {ping.versionName ?? manifest.minecraftVersion} · {ping.playersOnline ?? 0}/
+                  {ping.versionName ?? versionLabel(manifest)} · {ping.playersOnline ?? 0}/
                   {ping.playersMax ?? '?'} jugadores
                   {ping.latencyMs !== undefined && ` · ${ping.latencyMs} ms`}
                 </p>
@@ -162,7 +163,7 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
                 <strong>El servidor no contesta todavía</strong>
                 <p>
                   Está arrancado pero aún no acepta conexiones. Suele ser cuestión de segundos
-                  mientras termina de generar el mundo.
+                  mientras termina de generar {theSave(gameInfo(manifest.game).save)}.
                 </p>
               </>
             )}
@@ -248,7 +249,7 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
           mode={exposure.mode}
           gateway={info?.gateway ?? null}
           localAddress={firstLocal}
-          port={manifest.port}
+          manifest={manifest}
           onClose={() => setShowHelp(false)}
         />
       )}

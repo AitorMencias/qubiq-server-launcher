@@ -5,28 +5,24 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { BackupInfo, InstanceManifest } from '@shared/types'
 import { backupsDir, serverDir, ensureDir, systemTarPath } from '../paths'
-import * as worlds from '../worlds/manager'
 
 const execFileAsync = promisify(execFile)
 
 /**
- * Copias de seguridad (§12).
+ * Copias de seguridad (§12), para cualquier juego.
  *
- * ⚠ Con el servidor arrancado hay que volcar el mundo a disco ANTES de copiar:
- *   save-off -> save-all flush -> esperar confirmación -> copiar -> save-on
- * Copiar sin esa secuencia produce backups corruptos que solo se descubren el
- * día que hacen falta. La secuencia la orquesta `service.ts`, que es quien
- * tiene acceso al supervisor.
+ * Este módulo solo sabe comprimir, listar y restaurar. QUÉ se copia lo decide
+ * el juego (`GameAdapter.backupEntries`), porque cada uno guarda la partida en
+ * un sitio distinto.
+ *
+ * ⚠ Con el servidor arrancado hay que dejar la partida consistente en disco
+ * ANTES de copiar (en Minecraft: save-off -> save-all flush -> esperar
+ * confirmación -> copiar -> save-on). Copiar sin eso produce backups corruptos
+ * que solo se descubren el día que hacen falta. La secuencia la orquesta
+ * `service.ts`, que es quien tiene acceso al supervisor.
  *
  * El ZIP lo crea el bsdtar que trae Windows, para no añadir dependencias.
  */
-
-/**
- * Ficheros de configuración que merece la pena conservar.
- * Las carpetas de mundo NO se listan aquí: dependen de `level-name`, así que
- * se resuelven en tiempo de ejecución (ver `worlds.foldersForWorld`).
- */
-const BACKED_UP_FILES = ['server.properties', 'ops.json', 'whitelist.json', 'banned-players.json', 'banned-ips.json']
 
 /**
  * Ejecuta bsdtar propagando su stderr en el error.
@@ -72,43 +68,36 @@ async function exists(path: string): Promise<boolean> {
 
 export interface CreateBackupOptions {
   manifest: InstanceManifest
+  /** Rutas relativas a la carpeta del servidor, según el juego. */
+  entries: string[]
+  /** Versión y variante del juego que se anotan en la copia. */
+  meta: { version: string; variant?: string }
   automatic?: boolean
   reason?: string
   onProgress?: (detail: string) => void
 }
 
 /**
- * Crea el ZIP. NO se encarga del save-off/save-on: quien llama debe haber
- * dejado el mundo consistente (ver `service.createBackup`).
+ * Crea el ZIP. NO deja la partida consistente: quien llama debe haberlo hecho
+ * (ver `service.createBackup`).
  */
 export async function createBackup(options: CreateBackupOptions): Promise<BackupInfo> {
-  const { manifest, automatic = false, reason, onProgress } = options
+  const { manifest, entries, meta, automatic = false, reason, onProgress } = options
   const id = manifest.id
+
+  // Sin partida no hay copia que valga: guardar solo la configuración de una
+  // instancia recién creada llenaría el historial de ruido inútil.
+  if (entries.length === 0) {
+    throw new Error('No hay nada que guardar todavía: la partida aún no se ha generado.')
+  }
+
   const dir = backupsDir(id)
   await ensureDir(dir)
 
   const name = `${timestamp()}.zip`
   const zipPath = join(dir, name)
 
-  // ⚠ El mundo NO se llama siempre "world": lo dice `level-name`. Asumirlo
-  // haría que, en cuanto el usuario cambiara de mundo, las copias guardaran
-  // el mundo equivocado o ninguno.
-  const worldName = await worlds.activeWorldName(id)
-  const worldFolders = await worlds.foldersForWorld(id, worldName)
-
-  // Sin mundo no hay copia que valga: guardar solo la configuración de una
-  // instancia recién creada llenaría el historial de ruido inútil.
-  if (worldFolders.length === 0) {
-    throw new Error('No hay nada que guardar todavía: el mundo aún no se ha generado.')
-  }
-
-  // Se listan solo las rutas existentes.
-  const entries: string[] = [...worldFolders]
-  for (const candidate of BACKED_UP_FILES) {
-    if (await exists(join(serverDir(id), candidate))) entries.push(candidate)
-  }
-
-  onProgress?.('Comprimiendo el mundo')
+  onProgress?.('Comprimiendo la partida')
   await runTar([
     '-c',
     '-a',
@@ -128,8 +117,9 @@ export async function createBackup(options: CreateBackupOptions): Promise<Backup
     fileName: name,
     createdAt: new Date().toISOString(),
     sizeBytes: (await stat(zipPath)).size,
-    minecraftVersion: manifest.minecraftVersion,
-    distribution: manifest.distribution,
+    game: manifest.game,
+    version: meta.version,
+    ...(meta.variant ? { variant: meta.variant } : {}),
     automatic,
     reason
   }
@@ -156,7 +146,7 @@ export async function listBackups(id: string): Promise<BackupInfo[]> {
 
     try {
       const raw = await readFile(sidecarFor(zipPath), 'utf8')
-      result.push(JSON.parse(raw) as BackupInfo)
+      result.push(normalizeSidecar(JSON.parse(raw) as LegacyBackupInfo))
       continue
     } catch {
       // Sin sidecar: se reconstruye lo que se pueda del propio fichero.
@@ -167,14 +157,43 @@ export async function listBackups(id: string): Promise<BackupInfo[]> {
       fileName: file,
       createdAt: stats.mtime.toISOString(),
       sizeBytes: stats.size,
-      minecraftVersion: 'desconocida',
-      distribution: 'vanilla',
+      game: 'minecraft',
+      version: 'desconocida',
       automatic: false
     })
   }
 
   result.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   return result
+}
+
+/** Sidecar escrito antes de la v2 del manifiesto, cuando solo había Minecraft. */
+type LegacyBackupInfo = Partial<BackupInfo> & {
+  fileName: string
+  createdAt: string
+  sizeBytes: number
+  minecraftVersion?: string
+  distribution?: string
+}
+
+/**
+ * Las copias hechas con versiones anteriores de la app guardaban
+ * `minecraftVersion` y `distribution`. No se reescriben en disco: se leen
+ * igual, para que el historial no pierda ninguna.
+ */
+function normalizeSidecar(raw: LegacyBackupInfo): BackupInfo {
+  const { minecraftVersion, distribution, ...rest } = raw
+  const variant = raw.variant ?? distribution
+  return {
+    ...rest,
+    fileName: raw.fileName,
+    createdAt: raw.createdAt,
+    sizeBytes: raw.sizeBytes,
+    game: raw.game ?? 'minecraft',
+    version: raw.version ?? minecraftVersion ?? 'desconocida',
+    ...(variant ? { variant } : {}),
+    automatic: raw.automatic ?? false
+  }
 }
 
 export async function deleteBackup(id: string, fileName: string): Promise<void> {
@@ -189,11 +208,20 @@ export async function deleteBackup(id: string, fileName: string): Promise<void> 
  * Antes de sobrescribir se guarda el estado actual: restaurar por error es
  * justo el momento en que más duele no tener vuelta atrás (§12).
  */
+export interface RestoreBackupOptions {
+  /** Carpetas que se retiran antes de extraer, según el juego. */
+  targets: string[]
+  /** Copia del estado actual antes de sobrescribir; puede fallar sin bloquear. */
+  saveCurrent: () => Promise<unknown>
+  onProgress?: (detail: string) => void
+}
+
 export async function restoreBackup(
   manifest: InstanceManifest,
   fileName: string,
-  onProgress?: (detail: string) => void
+  options: RestoreBackupOptions
 ): Promise<void> {
+  const { targets, saveCurrent, onProgress } = options
   const id = manifest.id
   const zipPath = join(backupsDir(id), fileName)
   if (!(await exists(zipPath))) {
@@ -201,15 +229,11 @@ export async function restoreBackup(
   }
 
   onProgress?.('Guardando el estado actual por si acaso')
-  await createBackup({
-    manifest,
-    automatic: true,
-    reason: `Estado previo a restaurar ${fileName}`
-  }).catch(() => undefined) // Un mundo vacío no se puede copiar, y no debe bloquear.
+  // Una partida vacía no se puede copiar, y eso no debe bloquear la restauración.
+  await saveCurrent().catch(() => undefined)
 
-  onProgress?.('Retirando el mundo actual')
-  const worldName = await worlds.activeWorldName(id)
-  for (const folder of await worlds.foldersForWorld(id, worldName)) {
+  onProgress?.('Retirando la partida actual')
+  for (const folder of targets) {
     await rm(join(serverDir(id), folder), { recursive: true, force: true })
   }
 
@@ -229,6 +253,16 @@ export async function applyRetention(id: string, keep: number): Promise<number> 
     await deleteBackup(id, backup.fileName)
   }
   return excess.length
+}
+
+/** Tamaño de un fichero o de un directorio entero. */
+async function pathSize(path: string): Promise<number> {
+  try {
+    const info = await stat(path)
+    return info.isDirectory() ? directorySize(path) : info.size
+  } catch {
+    return 0
+  }
 }
 
 /** Tamaño total de un directorio, recorriéndolo entero. */
@@ -263,10 +297,11 @@ async function directorySize(path: string): Promise<number> {
  * coste de la retención que elija.
  *
  * Con copias reales se promedia, que es la única cifra fiable. Sin ellas se
- * estima a partir del mundo: las regiones de Minecraft son NBT comprimido y el
- * ZIP les saca poco más, así que se aplica un factor conservador del 70 %.
+ * estima a partir de lo que se copiaría: las partidas suelen ir ya comprimidas
+ * (las regiones de Minecraft son NBT comprimido) y el ZIP les saca poco más,
+ * así que se aplica un factor conservador del 70 %.
  */
-export async function estimate(id: string): Promise<{
+export async function estimate(id: string, entries: string[]): Promise<{
   perBackupBytes: number
   sampleCount: number
   worldBytes: number
@@ -274,10 +309,9 @@ export async function estimate(id: string): Promise<{
 }> {
   const existing = await listBackups(id)
 
-  const worldName = await worlds.activeWorldName(id)
   let worldBytes = 0
-  for (const folder of await worlds.foldersForWorld(id, worldName)) {
-    worldBytes += await directorySize(join(serverDir(id), folder))
+  for (const entry of entries) {
+    worldBytes += await pathSize(join(serverDir(id), entry))
   }
 
   const perBackupBytes =

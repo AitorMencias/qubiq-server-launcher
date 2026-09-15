@@ -1,17 +1,23 @@
-import type { ExposureMode } from '@shared/types'
+import type { ExposureMode, InstanceManifest } from '@shared/types'
+import { PROTOCOL_LABELS, gameInfo, serverPorts, type ServerPort } from '@shared/games'
+import { uiFor } from './games'
 
 /**
  * Guías de configuración para cada forma de exponer el servidor (§10).
  *
  * Están escritas para alguien que no sabe qué es un puerto: cada paso dice
  * dónde hacer clic y qué escribir, no qué concepto aplicar.
+ *
+ * Los puertos salen del juego (`serverPorts`): Minecraft usa uno TCP y los
+ * juegos de Steam varios, casi siempre UDP. Con un solo puerto, el texto es el
+ * de siempre; con varios, se pide una regla o un túnel por puerto.
  */
 
 interface Props {
   mode: ExposureMode
   gateway: string | null
   localAddress: string | null
-  port: number
+  manifest: InstanceManifest
   onClose: () => void
 }
 
@@ -19,9 +25,10 @@ export function ExposureHelp({
   mode,
   gateway,
   localAddress,
-  port,
+  manifest,
   onClose
 }: Props): React.JSX.Element {
+  const ports = serverPorts(manifest)
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -33,9 +40,16 @@ export function ExposureHelp({
         <div className="modal-body">
           {mode === 'local' && <LocalHelp />}
           {mode === 'router' && (
-            <RouterHelp gateway={gateway} localAddress={localAddress} port={port} />
+            <RouterHelp
+              gateway={gateway}
+              localAddress={localAddress}
+              ports={ports}
+              safetyNote={uiFor(manifest).routerSafetyNote}
+            />
           )}
-          {mode === 'tunnel' && <TunnelHelp port={port} />}
+          {mode === 'tunnel' && (
+            <TunnelHelp ports={ports} addressExample={gameInfo(manifest.game).tunnelAddressExample} />
+          )}
         </div>
       </div>
     </div>
@@ -63,21 +77,38 @@ function LocalHelp(): React.JSX.Element {
   )
 }
 
+/** «25565», «2456 y 2457», «7777, 8888 y 15000». */
+function portList(ports: ServerPort[]): React.JSX.Element {
+  return (
+    <>
+      {ports.map((p, i) => (
+        <span key={p.port}>
+          {i > 0 && (i === ports.length - 1 ? ' y ' : ', ')}
+          <strong>{p.port}</strong>
+        </span>
+      ))}
+    </>
+  )
+}
+
 function RouterHelp({
   gateway,
   localAddress,
-  port
+  ports,
+  safetyNote
 }: {
   gateway: string | null
   localAddress: string | null
-  port: number
+  ports: ServerPort[]
+  safetyNote: React.ReactNode
 }): React.JSX.Element {
+  const single = ports.length === 1
   return (
     <>
       <p>
         Por defecto, tu router bloquea todo lo que llega de internet. Hay que decirle que las
-        conexiones al puerto <strong>{port}</strong> se las pase a este ordenador. Se hace una sola
-        vez.
+        conexiones {single ? 'al puerto' : 'a los puertos'} {portList(ports)} se las pase a este
+        ordenador. Se hace una sola vez.
       </p>
 
       <h4>Lo que necesitas tener a mano</h4>
@@ -98,12 +129,14 @@ function RouterHelp({
           <dt>IP de este ordenador</dt>
           <dd>{localAddress ? <code>{localAddress}</code> : 'No detectada'}</dd>
         </div>
-        <div>
-          <dt>Puerto</dt>
-          <dd>
-            <code>{port}</code> (TCP)
-          </dd>
-        </div>
+        {ports.map((p) => (
+          <div key={p.port}>
+            <dt>{single ? 'Puerto' : `Puerto: ${p.label}`}</dt>
+            <dd>
+              <code>{p.port}</code> ({PROTOCOL_LABELS[p.protocol]})
+            </dd>
+          </div>
+        ))}
       </dl>
 
       <h4>Pasos</h4>
@@ -117,20 +150,23 @@ function RouterHelp({
           puertos</strong>, <strong>NAT</strong> o <strong>Servidores virtuales</strong>. El nombre
           cambia según la marca.
         </li>
-        <li>
-          Crea una regla nueva con estos datos:
-          <ul>
-            <li>
-              Puerto externo e interno: <code>{port}</code>
-            </li>
-            <li>
-              Protocolo: <strong>TCP</strong>
-            </li>
-            <li>
-              IP de destino: <code>{localAddress ?? 'la IP de este ordenador'}</code>
-            </li>
-          </ul>
-        </li>
+        {ports.map((p) => (
+          <li key={p.port}>
+            {single ? 'Crea una regla nueva con estos datos:' : `Crea una regla para «${p.label}»:`}
+            <ul>
+              <li>
+                Puerto externo e interno: <code>{p.port}</code>
+              </li>
+              <li>
+                Protocolo: <strong>{PROTOCOL_LABELS[p.protocol]}</strong>
+                {p.protocol === 'tcp+udp' && ' (algunos routers lo llaman «Ambos»)'}
+              </li>
+              <li>
+                IP de destino: <code>{localAddress ?? 'la IP de este ordenador'}</code>
+              </li>
+            </ul>
+          </li>
+        ))}
         <li>Guarda y, si el router lo pide, reinícialo.</li>
         <li>
           Vuelve aquí y pulsa <strong>Comprobar desde internet</strong>.
@@ -150,17 +186,18 @@ function RouterHelp({
       </p>
 
       <h4>Antes de abrir un puerto, ten en cuenta</h4>
-      <p className="note">
-        Abrir un puerto expone este ordenador a internet. Mantén activado <strong>&quot;Exigir cuenta
-        oficial de Minecraft&quot;</strong> en Ajustes, y considera activar{' '}
-        <strong>&quot;Solo pueden entrar los invitados&quot;</strong> para que solo entre gente que tú
-        hayas añadido.
-      </p>
+      <p className="note">{safetyNote}</p>
     </>
   )
 }
 
-function TunnelHelp({ port }: { port: number }): React.JSX.Element {
+function TunnelHelp({
+  ports,
+  addressExample
+}: {
+  ports: ServerPort[]
+  addressExample: string
+}): React.JSX.Element {
   return (
     <>
       <p>
@@ -183,12 +220,25 @@ function TunnelHelp({ port }: { port: number }): React.JSX.Element {
           Entra en <code>https://playit.gg</code> y crea una cuenta gratuita.
         </li>
         <li>Descarga su programa para Windows e instálalo. Déjalo abierto mientras juegas.</li>
+        {ports.length === 1 ? (
+          <li>
+            En su panel, crea un túnel de tipo <strong>{ports[0].tunnelType}</strong> apuntando al
+            puerto <code>{ports[0].port}</code> de tu ordenador.
+          </li>
+        ) : (
+          <li>
+            En su panel, crea un túnel por cada puerto de tu ordenador:
+            <ul>
+              {ports.map((p) => (
+                <li key={p.port}>
+                  {p.label}: tipo <strong>{p.tunnelType}</strong>, puerto <code>{p.port}</code>
+                </li>
+              ))}
+            </ul>
+          </li>
+        )}
         <li>
-          En su panel, crea un túnel de tipo <strong>Minecraft Java</strong> apuntando al puerto{' '}
-          <code>{port}</code> de tu ordenador.
-        </li>
-        <li>
-          Te dará una dirección parecida a <code>algo.joinmc.link</code>. Cópiala.
+          Te dará una dirección parecida a <code>{addressExample}</code>. Cópiala.
         </li>
         <li>Pégala aquí abajo, en el campo de dirección, y pulsa Comprobar.</li>
       </ol>

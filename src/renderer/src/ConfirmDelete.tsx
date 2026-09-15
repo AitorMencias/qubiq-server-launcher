@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
+import { gameInfo, theSave } from '@shared/games'
+import { uiFor } from './games'
 
 /**
  * Confirmación para borrar un servidor.
@@ -23,7 +25,8 @@ export function ConfirmDelete({ state, onCancel, onDeleted }: Props): React.JSX.
   const running = status !== 'stopped' && status !== 'crashed'
 
   const [typed, setTyped] = useState('')
-  const [worlds, setWorlds] = useState<number | null>(null)
+  /** Lo que se pierde de la partida, dicho por el juego («Sus 3 mundos…»). */
+  const [loss, setLoss] = useState<string | null>(null)
   const [backups, setBackups] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,12 +35,13 @@ export function ConfirmDelete({ state, onCancel, onDeleted }: Props): React.JSX.
   // una advertencia genérica que nadie lee.
   useEffect(() => {
     void Promise.all([
-      window.qubiq.worlds.list(manifest.id).catch(() => []),
+      uiFor(manifest).describeLoss(manifest),
       window.qubiq.backups.list(manifest.id).catch(() => [])
-    ]).then(([w, b]) => {
-      setWorlds(w.length)
+    ]).then(([description, b]) => {
+      setLoss(description)
       setBackups(b.length)
     })
+    // El juego no cambia en la vida de un servidor: basta con su id.
   }, [manifest.id])
 
   const confirmed = typed.trim() === manifest.name.trim()
@@ -70,13 +74,7 @@ export function ConfirmDelete({ state, onCancel, onDeleted }: Props): React.JSX.
           </p>
 
           <ul>
-            <li>
-              {worlds === null
-                ? 'Sus mundos'
-                : worlds === 1
-                  ? 'Su mundo, con todo lo construido'
-                  : `Sus ${worlds} mundos, con todo lo construido`}
-            </li>
+            <li>{loss ?? 'Su partida'}</li>
             <li>
               {backups === null
                 ? 'Sus copias de seguridad'
@@ -90,7 +88,7 @@ export function ConfirmDelete({ state, onCancel, onDeleted }: Props): React.JSX.
           {backups !== null && backups > 0 && (
             <p className="note">
               Ojo: las copias de seguridad viven dentro del servidor, así que se van con él. Si
-              quieres conservar el mundo, cancela y copia primero la carpeta a otro sitio con
+              quieres conservar {theSave(gameInfo(manifest.game).save)}, cancela y copia primero la carpeta a otro sitio con
               &quot;Abrir carpeta&quot;.
             </p>
           )}

@@ -13,7 +13,7 @@ export default defineConfig({
     alias: { '@shared': resolve(root, 'src/shared') }
   },
   build: {
-    ssr: resolve(root, 'scripts/smoke.ts'),
+    ssr: resolve(root, 'scripts/smoke/index.ts'),
     outDir: resolve(root, 'out/smoke'),
     emptyOutDir: true,
     target: 'node22',

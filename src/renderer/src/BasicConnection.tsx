@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ConnectionInfo, ExposureMode, InstanceState } from '@shared/types'
+import { gameInfo, versionLabel } from '@shared/games'
 import { ExposureHelp } from './ExposureHelp'
 
 /**
@@ -134,7 +135,7 @@ export function BasicConnection({ state, onManifestChanged }: Props): React.JSX.
         <h3>La dirección de tu servidor</h3>
         <p className="hint">
           {status === 'running'
-            ? 'Pásasela a tus amigos. En Minecraft: Multijugador → Añadir servidor.'
+            ? `Pásasela a tus amigos. ${gameInfo(manifest.game).joinHint}`
             : 'Arranca el servidor y pásasela a tus amigos.'}
         </p>
 
@@ -153,8 +154,7 @@ export function BasicConnection({ state, onManifestChanged }: Props): React.JSX.
               </button>
             </div>
             <div className="help">
-              {addressNote} Tienen que usar Minecraft{' '}
-              <strong>{manifest.minecraftVersion}</strong>.
+              {addressNote} Tienen que usar <strong>{versionLabel(manifest)}</strong>.
             </div>
           </>
         ) : (
@@ -202,7 +202,7 @@ export function BasicConnection({ state, onManifestChanged }: Props): React.JSX.
           mode={exposure.mode}
           gateway={info?.gateway ?? null}
           localAddress={info?.localAddresses[0]?.address ?? null}
-          port={manifest.port}
+          manifest={manifest}
           onClose={() => setShowHelp(false)}
         />
       )}

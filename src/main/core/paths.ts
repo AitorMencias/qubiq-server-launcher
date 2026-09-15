@@ -38,11 +38,12 @@ export function resourcesRoot(): string {
 }
 
 /**
- * Fichero de un plugin oficial dentro de los recursos empaquetados.
- * Cada plugin tiene su carpeta con el jar y la plantilla de configuración.
+ * Fichero dentro de los recursos empaquetados de un juego.
+ * Cada juego tiene su carpeta (`resources/minecraft/...`), para que los
+ * recursos de uno no se mezclen con los de otro.
  */
-export function bundledPluginPath(pluginId: string, fileName: string): string {
-  return join(resourcesRoot(), 'plugins', pluginId, fileName)
+export function gameResourcePath(game: string, ...parts: string[]): string {
+  return join(resourcesRoot(), game, ...parts)
 }
 
 export function dataRoot(): string {
@@ -56,6 +57,11 @@ export function dataRoot(): string {
 
 export function runtimesDir(): string {
   return join(dataRoot(), 'runtimes')
+}
+
+/** Herramientas compartidas por varios juegos (SteamCMD). */
+export function toolsDir(): string {
+  return join(dataRoot(), 'tools')
 }
 
 export function cacheDir(): string {
