@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Minecraft">
+<!-- Icono propio de QubiQ Server Launcher (GPLv3). No es un logotipo oficial de Minecraft
+     ni está hecho a partir de él: evoca el tema del juego sin usar sus marcas.
+     Criterio en ANALISIS.md §13.1. -->
+<defs>
+<linearGradient id="qubiq-minecraft-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5aab55"/><stop offset="1" stop-color="#2c6a33"/></linearGradient>
+<filter id="qubiq-minecraft-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect x="1" y="1" width="62" height="62" rx="15" fill="url(#qubiq-minecraft-bg)"/>
+<rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity=".16"/>
+<path d="M3 16 Q3 3 16 3 H48 Q61 3 61 16 V20 Q32 12 3 26 Z" fill="#ffffff" fill-opacity=".07"/>
+<rect x="17.6" y="14" width="14.45" height="3.65" fill="#ffffff"/><rect x="14" y="17.6" width="25.25" height="3.65" fill="#ffffff"/><rect x="14" y="21.2" width="28.85" height="3.65" fill="#ffffff"/><rect x="32" y="24.8" width="3.65" height="3.65" fill="#f3dcb8"/><rect x="35.6" y="24.8" width="10.85" height="3.65" fill="#ffffff"/><rect x="28.4" y="28.4" width="10.85" height="3.65" fill="#f3dcb8"/><rect x="39.2" y="28.4" width="7.25" height="3.65" fill="#ffffff"/><rect x="24.8" y="32" width="10.85" height="3.65" fill="#f3dcb8"/><rect x="39.2" y="32" width="10.85" height="3.65" fill="#ffffff"/><rect x="21.2" y="35.6" width="10.85" height="3.65" fill="#f3dcb8"/><rect x="39.2" y="35.6" width="10.85" height="3.65" fill="#ffffff"/><rect x="17.6" y="39.2" width="10.85" height="3.65" fill="#f3dcb8"/><rect x="39.2" y="39.2" width="10.85" height="3.65" fill="#ffffff"/><rect x="14" y="42.8" width="10.85" height="3.65" fill="#f3dcb8"/><rect x="39.2" y="42.8" width="10.85" height="3.65" fill="#ffffff"/><rect x="14" y="46.4" width="7.25" height="3.65" fill="#f3dcb8"/><rect x="39.2" y="46.4" width="7.25" height="3.65" fill="#ffffff"/>
+<circle cx="20" cy="18" r="2.9" fill="#d8ffb8" filter="url(#qubiq-minecraft-glow)"/>
+<circle cx="46" cy="45" r="2.9" fill="#d8ffb8" filter="url(#qubiq-minecraft-glow)"/>
+</svg>

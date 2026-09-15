@@ -32,6 +32,8 @@ export interface GameConfigContext {
 }
 
 export interface GameUi {
+  /** URL de su icono propio (`games/<juego>/icon.svg`), nunca el logo oficial. */
+  icon: string
   BasicWizard: ComponentType<WizardProps>
   AdvancedWizard: ComponentType<WizardProps>
   /** Pestañas propias del juego dentro de Configuración. */

@@ -179,7 +179,8 @@ src/
     ├── App.tsx, ServerPanel.tsx…   Armazón común (botón grande, jugadores, consola, copias)
     └── games/
         ├── types.ts         Lo que aporta cada juego a la interfaz (GameUi)
-        └── minecraft/       Asistentes, Ajustes, Mundos, Plugins/Mods, plugins oficiales
+        ├── minecraft/       Asistentes, Ajustes, Mundos, Plugins/Mods, plugins oficiales
+        └── <juego>/icon.svg Icono propio de cada juego, ya dibujado para su fase
 
 resources/<juego>/           Ficheros que se empaquetan por juego (resources/minecraft/plugins/)
 scripts/smoke/               Prueba de humo: common.ts + un fichero por juego

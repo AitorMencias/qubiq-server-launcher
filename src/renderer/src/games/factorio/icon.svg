@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Factorio">
+<!-- Icono propio de QubiQ Server Launcher (GPLv3). No es un logotipo oficial de Factorio
+     ni está hecho a partir de él: evoca el tema del juego sin usar sus marcas.
+     Criterio en ANALISIS.md §13.1. -->
+<defs>
+<linearGradient id="qubiq-factorio-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c28b2c"/><stop offset="1" stop-color="#664314"/></linearGradient>
+<filter id="qubiq-factorio-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect x="1" y="1" width="62" height="62" rx="15" fill="url(#qubiq-factorio-bg)"/>
+<rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity=".16"/>
+<path d="M3 16 Q3 3 16 3 H48 Q61 3 61 16 V20 Q32 12 3 26 Z" fill="#ffffff" fill-opacity=".07"/>
+<path d="M33.52 11.18 L38.48 11.18 L38.51 15.76 L41.95 17 L44.91 13.52 L48.71 16.71 L45.8 20.24 L47.62 23.4 L52.13 22.63 L52.99 27.53 L48.5 28.35 L47.86 31.95 L51.81 34.26 L49.32 38.56 L45.35 36.3 L42.55 38.65 L44.09 42.95 L39.42 44.65 L37.83 40.37 L34.17 40.37 L32.58 44.65 L27.91 42.95 L29.45 38.65 L26.65 36.3 L22.68 38.56 L20.19 34.26 L24.14 31.95 L23.5 28.35 L19.01 27.53 L19.87 22.63 L24.38 23.4 L26.2 20.24 L23.29 16.71 L27.09 13.52 L30.05 17 L33.49 15.76Z" fill="#ffffff" fill-opacity=".95"/><circle cx="36" cy="28" r="5.2" fill="#8a5d1b"/><path d="M8 56 H24" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 56 V44 L27 39" fill="none" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="15" cy="44" r="2.9" fill="#fff0c2" filter="url(#qubiq-factorio-glow)"/>
+<circle cx="27" cy="39" r="2.9" fill="#fff0c2" filter="url(#qubiq-factorio-glow)"/>
+</svg>

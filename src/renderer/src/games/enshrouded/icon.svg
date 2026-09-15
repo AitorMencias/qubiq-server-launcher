@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Enshrouded">
+<!-- Icono propio de QubiQ Server Launcher (GPLv3). No es un logotipo oficial de Enshrouded
+     ni está hecho a partir de él: evoca el tema del juego sin usar sus marcas.
+     Criterio en ANALISIS.md §13.1. -->
+<defs>
+<linearGradient id="qubiq-enshrouded-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7566c0"/><stop offset="1" stop-color="#342c6a"/></linearGradient>
+<filter id="qubiq-enshrouded-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect x="1" y="1" width="62" height="62" rx="15" fill="url(#qubiq-enshrouded-bg)"/>
+<rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity=".16"/>
+<path d="M3 16 Q3 3 16 3 H48 Q61 3 61 16 V20 Q32 12 3 26 Z" fill="#ffffff" fill-opacity=".07"/>
+<path d="M28 11 A4 4 0 1 1 36 11" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 21 H40 L37 16 H27 Z" fill="#ffffff"/><path d="M23 21 H41 L39 43 H25 Z" fill="#ffffff" fill-opacity=".16"/><path d="M23 21 H41 L39 43 H25 Z" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M32 39 C26 34 28.5 28 32 24 C35.5 28 38 34 32 39 Z" fill="#ffd27a"/><path d="M20 44 H44" fill="none" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 51 Q13 47 20 51 T34 51 T48 51 T60 51" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-opacity=".75"/><path d="M12 57 Q19 53 26 57 T40 57 T54 57" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-opacity=".45"/>
+<circle cx="32" cy="11" r="2.9" fill="#ffd27a" filter="url(#qubiq-enshrouded-glow)"/>
+<circle cx="8" cy="51" r="2.9" fill="#ffd27a" filter="url(#qubiq-enshrouded-glow)"/>
+<circle cx="58" cy="51" r="2.9" fill="#ffd27a" filter="url(#qubiq-enshrouded-glow)"/>
+</svg>

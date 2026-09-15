@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Valheim">
+<!-- Icono propio de QubiQ Server Launcher (GPLv3). No es un logotipo oficial de Valheim
+     ni está hecho a partir de él: evoca el tema del juego sin usar sus marcas.
+     Criterio en ANALISIS.md §13.1. -->
+<defs>
+<linearGradient id="qubiq-valheim-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4d6a80"/><stop offset="1" stop-color="#212f3b"/></linearGradient>
+<filter id="qubiq-valheim-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect x="1" y="1" width="62" height="62" rx="15" fill="url(#qubiq-valheim-bg)"/>
+<rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity=".16"/>
+<path d="M3 16 Q3 3 16 3 H48 Q61 3 61 16 V20 Q32 12 3 26 Z" fill="#ffffff" fill-opacity=".07"/>
+<path d="M21 40 Q20 19 32 19 Q44 19 43 40 Z" fill="#ffffff" fill-opacity=".18"/><path d="M21 40 Q20 19 32 19 Q44 19 43 40" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 31 Q9 29 11 11 Q15 23 24 25 Z" fill="#ffffff"/><path d="M42 31 Q55 29 53 11 Q49 23 40 25 Z" fill="#ffffff"/><path d="M16 40 H48" fill="none" stroke="#ffffff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M32 40 V51" fill="none" stroke="#ffffff" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="11" cy="11" r="2.9" fill="#ff9a3c" filter="url(#qubiq-valheim-glow)"/>
+<circle cx="53" cy="11" r="2.9" fill="#ff9a3c" filter="url(#qubiq-valheim-glow)"/>
+<circle cx="32" cy="51" r="2.9" fill="#ff9a3c" filter="url(#qubiq-valheim-glow)"/>
+</svg>

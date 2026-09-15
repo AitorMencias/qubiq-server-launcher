@@ -138,11 +138,20 @@ select:focus {
 }
 
 .instance-item {
-  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
   border-radius: 8px;
   cursor: pointer;
   margin-bottom: 4px;
   border: 1px solid transparent;
+}
+
+/* Sin min-width 0 el nombre largo no se recorta con puntos suspensivos. */
+.instance-item .text {
+  flex: 1;
+  min-width: 0;
 }
 
 .instance-item:hover {
@@ -1126,4 +1135,15 @@ button.link:hover:not(:disabled) {
   .role-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Icono propio de cada juego (games/<juego>/icon.svg). El azulejo ya viene
+   dibujado en el SVG; aquí solo se evita que se deforme o se encoja. */
+.game-icon {
+  display: block;
+  flex: none;
+}
+
+.topbar .game-icon {
+  margin-right: 2px;
 }

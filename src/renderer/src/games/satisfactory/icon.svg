@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Satisfactory">
+<!-- Icono propio de QubiQ Server Launcher (GPLv3). No es un logotipo oficial de Satisfactory
+     ni está hecho a partir de él: evoca el tema del juego sin usar sus marcas.
+     Criterio en ANALISIS.md §13.1. -->
+<defs>
+<linearGradient id="qubiq-satisfactory-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f9a93"/><stop offset="1" stop-color="#1a5358"/></linearGradient>
+<filter id="qubiq-satisfactory-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect x="1" y="1" width="62" height="62" rx="15" fill="url(#qubiq-satisfactory-bg)"/>
+<rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity=".16"/>
+<path d="M3 16 Q3 3 16 3 H48 Q61 3 61 16 V20 Q32 12 3 26 Z" fill="#ffffff" fill-opacity=".07"/>
+<path d="M10 45 L50 25" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 53 L54 33" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="49" r="5" fill="none" stroke="#ffffff" stroke-width="3.2"/><circle cx="52" cy="29" r="5" fill="none" stroke="#ffffff" stroke-width="3.2"/><path d="M22 34 L29 30.5 L32.5 37.5 L25.5 41 Z" fill="#ffffff"/><path d="M35 27.5 L42 24 L45.5 31 L38.5 34.5 Z" fill="#ffffff" fill-opacity=".78"/>
+<circle cx="52" cy="29" r="2.9" fill="#ffb54d" filter="url(#qubiq-satisfactory-glow)"/>
+<circle cx="12" cy="49" r="2.9" fill="#ffb54d" filter="url(#qubiq-satisfactory-glow)"/>
+</svg>

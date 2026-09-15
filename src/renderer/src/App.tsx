@@ -3,6 +3,7 @@ import type { Diagnosis, GameId, InstanceState, LogLine, ProgressUpdate, UiMode 
 import { GAME_IDS, appSubtitle, gameInfo, summaryLabel } from '@shared/games'
 import { GAME_UI } from './games'
 import { GameChooser } from './GameChooser'
+import { GameIcon } from './GameIcon'
 import { ModeChooser } from './ModeChooser'
 import { ServerPanel } from './ServerPanel'
 
@@ -157,10 +158,13 @@ export function App(): React.JSX.Element {
                 setCreating(null)
               }}
             >
-              <div className="name">{instance.manifest.name}</div>
-              <div className="meta">
-                <span className={`dot ${instance.status}`} style={{ display: 'inline-block' }} />{' '}
-                {summaryLabel(instance.manifest)}
+              <GameIcon game={instance.manifest.game} size={30} />
+              <div className="text">
+                <div className="name">{instance.manifest.name}</div>
+                <div className="meta">
+                  <span className={`dot ${instance.status}`} style={{ display: 'inline-block' }} />{' '}
+                  {summaryLabel(instance.manifest)}
+                </div>
               </div>
             </div>
           ))}
@@ -211,6 +215,7 @@ export function App(): React.JSX.Element {
         {creating !== null && (
           <>
             <div className="topbar">
+              {creating !== 'game' && <GameIcon game={createGame} size={24} />}
               <h2>
                 Crear un servidor nuevo
                 {GAME_IDS.length > 1 && creating !== 'game' && ` de ${gameInfo(createGame).name}`}

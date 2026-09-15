@@ -9,6 +9,7 @@ import { ConsolePanel } from './ConsolePanel'
 import { BackupPanel } from './BackupPanel'
 import { ConfirmDelete } from './ConfirmDelete'
 import { D20Loader } from './D20Loader'
+import { GameIcon } from './GameIcon'
 
 /**
  * Pantalla de un servidor, igual en los dos modos.
@@ -71,6 +72,7 @@ export function ServerPanel({
 
   const topbar = (
     <div className="topbar">
+      <GameIcon game={manifest.game} size={24} />
       <h2>{manifest.name}</h2>
       <span className="status">
         <span className={`dot ${status}`} />

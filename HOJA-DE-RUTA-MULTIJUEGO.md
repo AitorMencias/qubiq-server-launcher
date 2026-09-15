@@ -228,9 +228,19 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
 7. **Conexión:** puertos, protocolo y guía.
 8. **`e2e/<juego>.ts`:** instalar, arrancar, esperar a «listo», comprobar jugadores, parar limpio y
    confirmar que se guardó.
-9. **Documentación** en ANALISIS.md y README.
+9. **Icono:** ya está dibujado en `src/renderer/src/games/<juego>/icon.svg`. Basta con importarlo en
+   la interfaz del juego (`GameUi.icon`): el componente `GameIcon` lo pone solo en el selector de
+   juego, la lista de servidores, la cabecera del servidor y la del asistente. No se sustituye por un logo oficial (ANALISIS.md §13.1).
+10. **Documentación** en ANALISIS.md y README.
 
 ### Fase 2 — Satisfactory (0.5.0)
+
+- **Selector de juego:** es la primera fase con dos juegos, así que estrena la pantalla de elegir
+  juego según el boceto aprobado: tarjeta con qué es el juego, jugadores, memoria comparada con la
+  del equipo, tamaño de descarga, etiquetas para lo que cambia la decisión y el icono propio. El
+  de Minecraft ya está integrado (lista de servidores, cabeceras y selector); aquí se añade el de
+  Satisfactory en `satisfactoryUi.icon`. **Pendiente de decidir:** si tras
+  elegir juego se pregunta el modo (A) o se usa el de la barra lateral (B).
 
 - **Asistente:** nombre, contraseña de administrador, contraseña para jugadores, jugadores esperados
   y conexión. **La app reclama el servidor sola** por la API (`PasswordlessLogin` + `ClaimServer`),

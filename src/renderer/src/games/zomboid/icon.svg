@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Project Zomboid">
+<!-- Icono propio de QubiQ Server Launcher (GPLv3). No es un logotipo oficial de Project Zomboid
+     ni está hecho a partir de él: evoca el tema del juego sin usar sus marcas.
+     Criterio en ANALISIS.md §13.1. -->
+<defs>
+<linearGradient id="qubiq-zomboid-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a4038"/><stop offset="1" stop-color="#4a1d1a"/></linearGradient>
+<filter id="qubiq-zomboid-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect x="1" y="1" width="62" height="62" rx="15" fill="url(#qubiq-zomboid-bg)"/>
+<rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity=".16"/>
+<path d="M3 16 Q3 3 16 3 H48 Q61 3 61 16 V20 Q32 12 3 26 Z" fill="#ffffff" fill-opacity=".07"/>
+<path d="M16 14 H48 V50 H16 Z" fill="#000000" fill-opacity=".28"/><path d="M16 14 H48 V50 H16 Z" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 18 L53 13 L54 21 L12 26 Z" fill="#ffffff"/><path d="M11 41 L53 46 L52 54 L10 49 Z" fill="#ffffff" fill-opacity=".86"/>
+<circle cx="27" cy="33" r="2.9" fill="#ffd0c4" filter="url(#qubiq-zomboid-glow)"/>
+<circle cx="37" cy="33" r="2.9" fill="#ffd0c4" filter="url(#qubiq-zomboid-glow)"/>
+</svg>

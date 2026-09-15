@@ -1,5 +1,6 @@
 import type { GameId } from '@shared/types'
 import { GAME_IDS, gameInfo } from '@shared/games'
+import { GameIcon } from './GameIcon'
 
 /**
  * Elección de juego al crear un servidor: el paso previo a elegir modo.
@@ -26,6 +27,7 @@ export function GameChooser({ onChoose, onCancel }: Props): React.JSX.Element {
         {GAME_IDS.map((id) => (
           <button key={id} className="mode-card" onClick={() => onChoose(id)}>
             <div className="mode-card-head">
+              <GameIcon game={id} size={46} />
               <span className="mode-card-title">{gameInfo(id).name}</span>
             </div>
             <span className="mode-card-cta">Crear un servidor de {gameInfo(id).name} →</span>

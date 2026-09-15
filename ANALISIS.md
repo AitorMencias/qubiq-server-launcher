@@ -683,6 +683,38 @@ pero conviene una búsqueda de marcas en la categoría de software antes de inve
 El nombre interno del repositorio y de la carpeta (`minecraft-server-launcher`) es descriptivo y de bajo
 riesgo; lo que hay que resolver es el **nombre de producto visible**.
 
+#### Iconos de los juegos
+
+**Decisión (2026-09-16): iconos propios, no los logos oficiales.** Aunque la app no sea comercial:
+
+- **Minecraft lo prohíbe expresamente** (tabla anterior: nada de logos ni assets).
+- **Los logos no pueden ir bajo GPLv3:** el repositorio entero se publica con esa licencia y un logo
+  ajeno no se puede licenciar así.
+- No ser comercial no exime ni de la marca registrada ni de los derechos de autor del dibujo.
+
+Los ejecutables de algunos servidores traen su icono oficial (Valheim, Satisfactory y Rust sí;
+Enshrouded y Minecraft no). Leerlo del servidor instalado no sería redistribuir, pero solo existe
+tras instalar, es de 32 px y no cubre a todos. Se descartó.
+
+**Criterio de parecido:** se evoca el **juego**, nunca el **logo**. Vale el color con el que se asocia
+y un objeto de su mundo, dibujados desde cero. No valen los símbolos que el estudio usa como marca ni
+nada calcado o modificado a partir del original.
+
+| Juego | Icono | Se evita |
+|---|---|---|
+| Minecraft | Pico en pixel art propio, verde | Bloque de hierba, Creeper, texturas, tipografía |
+| Satisfactory | Cinta transportadora con piezas, verde industrial y naranja | La «S» sobre placa metálica, FICSIT |
+| Valheim | Casco con cuernos y brasas, azul acero | La «V» rúnica con fuego |
+| Project Zomboid | Ventana tapiada con ojos en la oscuridad, rojo oscuro | Rótulo e ilustración de portada |
+| Enshrouded | Linterna sobre niebla, violeta | Rótulo y emblema |
+| Rust | Hacha de piedra, rojo óxido | Emblema de tres aspas sobre rojo, rótulo |
+| Factorio | Engranaje con brazo mecánico, ámbar | Rótulo |
+
+Todos comparten azulejo, trazo blanco y los puntos de luz del icono de QubiQ. Que se lean como una
+familia de la app, y no como logos sueltos, es la mejor garantía de que ninguno se confunda con el
+oficial. El de Minecraft ya se muestra en la app (lista de servidores, cabeceras y selector de juego). Están en `src/renderer/src/games/<juego>/icon.svg` y los genera `scripts/generate-game-icons.mjs` con coordenadas
+calculadas (los píxeles del pico, los dientes del engranaje), no dibujados a ojo.
+
 ### 13.2 Licencia del código — ¿hace falta?
 
 Depende de si el código se publica. Los tres escenarios:

@@ -6,9 +6,11 @@ import { CreateWizard } from './CreateWizard'
 import { ConfigPanel } from './ConfigPanel'
 import { WorldsPanel } from './WorldsPanel'
 import { ContentPanel } from './ContentPanel'
+import icon from './icon.svg'
 
 /** Piezas de interfaz de Minecraft. */
 export const minecraftUi: GameUi = {
+  icon,
   BasicWizard,
   AdvancedWizard: CreateWizard,
 
