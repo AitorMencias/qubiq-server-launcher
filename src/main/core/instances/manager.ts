@@ -120,7 +120,10 @@ export async function createInstance(
   const data = await game.prepareCreate(request, name)
 
   const id = await uniqueId(request.name)
-  const manifest: InstanceManifest = {
+  // El juego y sus datos van emparejados por construcción (`data` sale del
+  // adaptador de ESE juego), pero eso TypeScript no lo ve en la unión: por eso
+  // el molde, y solo aquí.
+  const manifest = {
     schemaVersion: 2,
     id,
     name,
@@ -133,7 +136,7 @@ export async function createInstance(
     createdAt: new Date().toISOString(),
     agreements: [...request.agreements],
     data
-  }
+  } as InstanceManifest
 
   await ensureDir(instanceDir(id))
   await ensureDir(serverDir(id))
@@ -153,14 +156,16 @@ export async function updateInstance(
   if (!current) throw new Error(`No existe la instancia ${id}.`)
 
   const { data, ...rest } = changes
-  let updated: InstanceManifest = {
+  // Los cambios de `data` son siempre del juego del manifiesto: quien llama
+  // pide el adaptador por `manifest.game`. La unión no lo sabe, de ahí el molde.
+  let updated = {
     ...current,
     ...rest,
     id: current.id,
     schemaVersion: current.schemaVersion,
     game: current.game,
     data: { ...current.data, ...data }
-  }
+  } as InstanceManifest
 
   if (game?.applyChanges) updated = game.applyChanges(current, updated, changes)
 

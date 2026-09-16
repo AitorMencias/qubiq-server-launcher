@@ -1,12 +1,13 @@
 # QubiQ Server Launcher
 
-Crea y gestiona tu servidor de Minecraft en tres clics.
+Crea y gestiona tu servidor de juegos en tres clics.
 
 Aplicación de escritorio para Windows que descarga, configura, arranca y modera servidores de
-Minecraft sin que el usuario tenga que instalar Java, editar ficheros de configuración ni tocar
-la línea de comandos.
+**Minecraft** y **Satisfactory** sin que el usuario tenga que instalar Java, editar ficheros de
+configuración ni tocar la línea de comandos. Van llegando más juegos por fases.
 
 > NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
+> Herramienta no oficial: no está asociada a los estudios de los juegos que gestiona.
 
 El análisis completo —decisiones, arquitectura, fuentes de datos y hoja de ruta— está en
 [ANALISIS.md](ANALISIS.md). La ampliación a otros juegos está investigada en
@@ -17,14 +18,15 @@ El análisis completo —decisiones, arquitectura, fuentes de datos y hoja de ru
 
 ## Estado
 
-MVP funcional. Las cuatro distribuciones se instalan, arrancan y paran correctamente:
+MVP funcional. Dos juegos, con todas sus distribuciones instalándose, arrancando y parando:
 
-| Distribución | Instalación | Arranque | Notas |
+| Juego | Instalación | Arranque | Notas |
 |---|---|---|---|
 | Minecraft original (vanilla) | ✅ | ✅ | Verificación SHA-1 |
-| Plugins (Paper) | ✅ | ✅ | API v3, verificación SHA-256 |
-| Mods (Fabric) | ✅ | ✅ | Descarga dependencias en el primer arranque |
-| Mods (Forge) | ✅ | ✅ | Instalador en dos fases + argfile |
+| Minecraft · Plugins (Paper) | ✅ | ✅ | API v3, verificación SHA-256 |
+| Minecraft · Mods (Fabric) | ✅ | ✅ | Descarga dependencias en el primer arranque |
+| Minecraft · Mods (Forge) | ✅ | ✅ | Instalador en dos fases + argfile |
+| Satisfactory | ✅ | ✅ | SteamCMD (15,5 GB); la app reclama el servidor y crea la partida sola |
 
 Funciones disponibles:
 
@@ -46,8 +48,14 @@ Funciones disponibles:
 - **Moderar** — jugadores conectados con expulsar, banear y dar OP
 - **Borrar** — elimina el servidor con confirmación escribiendo su nombre
 - **Copias de seguridad** — en caliente, restauración, retención y programadas
-- **Conexión** — direcciones local y de red verificadas con Server List Ping real, y elección entre
-  abrir puerto en el router o playit.gg, con guía paso a paso y comprobación desde internet
+- **Conexión** — direcciones local y de red verificadas con el protocolo real de cada juego, y
+  elección entre abrir puertos en el router o playit.gg, con guía paso a paso (por puerto y
+  protocolo) y comprobación desde internet donde el juego lo permite
+- **Varios juegos** — al crear se elige juego en una pantalla que compara jugadores, memoria frente a
+  la del equipo, descarga y lo que cambia la decisión. Cada juego aporta su asistente y sus pestañas,
+  y la app dice lo que ese juego **no** deja hacer en vez de esconderlo
+- **Satisfactory** — se instala de Steam, se reclama solo (sin abrir el juego), y desde la app se
+  gestionan sus partidas (crear, cargar, guardar, borrar) y sus ajustes en caliente por su API
 
 ---
 
@@ -80,10 +88,11 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 213 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio y red. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Minecraft: lógica pura, mundos, plugins oficiales y contrato con las APIs externas |
+| `npm run smoke` | 267 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio y red. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Minecraft: lógica pura, mundos, plugins oficiales y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge` |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
-| `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%TEMP%\qubiq-e2e-steam`); `-- --limpio` empieza de cero |
+| `npm run e2e:satisfactory` | **Con todos los servidores de Satisfactory parados** (solo puede haber uno a la vez). Satisfactory de verdad: instalar, reclamar el servidor sin abrir el juego, arrancar, detectar «listo» por su API, puertos, partidas, ajustes en caliente, copia con el servidor en marcha, parada limpia, restauración y **comprobar que no se ha tocado `%LOCALAPPDATA%\FactoryGame`**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\satisfactory` con un enlace; `-- --descargar` baja los 15,5 GB de cero |
+| `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%LOCALAPPDATA%\qubiq-dev\e2e-steam`); `-- --limpio` empieza de cero |
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
 para otro; sin esta prueba la app se rompería en silencio.
@@ -162,7 +171,7 @@ src/
 │       ├── games/
 │       │   ├── types.ts     El contrato de un juego (GameAdapter)
 │       │   ├── registry.ts  Registro de juegos
-│       │   └── minecraft/   Todo lo de Minecraft:
+│       │   ├── minecraft/   Todo lo de Minecraft:
 │       │       ├── adapter.ts   Implementación del contrato
 │       │       ├── service.ts   Mundos, plugins/mods y server.properties
 │       │       ├── versions/    Mojang, Paper, Fabric, Forge + catálogo unificado
@@ -173,13 +182,19 @@ src/
 │       │       ├── worlds/      Varios mundos por servidor (level-name)
 │       │       ├── logParser.ts Formatos de log y diagnósticos
 │       │       └── ping.ts      Server List Ping y comprobación desde internet
+│       │   └── satisfactory/ Todo lo de Satisfactory:
+│       │       ├── adapter.ts   Contrato: SteamCMD, reclamar, arrancar, sondear y parar por API
+│       │       ├── api.ts       Su API HTTPS, con el certificado autofirmado
+│       │       └── service.ts   Partidas y ajustes, todo por API
 │       └── service.ts       Orquestador: lo común, y delega en el juego
 ├── preload/                 Superficie expuesta al renderer (nada de Node)
 └── renderer/src/            Interfaz React
     ├── App.tsx, ServerPanel.tsx…   Armazón común (botón grande, jugadores, consola, copias)
+    ├── GameChooser.tsx, WizardParts.tsx  Elegir juego y las piezas del asistente básico
     └── games/
         ├── types.ts         Lo que aporta cada juego a la interfaz (GameUi)
         ├── minecraft/       Asistentes, Ajustes, Mundos, Plugins/Mods, plugins oficiales
+        ├── satisfactory/    Asistentes, Ajustes y Partidas
         └── <juego>/icon.svg Icono propio de cada juego, ya dibujado para su fase
 
 resources/<juego>/           Ficheros que se empaquetan por juego (resources/minecraft/plugins/)
@@ -228,13 +243,50 @@ que es de donde se leen. Tampoco interpretes sus frases: salen traducidas al idi
 `Update state`, `Success!` y `ERROR!` salen siempre en inglés. Y el código de salida no basta: 8
 vale igual para un fallo pasajero que para uno permanente, y 7 es "me he autoactualizado".
 
+**En Satisfactory, lanza el ejecutable de `Engine\Binaries`, no `FactoryServer.exe`.** Ese es solo
+un lanzador: abre `FactoryServer-Win64-Shipping-Cmd.exe` y se queda de padre. Si supervisas el
+lanzador, el PID no es el del servidor (matarlo dejaría el servidor vivo) y no te llega ni una línea
+de su registro. Lanzando el de verdad, la salida llega en vivo por la tubería como en Minecraft.
+
+**Y nunca sin `-SavesUseProjectSavedDir`.** `-UserDir` mueve la configuración y el registro del
+servidor a donde le digas, pero **los guardados no**: se van igual a
+`%LOCALAPPDATA%\FactoryGame\Saved\SaveGames`, que es la carpeta del juego del usuario, junto a sus
+partidas de un jugador. Los dos argumentos van siempre juntos; el smoke tiene una comprobación
+dedicada a que no desaparezca ninguno, y la `e2e` mira al terminar que esa carpeta no ha cambiado.
+
+**Solo puede haber un servidor de Satisfactory a la vez.** El puerto del juego se elige, pero el de
+la mensajería fiable es siempre el **8888**: comprobado lanzándolo con `-Port=7788`, seguía abriendo
+el 8888. Por eso el diagnóstico de "puerto ocupado" menciona al otro servidor: es la causa más
+probable.
+
+**Antes de arrancar un servidor de Satisfactory, comprueba que sus puertos son suyos.** Toda su
+gestión va por `127.0.0.1:<puerto>` y su API no dice de quién es: si otro servidor ya tiene el
+puerto, el nuestro no lo consigue y **las órdenes se las lleva el otro** (reclamarlo, crearle una
+partida encima, pararlo). Pasó de verdad ejecutando la `e2e` con un servidor real en marcha. Por eso
+`launch()` y la instalación empiezan por `ensurePortsFree`, y la prueba `e2e:satisfactory` se niega a
+arrancar si el 8888 está ocupado.
+
+**A un servidor de Satisfactory no se entra por IP directa.** El juego exige un *encryption token*
+que el cliente solo consigue añadiendo el servidor desde su menú (**Servidores → Añadir servidor**),
+que es cuando habla con el panel del servidor y se lo dan. Quien lo intente a pelo ve un
+«Encryption token missing» que no explica nada, y en el registro del servidor aparece
+`No EncryptionToken specified, disconnecting`. Por eso la pantalla de conexión enseña los pasos
+(`GameInfo.joinSteps`) y la consola traduce ese rechazo en vez de soltar la línea del motor.
+
+**La API de Satisfactory devuelve errores con código 200.** Lo que dice si algo ha fallado es el
+campo `errorCode` del cuerpo, no el estado HTTP. Y `PasswordlessLogin` —con el que la app reclama el
+servidor sola— solo funciona antes de que el servidor tenga dueño: después hay que entrar con la
+contraseña de administrador.
+
 **Un puerto UDP "reservable" no es un puerto libre.** Si un servidor abre el suyo permitiendo
 compartirlo (Valheim), Windows deja reservarlo encima sin error. `isUdpPortInUse` lo confirma con
 `netstat`.
 
 **Nunca mates el proceso del servidor.** Windows no tiene `SIGTERM`. La única parada segura es
 escribir `stop` en `stdin` y esperar; matarlo corrompe chunks. El `kill` solo entra tras 60 s de
-gracia y avisando.
+gracia y avisando. Y cuando entra, `stop()` **espera a que el proceso muera de verdad** antes de
+devolver: matar no es instantáneo, Windows tarda en soltar los ficheros, y quien para un servidor
+suele querer borrarlo o restaurar una copia justo después (si no, falla con `EBUSY`).
 
 **No edites `ops.json`, `whitelist.json` ni `banned-players.json` con el servidor arrancado.** Los
 mantiene en memoria y los reescribe al cerrarse, descartando cambios externos. Con el servidor en

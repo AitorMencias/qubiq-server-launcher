@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import type { OfficialPlugin, OfficialPluginStatus } from '@shared/games/minecraft/officialPlugins'
 import { officialPluginsFor } from '@shared/games/minecraft/officialPlugins'
+import { minecraftOf } from '@shared/games/minecraft/types'
 
 /**
  * Plugins oficiales: los que mantenemos nosotros (§4.8).
@@ -20,7 +21,8 @@ interface Props {
 }
 
 export function OfficialPlugins({ state, onChanged }: Props): React.JSX.Element | null {
-  const { manifest, status } = state
+  const manifest = minecraftOf(state.manifest)
+  const { status } = state
   const running = status !== 'stopped' && status !== 'crashed'
 
   const plugins = officialPluginsFor(manifest.data.distribution)

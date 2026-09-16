@@ -3,14 +3,12 @@
      ni está hecho a partir de él: evoca el tema del juego sin usar sus marcas.
      Criterio en ANALISIS.md §13.1. -->
 <defs>
-<linearGradient id="qubiq-rust-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c05a2c"/><stop offset="1" stop-color="#65260f"/></linearGradient>
+<linearGradient id="qubiq-rust-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c0392b"/><stop offset="1" stop-color="#5e120d"/></linearGradient>
 <filter id="qubiq-rust-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
 </defs>
 <rect x="1" y="1" width="62" height="62" rx="15" fill="url(#qubiq-rust-bg)"/>
 <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity=".16"/>
 <path d="M3 16 Q3 3 16 3 H48 Q61 3 61 16 V20 Q32 12 3 26 Z" fill="#ffffff" fill-opacity=".07"/>
-<path d="M19 55 L39 17" fill="none" stroke="#ffffff" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M29 13 L45 8 L55 20 L47 31 L34 27 Z" fill="#ffffff"/><path d="M45 8 L43 20 L55 20 M43 20 L34 27" fill="none" stroke="#65260f" stroke-opacity=".6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M31 25 L40 22 M29 30 L38 27" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="19" cy="55" r="2.9" fill="#ffd9b8" filter="url(#qubiq-rust-glow)"/>
-<circle cx="45" cy="8" r="2.9" fill="#ffd9b8" filter="url(#qubiq-rust-glow)"/>
-<circle cx="55" cy="20" r="2.9" fill="#ffd9b8" filter="url(#qubiq-rust-glow)"/>
+<path d="M47.5 10 V4.5" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 24 H52 V33 H12 Z" fill="#ffffff" fill-opacity=".95"/><path d="M12 34.5 H52 V43.5 H12 Z" fill="#ffffff" fill-opacity=".95"/><path d="M12 45 H52 V53 H12 Z" fill="#ffffff" fill-opacity=".82"/><path d="M12 33 H52 M12 34.5 H52 M12 43.5 H52 M12 45 H52" fill="none" stroke="#5e120d" stroke-opacity=".3" stroke-width="1"/><path d="M19 24 H25 V55 H19 Z" fill="#5e120d" fill-opacity=".58"/><path d="M39 24 H45 V55 H39 Z" fill="#5e120d" fill-opacity=".58"/><path d="M34 10 H51 V24.5 H34 Z" fill="#ffffff" fill-opacity=".95"/><path d="M36.5 13.5 H48.5 V18.5 H36.5 Z" fill="#5e120d"/><path d="M38.5 16 H41 M42.5 16 H45" fill="none" stroke="#ff9a76" stroke-width="1.5" stroke-linecap="round"/><path d="M34 21 H51" fill="none" stroke="#5e120d" stroke-opacity=".3" stroke-width="1"/><path d="M34 10 H51 V24 H52 V53 H12 V24 H34 Z" fill="none" stroke="#5e120d" stroke-opacity=".5" stroke-width="1.6" stroke-linejoin="round"/>
+
 </svg>

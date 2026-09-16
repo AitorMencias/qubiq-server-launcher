@@ -1,0 +1,189 @@
+{
+  "HealthCheck": {
+    "status": 200,
+    "body": {
+      "data": {
+        "health": "healthy",
+        "serverCustomData": ""
+      }
+    }
+  },
+  "PasswordlessLogin": {
+    "status": 200,
+    "body": {
+      "data": {
+        "authenticationToken": "ew0KCSJwbCI6ICJJbml0aWFsQWRtaW4iDQp9.0101010101010101010101010101010101010101010101010101010101010101"
+      }
+    }
+  },
+  "PasswordlessLoginReclamado": {
+    "status": 200,
+    "body": {
+      "errorCode": "passwordless_login_not_possible",
+      "errorMessage": "Passwordless login is not possible in the current server configuration"
+    }
+  },
+  "ClaimServer": {
+    "status": 200,
+    "body": {
+      "data": {
+        "authenticationToken": "ew0KCSJwbCI6ICJBZG1pbmlzdHJhdG9yIg0KfQ==.0202020202020202020202020202020202020202020202020202020202020202"
+      }
+    }
+  },
+  "PasswordLogin": {
+    "status": 200,
+    "body": {
+      "data": {
+        "authenticationToken": "ew0KCSJwbCI6ICJBZG1pbmlzdHJhdG9yIg0KfQ==.0202020202020202020202020202020202020202020202020202020202020202"
+      }
+    }
+  },
+  "QueryServerStateSinToken": {
+    "status": 403,
+    "body": {
+      "errorCode": "insufficient_scope",
+      "errorMessage": "The client is missing required privileges to access the given function"
+    }
+  },
+  "QueryServerState": {
+    "status": 200,
+    "body": {
+      "data": {
+        "serverGameState": {
+          "activeSessionName": "Aislada",
+          "numConnectedPlayers": 0,
+          "playerLimit": 8,
+          "techTier": 2,
+          "activeSchematic": "None",
+          "gamePhase": "/Script/FactoryGame.FGGamePhase'/Game/FactoryGame/GamePhases/GP_Project_Assembly_Phase_0.GP_Project_Assembly_Phase_0'",
+          "isGameRunning": true,
+          "totalGameDuration": 2,
+          "isGamePaused": false,
+          "averageTickRate": 27.203767776489258,
+          "autoLoadSessionName": "Aislada",
+          "agreeToCrashUploadRequested": false
+        }
+      }
+    }
+  },
+  "GetServerOptions": {
+    "status": 200,
+    "body": {
+      "data": {
+        "serverOptions": {
+          "FG.WeatherPreset": "0",
+          "FG.DSAutoPause": "False",
+          "FG.DSAutoSaveOnDisconnect": "True",
+          "FG.AutosaveInterval": "120.0",
+          "FG.EnableSeasonalEvents": "True",
+          "FG.NetworkQuality": "1",
+          "FG.SendGameplayData": "True",
+          "FG.ServerRestartTimeSlot": "1440.0"
+        },
+        "pendingServerOptions": {}
+      }
+    }
+  },
+  "GetAdvancedGameSettings": {
+    "status": 200,
+    "body": {
+      "data": {
+        "creativeModeEnabled": false,
+        "advancedGameSettings": {
+          "FG.GameRules.DisableArachnidCreatures": "False",
+          "FG.PlayerRules.FlightMode": "False",
+          "FG.GameRules.UnlockAllResearchSchematics": "False",
+          "FG.GameRules.GiveAllTiers": "False",
+          "FG.PlayerRules.GodMode": "False",
+          "FG.PlayerRules.NoBuildCost": "False",
+          "FG.GameRules.NoFuelCost": "False",
+          "FG.GameRules.NoPower": "False",
+          "FG.GameRules.SetGamePhase": "0",
+          "FG.GameRules.StartingTier": "0"
+        }
+      }
+    }
+  },
+  "EnumerateSessions": {
+    "status": 200,
+    "body": {
+      "data": {
+        "sessions": [
+          {
+            "sessionName": "Aislada",
+            "saveHeaders": [
+              {
+                "saveVersion": 60,
+                "buildVersion": 502094,
+                "saveName": "prueba-aislada",
+                "saveLocationInfo": "SLI_Server",
+                "mapName": "Persistent_Level",
+                "mapOptions": "?skiponboarding",
+                "sessionName": "Aislada",
+                "playDurationSeconds": 2,
+                "saveDateTime": "2026.09.16-12.41.49",
+                "isModdedSave": false,
+                "isEditedSave": false,
+                "isCreativeModeEnabled": false
+              },
+              {
+                "saveVersion": 60,
+                "buildVersion": 502094,
+                "saveName": "Aislada_autosave_0",
+                "saveLocationInfo": "SLI_Server",
+                "mapName": "Persistent_Level",
+                "mapOptions": "?skiponboarding",
+                "sessionName": "Aislada",
+                "playDurationSeconds": 0,
+                "saveDateTime": "2026.09.16-12.41.47",
+                "isModdedSave": false,
+                "isEditedSave": false,
+                "isCreativeModeEnabled": false
+              }
+            ]
+          }
+        ],
+        "currentSessionIndex": 0
+      }
+    }
+  },
+  "EnumerateSessionsVacio": {
+    "status": 200,
+    "body": {
+      "data": {
+        "sessions": [],
+        "currentSessionIndex": -1
+      }
+    }
+  },
+  "CreateNewGameSinMapa": {
+    "status": 200,
+    "body": {
+      "errorCode": "missing_params",
+      "errorMessage": "The Request is missing the Required Parameters needed to Execute the Function, or they are in the Invalid Format.\nInvalid Parameters:\nnewGameData: Unable to import JSON object into FGServerNewGameData property NewGameData\nMissing JSON value named MapName\nMissing Parameters:\n\nAdditional Errors:\n",
+      "errorData": {
+        "missingParameters": [],
+        "invalidParameters": {
+          "newGameData": "Unable to import JSON object into FGServerNewGameData property NewGameData\nMissing JSON value named MapName"
+        }
+      }
+    }
+  },
+  "CreateNewGame": {
+    "status": 202,
+    "body": null
+  },
+  "SetClientPassword": {
+    "status": 204,
+    "body": null
+  },
+  "SaveGame": {
+    "status": 204,
+    "body": null
+  },
+  "Shutdown": {
+    "status": 204,
+    "body": null
+  }
+}

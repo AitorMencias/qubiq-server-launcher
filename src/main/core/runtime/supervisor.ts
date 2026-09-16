@@ -2,7 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { createInterface } from 'node:readline'
 import type { Diagnosis, LogLine, ServerStatus } from '@shared/types'
-import type { ParsedEvent, StopStrategy, SupervisorHandle } from '../games/types'
+import type { LiveStatus, ParsedEvent, StopStrategy, SupervisorHandle } from '../games/types'
 import { DEFAULT_STOP_GRACE_MS, requestStop } from './stop'
 
 /**
@@ -22,10 +22,17 @@ const CRASH_THRESHOLD = 3
 /** Líneas de log que se conservan para diagnosticar una salida inesperada. */
 const RECENT_LINES = 200
 
+/** Cada cuánto se pregunta al servidor si no dice otra cosa su juego. */
+const DEFAULT_POLL_MS = 5_000
+
+/** Lo que se espera a que un proceso muerto a la fuerza termine de morirse. */
+const KILL_WAIT_MS = 5_000
+
 export interface SupervisorEvents {
   log: (line: LogLine) => void
   status: (status: ServerStatus) => void
-  players: (players: string[]) => void
+  /** Quién está dentro y, si el juego solo da el número, cuántos son. */
+  players: (players: string[], playerCount: number | null) => void
   ready: () => void
   diagnosis: (diagnosis: Diagnosis) => void
   /**
@@ -47,6 +54,12 @@ export interface StartOptions {
   parseLine: (raw: string) => ParsedEvent
   /** Qué se le dice al usuario si el proceso muere solo. */
   diagnoseExit: (code: number | null, recentLines: string[]) => Diagnosis
+  /**
+   * Para los juegos que no cuentan nada por el registro: se les pregunta cada
+   * pocos segundos si ya están listos y cuánta gente hay dentro.
+   */
+  poll?: () => Promise<LiveStatus>
+  pollIntervalMs?: number
 }
 
 export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
@@ -56,6 +69,9 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
   private readonly recent: string[] = []
   private crashTimestamps: number[] = []
   private stopTimer: NodeJS.Timeout | null = null
+  private pollTimer: NodeJS.Timeout | null = null
+  /** Cuántos jugadores dice el juego que hay, cuando no da los nombres. */
+  private currentPlayerCount: number | null = null
   private startedAt: number | null = null
   /** Se pone a true cuando la parada la pide el usuario, no un fallo. */
   private stopRequested = false
@@ -73,6 +89,10 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
 
   get players(): string[] {
     return [...this.onlinePlayers]
+  }
+
+  get playerCount(): number | null {
+    return this.currentPlayerCount
   }
 
   get uptimeSeconds(): number | null {
@@ -95,6 +115,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
 
     this.stopRequested = false
     this.onlinePlayers.clear()
+    this.currentPlayerCount = null
     this.recent.length = 0
     this.setStatus('starting')
 
@@ -123,6 +144,44 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     })
 
     child.on('close', (code) => this.finish(code))
+
+    if (options.poll) this.startPolling(options.poll, options.pollIntervalMs ?? DEFAULT_POLL_MS)
+  }
+
+  /**
+   * Pregunta al servidor cada pocos segundos. Los fallos se tragan: mientras
+   * arranca, la API todavía no responde y eso es lo normal, no un error que
+   * merezca salir en la consola del usuario.
+   */
+  private startPolling(poll: () => Promise<LiveStatus>, intervalMs: number): void {
+    let asking = false
+
+    const ask = async (): Promise<void> => {
+      if (asking || !this.child) return
+      asking = true
+      try {
+        const status = await poll()
+        if (!this.child) return
+
+        if (status.ready && this.currentStatus === 'starting') {
+          this.setStatus('running')
+          this.emit('ready')
+        }
+
+        if (status.playerCount !== undefined && status.playerCount !== this.currentPlayerCount) {
+          this.currentPlayerCount = status.playerCount
+          this.emit('players', this.players, this.currentPlayerCount)
+        }
+      } catch {
+        // El servidor aún no contesta o se está cerrando.
+      } finally {
+        asking = false
+      }
+    }
+
+    this.pollTimer = setInterval(() => void ask(), intervalMs)
+    this.pollTimer.unref?.()
+    void ask()
   }
 
   /**
@@ -176,7 +235,17 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
             'Se fuerza el cierre; puede que los últimos cambios de la partida no se hayan guardado.'
         )
         child.kill()
-        done()
+
+        // Matar NO es instantáneo: Windows tarda un momento en soltar los
+        // ficheros que tenía abiertos el proceso. Quien llama a `stop()` suele
+        // querer borrar el servidor o restaurar una copia justo después, y sin
+        // esperar al cierre de verdad eso falla con EBUSY. Con un tope, para no
+        // quedarse colgado si el proceso no termina de morir.
+        const giveUp = setTimeout(done, KILL_WAIT_MS)
+        void closed.then(() => {
+          clearTimeout(giveUp)
+          done()
+        })
       }, graceMs)
     })
   }
@@ -226,7 +295,8 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     if (this.recent.length > RECENT_LINES) this.recent.shift()
 
     const event = this.options?.parseLine(raw) ?? { level: 'system' as const, text: raw }
-    this.pushLog(event.level, event.text)
+    // Una línea oculta se guarda para diagnosticar, pero no llega a la consola.
+    if (!event.hidden) this.pushLog(event.level, event.text)
 
     if (event.ready) {
       this.setStatus('running')
@@ -235,12 +305,12 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
 
     if (event.playerJoined) {
       this.onlinePlayers.add(event.playerJoined)
-      this.emit('players', this.players)
+      this.emit('players', this.players, this.currentPlayerCount)
     }
 
     if (event.playerLeft) {
       this.onlinePlayers.delete(event.playerLeft)
-      this.emit('players', this.players)
+      this.emit('players', this.players, this.currentPlayerCount)
     }
 
     if (event.diagnosis) {
@@ -253,11 +323,16 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
       clearTimeout(this.stopTimer)
       this.stopTimer = null
     }
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer)
+      this.pollTimer = null
+    }
 
     this.child = null
     this.startedAt = null
     this.onlinePlayers.clear()
-    this.emit('players', [])
+    this.currentPlayerCount = null
+    this.emit('players', [], null)
 
     const wasRequested = this.stopRequested
     this.stopRequested = false

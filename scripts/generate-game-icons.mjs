@@ -13,15 +13,232 @@ const stroke = (d, w = 3.4, extra = '') =>
   `<path d="${d}" fill="none" stroke="${W}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${extra}/>`
 const fill = (d, color = W, extra = '') => `<path d="${d}" fill="${color}"${extra}/>`
 
-function gear(cx, cy, rOut, rIn, teeth) {
+// `squash` aplasta el engranaje en vertical: 1 es de frente, 0.5 es visto en
+// diagonal, como el de Factorio.
+function gear(cx, cy, rOut, rIn, teeth, squash = 1) {
   const pts = []
   for (let i = 0; i < teeth * 2; i++) {
     const a = (Math.PI / teeth) * i - Math.PI / 2
     const r = i % 2 === 0 ? rOut : rIn
     const spread = (Math.PI / teeth) * 0.42
-    for (const da of [-spread, spread]) pts.push(`${r2(cx + r * Math.cos(a + da))} ${r2(cy + r * Math.sin(a + da))}`)
+    for (const da of [-spread, spread]) {
+      pts.push(`${r2(cx + r * Math.cos(a + da))} ${r2(cy + r * squash * Math.sin(a + da))}`)
+    }
   }
   return `M${pts.join(' L')}Z`
+}
+
+// Engranaje en diagonal con grosor: la cara inferior es el mismo perfil
+// desplazado hacia abajo, y la superior se dibuja encima.
+function isoGear() {
+  const CX = 32, CY = 29, ROUT = 22, RIN = 14, TEETH = 8, SQ = 0.55, ALTO = 7
+  const canto = []
+  // El grosor se barre copia a copia: con saltos mayores quedan muescas en los
+  // flancos de los dientes.
+  for (let d = ALTO; d >= 1; d--) canto.push(fill(gear(CX, CY + d, ROUT, RIN, TEETH, SQ), '#a08a6e'))
+  return (
+    canto.join('') +
+    fill(gear(CX, CY, ROUT, RIN, TEETH, SQ), W, ' fill-opacity=".95"') +
+    `<ellipse cx="${CX}" cy="${CY}" rx="7" ry="${r2(7 * SQ)}" fill="#3d2212"/>` +
+    `<ellipse cx="${CX}" cy="${CY}" rx="7" ry="${r2(7 * SQ)}" fill="none" stroke="#6b3f18" stroke-width="1.5"/>`
+  )
+}
+
+// Barco vikingo: casco de media luna con proa y popa enroscadas, vela cuadrada
+// a rayas y escudos en la borda.
+function longship() {
+  return (
+    // Proa y popa.
+    stroke('M11 41 Q4 33 9 25 Q14 29 14 35', 3.2) +
+    stroke('M53 41 Q60 33 55 25 Q50 29 50 35', 3.2) +
+    // Mástil y verga.
+    stroke('M32 41 V10', 3) +
+    stroke('M17 15 H47', 3) +
+    // Vela, con dos franjas del color del fondo.
+    fill('M18 15 H46 L44 33 Q32 37 20 33 Z', W, ' fill-opacity=".95"') +
+    fill('M25.5 15 H30 L29.5 35.2 Q27 34.8 24.8 34 Z', '#12304e', ' fill-opacity=".55"') +
+    fill('M35 15 H39.5 L40.5 34 Q38.2 34.8 35.6 35.2 Z', '#12304e', ' fill-opacity=".55"') +
+    // Casco.
+    fill('M10 40 Q32 45 54 40 Q32 57 10 40 Z') +
+    // Escudos colgados de la borda.
+    `<circle cx="20" cy="42.6" r="2.7" fill="#12304e" fill-opacity=".55"/>` +
+    `<circle cx="26" cy="43.5" r="2.7" fill="#12304e" fill-opacity=".55"/>` +
+    `<circle cx="32" cy="43.8" r="2.7" fill="#12304e" fill-opacity=".55"/>` +
+    `<circle cx="38" cy="43.5" r="2.7" fill="#12304e" fill-opacity=".55"/>` +
+    `<circle cx="44" cy="42.6" r="2.7" fill="#12304e" fill-opacity=".55"/>` +
+    // Mar.
+    stroke('M4 51 Q12 47 20 51 T36 51 T52 51 T62 51', 3, ' stroke-opacity=".7"') +
+    stroke('M8 57 Q16 53 24 57 T40 57 T56 57', 3, ' stroke-opacity=".4"')
+  )
+}
+
+// Carga explosiva: tres bloques atados con cinchas y el temporizador encajado
+// encima. Van dentro de una sola silueta: con el temporizador suelto parecía
+// una etiqueta colgando del fardo.
+function c4Charge() {
+  const SILUETA = 'M34 10 H51 V24 H52 V53 H12 V24 H34 Z'
+  return (
+    // Antena.
+    stroke('M47.5 10 V4.5', 2.2) +
+    // Fardo: tres bloques con la junta a la vista.
+    fill('M12 24 H52 V33 H12 Z', W, ' fill-opacity=".95"') +
+    fill('M12 34.5 H52 V43.5 H12 Z', W, ' fill-opacity=".95"') +
+    fill('M12 45 H52 V53 H12 Z', W, ' fill-opacity=".82"') +
+    `<path d="M12 33 H52 M12 34.5 H52 M12 43.5 H52 M12 45 H52" fill="none" stroke="#5e120d" stroke-opacity=".3" stroke-width="1"/>` +
+    // Cinchas: solo sobresalen por abajo, para no romper el contorno de arriba.
+    fill('M19 24 H25 V55 H19 Z', '#5e120d', ' fill-opacity=".58"') +
+    fill('M39 24 H45 V55 H39 Z', '#5e120d', ' fill-opacity=".58"') +
+    // Temporizador, apoyado en el fardo y tapando la junta de debajo.
+    fill('M34 10 H51 V24.5 H34 Z', W, ' fill-opacity=".95"') +
+    fill('M36.5 13.5 H48.5 V18.5 H36.5 Z', '#5e120d') +
+    `<path d="M38.5 16 H41 M42.5 16 H45" fill="none" stroke="#ff9a76" stroke-width="1.5" stroke-linecap="round"/>` +
+    `<path d="M34 21 H51" fill="none" stroke="#5e120d" stroke-opacity=".3" stroke-width="1"/>` +
+    // Contorno común: cierra el conjunto por arriba.
+    `<path d="${SILUETA}" fill="none" stroke="#5e120d" stroke-opacity=".5" stroke-width="1.6" stroke-linejoin="round"/>`
+  )
+}
+
+// Punta de bastón: dos brazos que sostienen una gema encendida.
+function staffTip() {
+  const rays = []
+  for (let i = 0; i < 8; i++) {
+    const a = (Math.PI / 4) * i - Math.PI / 2
+    const [x0, y0] = [32 + 15 * Math.cos(a), 24 + 15 * Math.sin(a)]
+    const [x1, y1] = [32 + 19 * Math.cos(a), 24 + 19 * Math.sin(a)]
+    rays.push(`M${r2(x0)} ${r2(y0)} L${r2(x1)} ${r2(y1)}`)
+  }
+  return (
+    `<path d="${rays.join(' ')}" fill="none" stroke="#ffd27a" stroke-opacity=".6" stroke-width="2.2" stroke-linecap="round"/>` +
+    // Vara y anillas: cortas, para que mande la punta.
+    stroke('M32 58 V40', 5) +
+    stroke('M26.5 42 H37.5 M27.5 47 H36.5', 2.6) +
+    // Brazos que abrazan la gema.
+    stroke('M25 39 Q16 23 27 12', 3.8) +
+    stroke('M39 39 Q48 23 37 12', 3.8) +
+    // Gema.
+    fill('M32 10 L40.5 24 L32 38 L23.5 24 Z', '#ffd27a') +
+    fill('M32 10 L40.5 24 L32 24 Z', '#fff0cc')
+  )
+}
+
+// Cara de zombi: cabeza con mandíbula marcada, cuencas hundidas y costurón.
+function zombieFace() {
+  return (
+    // Cabeza algo torcida y con la mandíbula estrecha: la simetría perfecta
+    // hacía que pareciese un robot.
+    fill('M18 17 Q18 11 24 10.5 H41 Q46 11 46 17 L45 35 Q44 46 31 53 Q19 45 18.5 34 Z', W, ' fill-opacity=".93"') +
+    // Sombra del ceño.
+    fill('M20 20 Q32 17.5 45 19.5 L44.5 23 Q32 21 20.3 23.5 Z', '#2e3617', ' fill-opacity=".35"') +
+    // Cuencas desiguales: la izquierda más grande y caída.
+    `<ellipse cx="26" cy="29" rx="5.6" ry="6.2" fill="#2e3617"/>` +
+    `<ellipse cx="38" cy="27" rx="4.2" ry="4.8" fill="#2e3617"/>` +
+    `<circle cx="27.4" cy="30.4" r="1.7" fill="${W}" fill-opacity=".8"/>` +
+    `<circle cx="36.9" cy="26" r="1.3" fill="${W}" fill-opacity=".8"/>` +
+    // Boca abierta y desdentada, con el borde superior mellado.
+    fill('M23.5 40.5 Q32 38.5 40.5 40.5 L40 46.5 Q32 50 24 46.5 Z', '#2e3617') +
+    fill('M26 40.2 H28.4 V43.6 H26 Z M30.8 39.6 H33.2 V43.4 H30.8 Z M35.6 40.2 H38 V43.4 H35.6 Z', W, ' fill-opacity=".88"') +
+    // Costurón en la frente.
+    `<path d="M21.5 16 L30 14" fill="none" stroke="#2e3617" stroke-width="1.6" stroke-linecap="round"/>` +
+    `<path d="M23 14.4 L24 17.4 M25.8 13.8 L26.8 16.8 M28.4 13.4 L29.2 16.2" fill="none" stroke="#2e3617" stroke-width="1.3" stroke-linecap="round"/>`
+  )
+}
+
+// Central nuclear: torre de refrigeración hiperbólica con la columna de
+// refrigerante iluminada, los montantes naranjas y la banda de peligro de la
+// plataforma. Formas propias, no una copia del edificio (ANALISIS.md §13.1).
+function nuclearPlant() {
+  // El perfil de la torre es una cuadrática cuya y resulta lineal:
+  // y = 13 + 38t, x = 17.5 + 16t − 20.5t². Así se puede medir el ancho a
+  // cualquier altura y encajar las franjas horizontales.
+  const TOWER = 'M17.5 13 Q25.5 32 13 51 H51 Q38.5 32 46.5 13 Z'
+  const edge = (y) => { const t = (y - 13) / 38; return 17.5 + 16 * t - 20.5 * t * t }
+  const mirror = (x) => r2(64 - x)
+  const band = (y0, y1) => {
+    const a = edge(y0), b = edge(y1)
+    return `M${r2(a)} ${y0} H${mirror(a)} L${mirror(b)} ${y1} H${r2(b)} Z`
+  }
+  const SHELL = '#46515e', RIB = '#1b2129', MOUTH = '#222a33', RING = '#5b7fc7'
+  return (
+    fill(TOWER, SHELL) +
+    fill(band(16.5, 20.5), RING) +
+    `<ellipse cx="32" cy="13" rx="14.5" ry="3.8" fill="${MOUTH}"/>` +
+    `<ellipse cx="32" cy="13" rx="14.5" ry="3.8" fill="none" stroke="${RING}" stroke-width="1.6"/>` +
+    // Nervios de la torre, siguiendo su curvatura.
+    `<path d="M24.5 20.5 Q22.5 35 20.5 49 M39.5 20.5 Q41.5 35 43.5 49" fill="none" stroke="${RIB}" stroke-width="1.1" stroke-linecap="round"/>` +
+    // Torre frontal: montantes, carcasa y columna de refrigerante.
+    // Montantes en crema, no en naranja: el azulejo ya es naranja y se perdían.
+    fill('M24 13 H27 V52 H24 Z M37 13 H40 V52 H37 Z', '#ffe2b8') +
+    fill('M26.8 15 H37.2 V52 H26.8 Z', '#2b333d') +
+    fill('M28.4 18.5 H35.6 V47 H28.4 Z', '#48d6d0') +
+    fill('M28.4 18.5 H32 V47 H28.4 Z', '#8ef0ea', ' fill-opacity=".55"') +
+    `<path d="M26.8 15 H37.2 V52 H26.8 Z" fill="none" stroke="${RIB}" stroke-width="1"/>` +
+    `<circle cx="32" cy="49" r="2.6" fill="${MOUTH}" stroke="${RIB}" stroke-width="1"/>` +
+    // Plataforma con la banda de peligro.
+    fill('M10 51.5 H54 V57 H10 Z', '#4a545f') +
+    fill(
+      'M12.5 54 h4.5 l-2.8 3 h-4.5 Z M20 54 h4.5 l-2.8 3 h-4.5 Z M27.5 54 h4.5 l-2.8 3 h-4.5 Z' +
+        ' M35 54 h4.5 l-2.8 3 h-4.5 Z M42.5 54 h4.5 l-2.8 3 h-4.5 Z',
+      '#f0b429'
+    ) +
+    `<path d="M10 51.5 H54 V57 H10 Z" fill="none" stroke="${RIB}" stroke-width="1"/>` +
+    // Contorno: la torre es oscura y sin él se pierde sobre el azulejo.
+    `<path d="${TOWER}" fill="none" stroke="${W}" stroke-width="1.8" stroke-linejoin="round"/>`
+  )
+}
+
+// Bloque de hierba en isométrico, con la hierba azul y la tierra azul oscuro: es
+// la forma reconocible del juego sin reproducir su textura (ANALISIS.md §13.1).
+function grassBlock() {
+  const T = [32, 10], R = [54, 23], B = [32, 36], L = [10, 23]
+  const ALTO = 18, N = 8
+  // Cada cara se parametriza con dos ejes; P(u,v) da un punto del lienzo.
+  const faces = {
+    top: (u, v) => [32 + 22 * u - 22 * v, 10 + 13 * u + 13 * v],
+    left: (u, v) => [10 + 22 * u, 23 + 13 * u + ALTO * v],
+    right: (u, v) => [54 - 22 * u, 23 + 13 * u + ALTO * v]
+  }
+  const texel = (face, i, j) => {
+    const p = faces[face]
+    const q = [p(i / N, j / N), p((i + 1) / N, j / N), p((i + 1) / N, (j + 1) / N), p(i / N, (j + 1) / N)]
+    return `M${q.map(([x, y]) => `${r2(x)} ${r2(y)}`).join(' L')} Z`
+  }
+  // Aleatoriedad reproducible: el mismo icono en cada ejecución.
+  const dice = (seed) => () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296)
+  const P = {
+    top: { base: '#45a3e8', specks: ['#5cb4f2', '#3691d6', '#66bdf7'] },
+    left: { grass: '#3a93d4', dirt: '#1e3f73', specks: ['#254b86', '#17325c'] },
+    right: { grass: '#2c7bbb', dirt: '#16305a', specks: ['#1c3c6d', '#102142'] }
+  }
+  const specks = (face, seed, colors, skip = () => false) => {
+    const r = dice(seed)
+    const out = []
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+      if (skip(i, j) || r() > 0.26) continue
+      out.push(fill(texel(face, i, j), colors[Math.floor(r() * colors.length)]))
+    }
+    return out.join('')
+  }
+  // Profundidad del fleco de hierba por columna: 1 o 2 téxeles, para que el
+  // borde inferior quede dentado como en un bloque de verdad.
+  const fringe = (seed) => { const r = dice(seed); return Array.from({ length: N }, () => (r() > 0.5 ? 2 : 1)) }
+  const fL = fringe(7), fR = fringe(19)
+  const band = (face, depth, color) => {
+    const out = []
+    for (let i = 0; i < N; i++) for (let j = 0; j < depth[i]; j++) out.push(fill(texel(face, i, j), color))
+    return out.join('')
+  }
+  return (
+    fill(`M${T[0]} ${T[1]} L${R[0]} ${R[1]} L${B[0]} ${B[1]} L${L[0]} ${L[1]} Z`, P.top.base) +
+    specks('top', 3, P.top.specks) +
+    fill(`M${L[0]} ${L[1]} L${B[0]} ${B[1]} L${B[0]} ${B[1] + ALTO} L${L[0]} ${L[1] + ALTO} Z`, P.left.dirt) +
+    fill(`M${R[0]} ${R[1]} L${B[0]} ${B[1]} L${B[0]} ${B[1] + ALTO} L${R[0]} ${R[1] + ALTO} Z`, P.right.dirt) +
+    band('left', fL, P.left.grass) + band('right', fR, P.right.grass) +
+    specks('left', 11, P.left.specks, (i, j) => j < fL[i]) +
+    specks('right', 23, P.right.specks, (i, j) => j < fR[i]) +
+    // Silueta: separa el bloque del fondo a tamaños pequeños.
+    `<path d="M${T[0]} ${T[1]} L${R[0]} ${R[1]} L${R[0]} ${R[1] + ALTO} L${B[0]} ${B[1] + ALTO} L${L[0]} ${L[1] + ALTO} L${L[0]} ${L[1]} Z"` +
+    ' fill="none" stroke="#ffffff" stroke-opacity=".3" stroke-width="1.2" stroke-linejoin="round"/>'
+  )
 }
 
 // Pico en pixel art propio: curva y mango rasterizados en una rejilla de 12×12.
@@ -71,49 +288,22 @@ function pixelPickaxe() {
 
 const GAMES = [
   { id: 'minecraft', name: 'Minecraft', top: '#5aab55', bottom: '#2c6a33', node: '#d8ffb8',
-    art: () => pixelPickaxe(), nodes: [[20, 18], [46, 45]] },
-  { id: 'satisfactory', name: 'Satisfactory', top: '#2f9a93', bottom: '#1a5358', node: '#ffb54d',
-    art: () =>
-      stroke('M10 45 L50 25') + stroke('M14 53 L54 33') +
-      `<circle cx="12" cy="49" r="5" fill="none" stroke="${W}" stroke-width="3.2"/>` +
-      `<circle cx="52" cy="29" r="5" fill="none" stroke="${W}" stroke-width="3.2"/>` +
-      fill('M22 34 L29 30.5 L32.5 37.5 L25.5 41 Z') +
-      fill('M35 27.5 L42 24 L45.5 31 L38.5 34.5 Z', W, ' fill-opacity=".78"'),
-    nodes: [[52, 29], [12, 49]] },
-  { id: 'valheim', name: 'Valheim', top: '#4d6a80', bottom: '#212f3b', node: '#ff9a3c',
-    art: () =>
-      fill('M21 40 Q20 19 32 19 Q44 19 43 40 Z', W, ' fill-opacity=".18"') +
-      stroke('M21 40 Q20 19 32 19 Q44 19 43 40') +
-      fill('M22 31 Q9 29 11 11 Q15 23 24 25 Z') + fill('M42 31 Q55 29 53 11 Q49 23 40 25 Z') +
-      stroke('M16 40 H48', 4.2) + stroke('M32 40 V51', 3.8),
-    nodes: [[11, 11], [53, 11], [32, 51]] },
-  { id: 'zomboid', name: 'Project Zomboid', top: '#9a4038', bottom: '#4a1d1a', node: '#ffd0c4',
-    art: () =>
-      fill('M16 14 H48 V50 H16 Z', '#000000', ' fill-opacity=".28"') + stroke('M16 14 H48 V50 H16 Z', 3.2) +
-      fill('M11 18 L53 13 L54 21 L12 26 Z') + fill('M11 41 L53 46 L52 54 L10 49 Z', W, ' fill-opacity=".86"'),
-    nodes: [[27, 33], [37, 33]] },
-  { id: 'enshrouded', name: 'Enshrouded', top: '#7566c0', bottom: '#342c6a', node: '#ffd27a',
-    art: () =>
-      stroke('M28 11 A4 4 0 1 1 36 11', 3) + fill('M24 21 H40 L37 16 H27 Z') +
-      fill('M23 21 H41 L39 43 H25 Z', W, ' fill-opacity=".16"') + stroke('M23 21 H41 L39 43 H25 Z', 3.2) +
-      fill('M32 39 C26 34 28.5 28 32 24 C35.5 28 38 34 32 39 Z', '#ffd27a') +
-      stroke('M20 44 H44', 3.6) +
-      stroke('M6 51 Q13 47 20 51 T34 51 T48 51 T60 51', 3, ' stroke-opacity=".75"') +
-      stroke('M12 57 Q19 53 26 57 T40 57 T54 57', 3, ' stroke-opacity=".45"'),
-    nodes: [[32, 11], [8, 51], [58, 51]] },
-  { id: 'rust', name: 'Rust', top: '#c05a2c', bottom: '#65260f', node: '#ffd9b8',
-    art: () =>
-      stroke('M19 55 L39 17', 4.4) +
-      fill('M29 13 L45 8 L55 20 L47 31 L34 27 Z') +
-      `<path d="M45 8 L43 20 L55 20 M43 20 L34 27" fill="none" stroke="#65260f" stroke-opacity=".6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` +
-      stroke('M31 25 L40 22 M29 30 L38 27', 2.6),
-    nodes: [[19, 55], [45, 8], [55, 20]] },
-  { id: 'factorio', name: 'Factorio', top: '#c28b2c', bottom: '#664314', node: '#fff0c2',
-    art: () =>
-      fill(gear(36, 28, 17, 12.5, 9), W, ' fill-opacity=".95"') +
-      `<circle cx="36" cy="28" r="5.2" fill="#8a5d1b"/>` +
-      stroke('M8 56 H24', 4) + stroke('M15 56 V44 L27 39', 3.6),
-    nodes: [[15, 44], [27, 39]] }
+    // El bloque ya llena el azulejo y tiene textura propia: sin puntos de luz,
+    // que asomaban por fuera de la silueta.
+    art: () => grassBlock(), nodes: [] },
+  { id: 'satisfactory', name: 'Satisfactory', top: '#f2913a', bottom: '#93400d', node: '#ffb54d',
+    // La central ya llena el azulejo y tiene color propio: sin puntos de luz.
+    art: () => nuclearPlant(), nodes: [] },
+  { id: 'valheim', name: 'Valheim', top: '#3f86bd', bottom: '#12304e', node: '#ff9a3c',
+    art: () => longship(), nodes: [] },
+  { id: 'zomboid', name: 'Project Zomboid', top: '#7a8a3f', bottom: '#2e3617', node: '#ffd0c4',
+    art: () => zombieFace(), nodes: [] },
+  { id: 'enshrouded', name: 'Enshrouded', top: '#3247a0', bottom: '#131a44', node: '#ffd27a',
+    art: () => staffTip(), nodes: [[32, 23]] },
+  { id: 'rust', name: 'Rust', top: '#c0392b', bottom: '#5e120d', node: '#ffd9b8',
+    art: () => c4Charge(), nodes: [] },
+  { id: 'factorio', name: 'Factorio', top: '#8a5a30', bottom: '#3d2212', node: '#fff0c2',
+    art: () => isoGear(), nodes: [] }
 ]
 
 function svg(g) {

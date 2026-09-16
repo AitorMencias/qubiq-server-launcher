@@ -1,3 +1,4 @@
+import { totalmem } from 'node:os'
 import { ipcMain, shell, type BrowserWindow } from 'electron'
 import type {
   AppSettings,
@@ -8,7 +9,8 @@ import type {
   ProgressUpdate,
   ServerStatus
 } from '@shared/types'
-import { IPC, EVENTS } from '@shared/ipc'
+import type { PortProtocol } from '@shared/games'
+import { IPC, EVENTS, type SystemMemory } from '@shared/ipc'
 import { service } from '../core/service'
 import { instanceDir } from '../core/paths'
 
@@ -63,7 +65,9 @@ export function registerCommonIpc(getWindow: () => BrowserWindow | null): void {
   // --- Red ------------------------------------------------------------------
 
   ipcMain.handle(IPC.connectionInfo, async (_e, id: string) => service.connectionInfo(id))
-  ipcMain.handle(IPC.suggestFreePort, async (_e, from: number) => service.suggestFreePort(from))
+  ipcMain.handle(IPC.suggestFreePort, async (_e, from: number, protocol: PortProtocol = 'tcp') =>
+    service.suggestFreePort(from, protocol)
+  )
   ipcMain.handle(IPC.checkFromInternet, async (_e, id: string) => service.checkFromInternet(id))
   ipcMain.handle(IPC.publicIp, async () => service.publicIp())
 
@@ -72,6 +76,12 @@ export function registerCommonIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.openInstanceFolder, async (_e, id: string) => {
     await shell.openPath(instanceDir(id))
   })
+
+  // Memoria del equipo: con ella el selector de juego puede decir si Satisfactory
+  // va a ir justo ANTES de descargar 15 GB.
+  ipcMain.handle(IPC.systemMemory, (): SystemMemory => ({
+    totalMb: Math.round(totalmem() / (1024 * 1024))
+  }))
 
   // --- Eventos hacia la interfaz -------------------------------------------
 
@@ -84,7 +94,9 @@ export function registerCommonIpc(getWindow: () => BrowserWindow | null): void {
 
   service.on('log', (id: string, line: LogLine) => send(EVENTS.log, id, line))
   service.on('status', (id: string, status: ServerStatus) => send(EVENTS.status, id, status))
-  service.on('players', (id: string, players: string[]) => send(EVENTS.players, id, players))
+  service.on('players', (id: string, players: string[], playerCount: number | null) =>
+    send(EVENTS.players, id, players, playerCount)
+  )
   service.on('progress', (update: ProgressUpdate) => send(EVENTS.progress, update))
   service.on('diagnosis', (id: string, diagnosis: Diagnosis) =>
     send(EVENTS.diagnosis, id, diagnosis)

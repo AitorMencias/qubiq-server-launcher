@@ -1,4 +1,5 @@
 import type { InstanceManifest } from '@shared/types'
+import type { Distribution } from '@shared/games/minecraft/types'
 
 /**
  * Migraciones del manifiesto (`instance.json`).
@@ -15,7 +16,7 @@ interface ManifestV1 {
   schemaVersion?: 1
   id: string
   name: string
-  distribution: InstanceManifest['data']['distribution']
+  distribution: Distribution
   minecraftVersion: string
   build?: string
   javaMajor: number

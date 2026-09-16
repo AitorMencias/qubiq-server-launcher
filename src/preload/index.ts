@@ -1,6 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC, MINECRAFT_IPC, EVENTS, type MemoryInfo } from '../shared/ipc'
-import type { UpdateCheck } from '../shared/games'
+import {
+  IPC,
+  MINECRAFT_IPC,
+  SATISFACTORY_IPC,
+  EVENTS,
+  type MemoryInfo,
+  type SystemMemory
+} from '../shared/ipc'
+import type { PortProtocol, UpdateCheck } from '../shared/games'
 import type { OfficialPluginStatus } from '../shared/games/minecraft/officialPlugins'
 import type {
   AppSettings,
@@ -25,6 +32,22 @@ import type {
   PropertyDefinition,
   WorldInfo
 } from '../shared/games/minecraft/types'
+import type {
+  SatisfactorySessions,
+  SatisfactoryState
+} from '../shared/games/satisfactory/types'
+
+/** Ajustes del servidor de Satisfactory, con lo pendiente de un reinicio. */
+interface SatisfactoryOptions {
+  options: Record<string, string>
+  pending: Record<string, string>
+}
+
+/** Reglas de la partida, que son las que quitan los logros. */
+interface SatisfactoryGameRules {
+  creativeModeEnabled: boolean
+  settings: Record<string, string>
+}
 
 /**
  * Superficie que ve la interfaz. Nada de Node ni de Electron llega al renderer:
@@ -102,6 +125,44 @@ const minecraft = {
   }
 }
 
+const satisfactory = {
+  /** Estado en vivo. `null` si el servidor no está arrancado. */
+  state: (id: string): Promise<SatisfactoryState | null> =>
+    ipcRenderer.invoke(SATISFACTORY_IPC.state, id),
+
+  sessions: {
+    list: (id: string): Promise<SatisfactorySessions> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.listSessions, id),
+    create: (id: string, sessionName: string): Promise<SatisfactorySessions> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.createGame, id, sessionName),
+    load: (id: string, saveName: string, sessionName: string): Promise<SatisfactorySessions> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.loadSave, id, saveName, sessionName),
+    saveNow: (id: string, saveName: string): Promise<SatisfactorySessions> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.saveNow, id, saveName),
+    removeSave: (id: string, saveName: string): Promise<SatisfactorySessions> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.deleteSave, id, saveName),
+    removeSession: (id: string, sessionName: string): Promise<SatisfactorySessions> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.deleteSession, id, sessionName)
+  },
+
+  options: {
+    get: (id: string): Promise<SatisfactoryOptions> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.getOptions, id),
+    set: (id: string, options: Record<string, string>): Promise<SatisfactoryOptions> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.setOptions, id, options)
+  },
+
+  rules: {
+    get: (id: string): Promise<SatisfactoryGameRules> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.getGameRules, id),
+    set: (id: string, settings: Record<string, string>): Promise<SatisfactoryGameRules> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.setGameRules, id, settings)
+  },
+
+  setClientPassword: (id: string, password: string): Promise<void> =>
+    ipcRenderer.invoke(SATISFACTORY_IPC.setClientPassword, id, password)
+}
+
 const api = {
   settings: {
     get: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.getSettings),
@@ -144,21 +205,28 @@ const api = {
 
   network: {
     info: (id: string): Promise<ConnectionInfo> => ipcRenderer.invoke(IPC.connectionInfo, id),
-    freePort: (from: number): Promise<number> => ipcRenderer.invoke(IPC.suggestFreePort, from),
+    freePort: (from: number, protocol: PortProtocol = 'tcp'): Promise<number> =>
+      ipcRenderer.invoke(IPC.suggestFreePort, from, protocol),
     checkFromInternet: (id: string): Promise<ExternalCheck> =>
       ipcRenderer.invoke(IPC.checkFromInternet, id),
     publicIp: (): Promise<string | null> => ipcRenderer.invoke(IPC.publicIp)
   },
 
+  system: {
+    /** Memoria del equipo, para avisar de lo que pide cada juego. */
+    memory: (): Promise<SystemMemory> => ipcRenderer.invoke(IPC.systemMemory)
+  },
+
   minecraft,
+  satisfactory,
 
   on: {
     log: (handler: (id: string, line: LogLine) => void) =>
       subscribe<[string, LogLine]>(EVENTS.log, handler),
     status: (handler: (id: string, status: ServerStatus) => void) =>
       subscribe<[string, ServerStatus]>(EVENTS.status, handler),
-    players: (handler: (id: string, players: string[]) => void) =>
-      subscribe<[string, string[]]>(EVENTS.players, handler),
+    players: (handler: (id: string, players: string[], playerCount: number | null) => void) =>
+      subscribe<[string, string[], number | null]>(EVENTS.players, handler),
     progress: (handler: (update: ProgressUpdate) => void) =>
       subscribe<[ProgressUpdate]>(EVENTS.progress, handler),
     diagnosis: (handler: (id: string, diagnosis: Diagnosis) => void) =>

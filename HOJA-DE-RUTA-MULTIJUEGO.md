@@ -11,7 +11,7 @@ Enshrouded, Rust y Factorio. Los juegos propuestos sin investigar quedan para m�
 | **0** | Preparar la app para varios juegos y llevar Minecraft a su subcarpeta | 0.4.0 | — |
 | **1** | Cimientos comunes de Steam: SteamCMD, parada limpia, RCON, A2S, UDP | (sin release propia) | 0 |
 | **2** | Satisfactory | 0.5.0 | 1 |
-| **3** | Valheim | 0.6.0 | 1 (y la decisión del Ctrl+C) |
+| **3** | Valheim | 0.6.0 | 1 (parada con Ctrl+Break, ya validada) |
 | **4** | Project Zomboid | 0.7.0 | 1 |
 | **5** | Enshrouded | 0.8.0 | 3 |
 | **6** | Rust | 0.9.0 | 1 |
@@ -21,8 +21,8 @@ Enshrouded, Rust y Factorio. Los juegos propuestos sin investigar quedan para m�
 a más riesgo, y cada juego nuevo aprovechando lo que dejó el anterior.
 - **Satisfactory va primero:** no depende del Ctrl+C y su API oficial pone a prueba la capa de
   Steam de principio a fin sin trucos.
-- **Valheim:** estrena la parada con Ctrl+C.
-- **Enshrouded:** reutiliza esa misma parada.
+- **Valheim:** estrena la parada por señal de consola (Ctrl+Break: Ctrl+C no llega, ver fase 1).
+- **Enshrouded:** reutiliza esa misma parada (Ctrl+Break).
 - **Project Zomboid:** se parece mucho a Minecraft y aprovecha casi toda la gestión existente.
 - **Rust y Factorio, al final:** cada uno trae un problema propio (el borrado mensual obligatorio y
   el inicio de sesión con cuenta) que no conviene mezclar con el trabajo de base.
@@ -35,7 +35,7 @@ tienen que seguir en verde al cerrar cada una, y los servidores que ya existen e
 
 ## Fase 0 — La app acepta varios juegos (Minecraft a su subcarpeta)
 
-> **Estado: hecha** (pendiente de publicar como 0.4.0). Detalle, decisiones y verificación en
+> **Estado: hecha y publicada** (commit v0.4.0; iconos propios en v0.4.1). Detalle, decisiones y verificación en
 > [ANALISIS.md §19.13](ANALISIS.md). Cambios respecto a este plan:
 > - `runtime/logParser.ts` no se ha partido: lo común era solo el tipo del evento, que vive en el
 >   contrato. El parser entero está en `games/minecraft/logParser.ts`.
@@ -235,12 +235,32 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
 
 ### Fase 2 — Satisfactory (0.5.0)
 
+> **Estado: hecha** (pendiente de publicar como 0.5.0). Detalle, hallazgos del servidor real,
+> decisiones y verificación en [ANALISIS.md §19.15](ANALISIS.md). Cambios respecto a este plan:
+> - **Se lanza `FactoryServer-Win64-Shipping-Cmd.exe`, no `FactoryServer.exe`**, que es solo un
+>   lanzador: con él, ni el PID ni la salida son los del servidor.
+> - **Aislar los guardados exige `-UserDir` + `-SavesUseProjectSavedDir`.** Con el primero solo, el
+>   servidor escribe en la carpeta del juego del usuario. Es la misma trampa que Project Zomboid.
+> - **Solo puede haber un servidor de Satisfactory a la vez:** el puerto 8888 de su mensajería no
+>   sigue al del juego (comprobado).
+> - **El límite de jugadores** se sube con `-ini:Engine:[SystemSettings]:net.MaxPlayersOverride=N`.
+> - El contrato gana dos piezas que ya se preveían: `poll()` (estado por API, porque este juego no
+>   cuenta nada por el registro) y `hidden` en las líneas del registro (el suyo es ruido casi
+>   entero). `checkFromInternet` pasa a ser opcional.
+> - **Decisión de flujo resuelta:** se mantiene preguntar el modo tras elegir juego (opción A).
+> - **La moderación no existe** desde fuera del juego, y la API da cuántos jugadores hay pero no
+>   quiénes: las capacidades `moderation`, `playerNames`, `commands` y `externalCheck` lo declaran y
+>   cada pantalla lo explica.
+> - **No se entra por IP directa:** el juego pide un token que solo se consigue añadiendo el servidor
+>   desde su menú, y si no da «Encryption token missing». La pantalla de conexión enseña los pasos
+>   (`joinSteps`) y la consola traduce el rechazo.
+
 - **Selector de juego:** es la primera fase con dos juegos, así que estrena la pantalla de elegir
   juego según el boceto aprobado: tarjeta con qué es el juego, jugadores, memoria comparada con la
   del equipo, tamaño de descarga, etiquetas para lo que cambia la decisión y el icono propio. El
   de Minecraft ya está integrado (lista de servidores, cabeceras y selector); aquí se añade el de
-  Satisfactory en `satisfactoryUi.icon`. **Pendiente de decidir:** si tras
-  elegir juego se pregunta el modo (A) o se usa el de la barra lateral (B).
+  Satisfactory en `satisfactoryUi.icon`. **Decidido:** tras elegir juego se sigue preguntando el
+  modo (opción A), porque esa pantalla es donde se explican el básico y el avanzado.
 
 - **Asistente:** nombre, contraseña de administrador, contraseña para jugadores, jugadores esperados
   y conexión. **La app reclama el servidor sola** por la API (`PasswordlessLogin` + `ClaimServer`),
@@ -258,7 +278,7 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
   *preset* de dificultad, modificadores y conexión.
 - **Crossplay como opción recomendada para quien no puede abrir puertos:** sin router y con código
   de 6 dígitos. La pantalla principal enseña ese **código** en lugar de la IP.
-- **Parada:** Ctrl+C (fase 1). **Copias:** carpeta de mundos fijada con `-savedir` dentro de la
+- **Parada:** Ctrl+Break (`ctrl-break`, fase 1; esperar a «Opened Steam server»). **Copias:** carpeta de mundos fijada con `-savedir` dentro de la
   instancia, para que la copia de seguridad sepa dónde está.
 - **Moderación:** edición de `adminlist.txt`, `bannedlist.txt` y `permittedlist.txt`, explicando que
   hay que reiniciar para aplicar los cambios **(a confirmar)**.
@@ -281,7 +301,7 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
   Amigo, Invitado), que es su forma de gestionar permisos.
 - **Configuración:** `enshrouded_server.json`. **La app pone `gameSettingsPreset: "Custom"` sola**
   al tocar cualquier ajuste, porque si no el servidor los ignora en silencio.
-- **Parada:** Ctrl+C, ya resuelto en Valheim. **Puerto:** un único UDP (`queryPort` 15637).
+- **Parada:** Ctrl+Break, ya resuelto en Valheim. **Puerto:** un único UDP (`queryPort` 15637).
 - **Moderación:** no hay desde fuera del juego. Se dice claramente en su pestaña.
 
 ### Fase 6 — Rust (0.9.0)
@@ -314,7 +334,7 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| El Ctrl+C no funciona de forma fiable | Valheim y Enshrouded pueden perder partida al parar | Prototipo al inicio de la fase 1 y punto de decisión explícito |
+| El Ctrl+C no funciona de forma fiable | Valheim y Enshrouded pueden perder partida al parar | **Resuelto en la fase 1:** Ctrl+C no llega, Ctrl+Break sí y guarda |
 | Abstracción con forma de Minecraft | Cada juego nuevo obliga a rehacer la capa | Contrato diseñado contra dos juegos a la vez y juego `dummy` en las pruebas |
 | Migración del manifiesto | Servidores existentes que no abren | Copia `instance.v1.json`, prueba contra copias reales, migración idempotente |
 | Pruebas `e2e` que descargan varios GB | Pruebas lentísimas | `e2e` por juego y bajo demanda, con caché de instalación entre ejecuciones |

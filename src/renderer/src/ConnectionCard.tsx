@@ -5,8 +5,9 @@ import type {
   ExternalCheck,
   InstanceState
 } from '@shared/types'
-import { gameInfo, theSave, versionLabel } from '@shared/games'
+import { capabilitiesFor, gameInfo, theSave, versionLabel } from '@shared/games'
 import { ExposureHelp } from './ExposureHelp'
+import { JoinSteps } from './JoinSteps'
 
 /**
  * Panel de conexión (§10).
@@ -30,6 +31,7 @@ const MODE_LABELS: Record<ExposureMode, string> = {
 
 export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.Element {
   const { manifest, status } = state
+  const capabilities = capabilitiesFor(manifest)
   const [info, setInfo] = useState<ConnectionInfo | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const [showHelp, setShowHelp] = useState(false)
@@ -171,6 +173,8 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
         )}
       </div>
 
+      <JoinSteps manifest={manifest} />
+
       <div className="card">
         <div className="row between" style={{ marginBottom: 4 }}>
           <h3 style={{ margin: 0 }}>Amigos desde fuera de casa</h3>
@@ -220,7 +224,7 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
           </div>
         )}
 
-        {exposure.mode !== 'local' && (
+        {exposure.mode !== 'local' && capabilities.externalCheck && (
           <>
             <div className="row">
               <button className="primary" disabled={!running || checking} onClick={() => void runCheck()}>
@@ -241,6 +245,20 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
 
             {check && <CheckResult check={check} mode={exposure.mode} />}
           </>
+        )}
+
+        {/* Sin servicio externo que hable el protocolo del juego no hay
+            comprobación honesta posible: se dice, en vez de ofrecer un botón
+            que siempre respondería que no se llega. */}
+        {exposure.mode !== 'local' && !capabilities.externalCheck && (
+          <div className="alert info" style={{ textAlign: 'left' }}>
+            <strong>Aquí no se puede comprobar desde fuera</strong>
+            <p>
+              {gameInfo(manifest.game).name} no aparece en ninguna lista pública, así que no hay
+              ningún servicio al que preguntar si se llega a tu servidor. La prueba de verdad es que
+              alguien que no esté en tu red añada tu dirección en su juego y entre.
+            </p>
+          </div>
         )}
       </div>
 

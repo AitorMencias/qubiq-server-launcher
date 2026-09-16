@@ -1,0 +1,25 @@
+LogStreaming: Display: FlushAsyncLoading(1): 1 QueuedPackages, 0 AsyncPackages
+LogStringTable: Warning: Failed to find string table entry for 'Menus_UI' 'Players/Messages/YouGotKicked'. Did you forget to add a string table redirector?
+LogStreaming: Warning: Failed to read file 'C:/ruta/del/servidor' error.
+LogOnlineSchema: Error: Invalid schema category Lobby: Service descriptor id Lobby not found.
+LogOnlineSchema: Error: Invalid schema category LobbyMember: Service descriptor id LobbyMember not found.
+LogServer: Display: Server API listening on [::]:7777
+LogServer: Display: Generated a new Self-Signed certificate for the Server API (old certificate invalid or expired)
+LogServer: Warning: ==============================================================
+LogServer: Warning: Server API is running using a Self-Signed Certificate.
+LogServer: Warning: To verify the certificate integrity on the Client, make sure the following Fingerprint matches with the Client one: 
+LogServer: Warning: SHA256:vJ7uFLhQR9xL5N8M55N1zHyP3oMtgC+EoYSPw0r7VaM=
+LogServer: Display: Server API listening on '[::]:7777' Dedicated Server
+LogGameMode: Display: Match State Changed from EnteringMap to WaitingToStart
+LogInit: Display: Engine is initialized. Leaving FEngineLoop::Init()
+LogServer: Warning: Failed to resolve legacy mapName 'GrassFields' into a valid World Asset. New Game will be started on a default map.
+LogServer: Display: Re-claiming Server Socket from Server Subsystem
+LogSave: Warning: New/Old Root size mismatch!
+LogServer: Display: Server startup time elapsed and saving/level loading is done, auto-pause is allowed to proceed from now on (if enabled in server settings). WorldTimeSeconds = 31.14
+LogServer: Display: Shutting down the server as per Remote Request from Admin at (::ffff:127.0.0.1)
+LogCore: Engine exit requested (reason: Remote Server Shutdown initiated by Administrator.)
+LogExit: Exiting.
+LogServer: Display: Server startup time elapsed and saving/level loading is done, auto-pause is allowed to proceed from now on (if enabled in server settings). WorldTimeSeconds = 30.07
+LogNet: Join succeeded: Pionera
+[2026.09.16-12.33.25:580][  0]LogNet: Name:GameNetDriver Def:GameNetDriver FGDSIpNetDriver_2147482169 IpNetDriver listening on port 7777
+LogNet: Warning: IpConnection_2147473743: No EncryptionToken specified, disconnecting.

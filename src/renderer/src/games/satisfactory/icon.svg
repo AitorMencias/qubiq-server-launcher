@@ -3,13 +3,12 @@
      ni está hecho a partir de él: evoca el tema del juego sin usar sus marcas.
      Criterio en ANALISIS.md §13.1. -->
 <defs>
-<linearGradient id="qubiq-satisfactory-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f9a93"/><stop offset="1" stop-color="#1a5358"/></linearGradient>
+<linearGradient id="qubiq-satisfactory-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2913a"/><stop offset="1" stop-color="#93400d"/></linearGradient>
 <filter id="qubiq-satisfactory-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
 </defs>
 <rect x="1" y="1" width="62" height="62" rx="15" fill="url(#qubiq-satisfactory-bg)"/>
 <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity=".16"/>
 <path d="M3 16 Q3 3 16 3 H48 Q61 3 61 16 V20 Q32 12 3 26 Z" fill="#ffffff" fill-opacity=".07"/>
-<path d="M10 45 L50 25" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 53 L54 33" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="49" r="5" fill="none" stroke="#ffffff" stroke-width="3.2"/><circle cx="52" cy="29" r="5" fill="none" stroke="#ffffff" stroke-width="3.2"/><path d="M22 34 L29 30.5 L32.5 37.5 L25.5 41 Z" fill="#ffffff"/><path d="M35 27.5 L42 24 L45.5 31 L38.5 34.5 Z" fill="#ffffff" fill-opacity=".78"/>
-<circle cx="52" cy="29" r="2.9" fill="#ffb54d" filter="url(#qubiq-satisfactory-glow)"/>
-<circle cx="12" cy="49" r="2.9" fill="#ffb54d" filter="url(#qubiq-satisfactory-glow)"/>
+<path d="M17.5 13 Q25.5 32 13 51 H51 Q38.5 32 46.5 13 Z" fill="#46515e"/><path d="M18.8 16.5 H45.2 L44.14 20.5 H19.86 Z" fill="#5b7fc7"/><ellipse cx="32" cy="13" rx="14.5" ry="3.8" fill="#222a33"/><ellipse cx="32" cy="13" rx="14.5" ry="3.8" fill="none" stroke="#5b7fc7" stroke-width="1.6"/><path d="M24.5 20.5 Q22.5 35 20.5 49 M39.5 20.5 Q41.5 35 43.5 49" fill="none" stroke="#1b2129" stroke-width="1.1" stroke-linecap="round"/><path d="M24 13 H27 V52 H24 Z M37 13 H40 V52 H37 Z" fill="#ffe2b8"/><path d="M26.8 15 H37.2 V52 H26.8 Z" fill="#2b333d"/><path d="M28.4 18.5 H35.6 V47 H28.4 Z" fill="#48d6d0"/><path d="M28.4 18.5 H32 V47 H28.4 Z" fill="#8ef0ea" fill-opacity=".55"/><path d="M26.8 15 H37.2 V52 H26.8 Z" fill="none" stroke="#1b2129" stroke-width="1"/><circle cx="32" cy="49" r="2.6" fill="#222a33" stroke="#1b2129" stroke-width="1"/><path d="M10 51.5 H54 V57 H10 Z" fill="#4a545f"/><path d="M12.5 54 h4.5 l-2.8 3 h-4.5 Z M20 54 h4.5 l-2.8 3 h-4.5 Z M27.5 54 h4.5 l-2.8 3 h-4.5 Z M35 54 h4.5 l-2.8 3 h-4.5 Z M42.5 54 h4.5 l-2.8 3 h-4.5 Z" fill="#f0b429"/><path d="M10 51.5 H54 V57 H10 Z" fill="none" stroke="#1b2129" stroke-width="1"/><path d="M17.5 13 Q25.5 32 13 51 H51 Q38.5 32 46.5 13 Z" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>
+
 </svg>

@@ -1,5 +1,5 @@
 import { capabilitiesFor } from '@shared/games'
-import { DISTRIBUTION_LABELS, contentKindFor } from '@shared/games/minecraft/types'
+import { DISTRIBUTION_LABELS, contentKindFor, minecraftOf } from '@shared/games/minecraft/types'
 import type { GameUi } from '../types'
 import { BasicWizard } from './BasicWizard'
 import { CreateWizard } from './CreateWizard'
@@ -17,7 +17,7 @@ export const minecraftUi: GameUi = {
   configTabs({ state, mode, onRefresh }) {
     const { manifest } = state
     const capabilities = capabilitiesFor(manifest)
-    const kind = manifest.game === 'minecraft' ? contentKindFor(manifest.data.distribution) : null
+    const kind = contentKindFor(minecraftOf(manifest).data.distribution)
 
     return [
       {
@@ -51,7 +51,7 @@ export const minecraftUi: GameUi = {
   },
 
   detailRows(manifest) {
-    const { data } = manifest
+    const { data } = minecraftOf(manifest)
     return [
       { label: 'Tipo', value: DISTRIBUTION_LABELS[data.distribution].name },
       { label: 'Versión de Minecraft', value: data.minecraftVersion },

@@ -752,6 +752,137 @@ select:focus {
   }
 }
 
+/* Pasos para entrar en el servidor, cuando el juego no se conforma con la IP. */
+.join-steps {
+  margin: 8px 0 14px;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.join-steps li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* --- Elección de juego (tarjetas con lo que cambia la decisión) ----------- */
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  max-width: 1100px;
+  margin: 0 auto 20px;
+}
+
+.game-card {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 10px;
+  text-align: left;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  transition: border-color 0.14s, background 0.14s, transform 0.14s;
+  min-height: 236px;
+}
+
+.game-card:hover {
+  background: #1e2740;
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.game-card.selected {
+  border-color: var(--accent);
+  background: #1b2438;
+}
+
+.game-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-card-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.game-card-tag {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.game-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 12px;
+  align-self: start;
+}
+
+.game-facts dt {
+  color: var(--muted);
+}
+
+.game-facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-fact-note {
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--panel-2);
+}
+
+.chip.good {
+  color: #8fe0b7;
+  border-color: #245a40;
+  background: #14281f;
+}
+
+.chip.warn {
+  color: #f3cf7a;
+  border-color: #5c4a1c;
+  background: #2a2412;
+}
+
+.chip.bad {
+  color: #ff9d97;
+  border-color: #5a2b2b;
+  background: #2a1a1a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-card {
+    transition: none;
+  }
+
+  .game-card:hover {
+    transform: none;
+  }
+}
+
 /* Zona de acciones irreversibles: se distingue del resto sin gritar. */
 .card.danger-zone {
   border-color: #4a2a2a;
@@ -1137,8 +1268,8 @@ button.link:hover:not(:disabled) {
   }
 }
 
-/* Icono propio de cada juego (games/<juego>/icon.svg). El azulejo ya viene
-   dibujado en el SVG; aquí solo se evita que se deforme o se encoja. */
+/* Icono propio de cada juego (games/<juego>/icon.png, 128×128). La ilustración
+   ya trae su propio marco; aquí solo se evita que se deforme o se encoja. */
 .game-icon {
   display: block;
   flex: none;

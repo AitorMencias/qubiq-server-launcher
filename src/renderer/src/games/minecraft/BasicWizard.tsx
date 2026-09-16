@@ -3,6 +3,7 @@ import type { ExposureMode } from '@shared/types'
 import type { Distribution } from '@shared/games/minecraft/types'
 import { DISTRIBUTIONS, DISTRIBUTION_LABELS } from '@shared/games/minecraft/types'
 import { D20Loader } from '../../D20Loader'
+import { Choices, StepDots, StepFrame, SummaryRow, labelOf, type Option } from '../../WizardParts'
 
 /**
  * Asistente en modo básico (§3).
@@ -37,12 +38,6 @@ type Step =
   | 'pvp'
   | 'conexion'
 type Stage = Step | 'resumen'
-
-interface Option<T extends string> {
-  value: T
-  title: string
-  sub: string
-}
 
 const GAME_MODES: Option<GameMode>[] = [
   {
@@ -111,10 +106,6 @@ const CONNECTIONS: Option<ExposureMode>[] = [
     sub: 'Sin tocar el router y funciona casi siempre, a cambio de algo más de ping.'
   }
 ]
-
-function labelOf<T extends string>(options: Option<T>[], value: T): string {
-  return options.find((o) => o.value === value)?.title ?? value
-}
 
 export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX.Element {
   const [stage, setStage] = useState<Stage>('nombre')
@@ -542,87 +533,4 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
     setEditedFromHardcore(target === 'modo' && hardcore)
     setStage(target)
   }
-}
-
-interface ChoicesProps<T extends string> {
-  options: Option<T>[]
-  value: T
-  onChange: (value: T) => void
-  columns?: 1 | 2
-}
-
-function Choices<T extends string>({
-  options,
-  value,
-  onChange,
-  columns = 2
-}: ChoicesProps<T>): React.JSX.Element {
-  return (
-    <div className="choice-grid" style={columns === 1 ? { gridTemplateColumns: '1fr' } : undefined}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          className={`choice ${value === option.value ? 'selected' : ''}`}
-          onClick={() => onChange(option.value)}
-        >
-          <div className="title">{option.title}</div>
-          <div className="sub">{option.sub}</div>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function StepDots({ total, current }: { total: number; current: number }): React.JSX.Element {
-  return (
-    <div className="step-dots">
-      {Array.from({ length: total }, (_, i) => (
-        <span key={i} className={`step-dot ${i < current ? 'done' : i === current ? 'now' : ''}`} />
-      ))}
-      <span className="step-label">
-        {current >= total ? 'Todo listo' : `Paso ${current + 1} de ${total}`}
-      </span>
-    </div>
-  )
-}
-
-interface StepFrameProps {
-  title: string
-  help: string
-  children: React.ReactNode
-}
-
-function StepFrame({ title, help, children }: StepFrameProps): React.JSX.Element {
-  return (
-    <div className="step-frame">
-      <h2>{title}</h2>
-      <p className="step-help">{help}</p>
-      {children}
-    </div>
-  )
-}
-
-interface SummaryRowProps {
-  label: string
-  value: string
-  onEdit?: () => void
-  /** Por qué no se puede cambiar aquí, cuando no se puede. */
-  autoNote?: string
-  last?: boolean
-}
-
-function SummaryRow({ label, value, onEdit, autoNote, last }: SummaryRowProps): React.JSX.Element {
-  return (
-    <div className={`summary-row ${last ? 'last' : ''}`}>
-      <span className="summary-label">{label}</span>
-      <span className="summary-value">{value}</span>
-      {onEdit ? (
-        <button className="link" onClick={onEdit}>
-          cambiar
-        </button>
-      ) : (
-        <span className="summary-auto">{autoNote ?? ''}</span>
-      )}
-    </div>
-  )
 }

@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { access, writeFile } from 'node:fs/promises'
 import type { MinecraftCreateRequest, MinecraftManifest } from '@shared/types'
+import type { MinecraftData } from '@shared/games/minecraft/types'
 import type { GameAdapter } from '../types'
 import { serverDir } from '../../paths'
 import { installerFor, type InstallContext } from './install'
@@ -124,7 +125,9 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
 
   applyChanges(current, next, changes) {
     // Los flags de la JVM dependen de la memoria: si cambia, se regeneran.
-    const memoryMb = changes.data?.memoryMb
+    // `changes.data` es de cualquier juego: aquí ya se sabe que es de Minecraft
+    // porque quien llama busca el adaptador por el juego del manifiesto.
+    const memoryMb = (changes.data as Partial<MinecraftData> | undefined)?.memoryMb
     if (memoryMb && memoryMb !== current.data.memoryMb) {
       next.data = { ...next.data, jvmArgs: defaultJvmArgs(memoryMb) }
     }
@@ -173,7 +176,7 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
     return { version: manifest.data.minecraftVersion, variant: manifest.data.distribution }
   },
 
-  async holdSaves(supervisor) {
+  async holdSaves(_manifest, supervisor) {
     if (!supervisor.isRunning) return true
 
     supervisor.sendCommand('save-off')
@@ -184,7 +187,7 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
     return confirmed
   },
 
-  resumeSaves(supervisor) {
+  resumeSaves(_manifest, supervisor) {
     if (!supervisor.isRunning) return
     supervisor.sendCommand('save-on')
   },

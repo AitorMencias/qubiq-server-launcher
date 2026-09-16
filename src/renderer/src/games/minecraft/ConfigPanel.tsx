@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { InstanceState, UiMode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/games/minecraft/types'
+import { minecraftOf } from '@shared/games/minecraft/types'
 
 /** Claves que se gestionan dentro de otro control y no se pintan sueltas. */
 const COMPOSITE_KEYS = new Set(['hardcore'])
@@ -20,7 +21,8 @@ interface Props {
 }
 
 export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element {
-  const { manifest, status } = state
+  const manifest = minecraftOf(state.manifest)
+  const { status } = state
   const running = status !== 'stopped' && status !== 'crashed'
 
   const [catalog, setCatalog] = useState<PropertyDefinition[]>([])

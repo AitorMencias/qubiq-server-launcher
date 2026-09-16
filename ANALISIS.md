@@ -1648,7 +1648,107 @@ el asistente habría fallado. Ahora, sin el modo inestable, se saltan las versio
 en verde; guías de conexión renderizadas con la versión anterior y la nueva dando el mismo texto; y
 recorrido de Playwright por los dos modos, igual que tras la fase 0.
 
-### 19.15 Siguiente
+### 19.15 Satisfactory (Fase 2)
+
+Tercera fase de [HOJA-DE-RUTA-MULTIJUEGO.md](HOJA-DE-RUTA-MULTIJUEGO.md) y **primer juego nuevo**:
+la app pasa de gestionar Minecraft a gestionar juegos. Estrena el selector de juego, el asistente de
+Satisfactory, sus partidas y sus ajustes, y todo lo que hay que decir cuando un juego no da lo mismo
+que Minecraft.
+
+#### Lo que se averiguó contra el servidor real
+
+Antes de escribir nada se lanzó el servidor de verdad (el ya instalado en `qubiq-dev`), porque tres
+de estos hallazgos habrían llevado a un diseño equivocado.
+
+| Hallazgo | Consecuencia |
+|---|---|
+| `FactoryServer.exe` es **solo un lanzador**: abre `Engine\Binaries\Win64\FactoryServer-Win64-Shipping-Cmd.exe` y no reenvía su salida | Se lanza el ejecutable real. Así el PID que supervisa la app es el del servidor (matar el lanzador dejaría el servidor vivo) y su registro llega en vivo por la tubería, como en Minecraft |
+| `-UserDir` mueve la configuración y el registro, **pero no los guardados** | Hay que añadir `-SavesUseProjectSavedDir` (cadena encontrada en el binario del juego). Sin los dos, el servidor escribe las partidas en `%LOCALAPPDATA%\FactoryGame\Saved\SaveGames`, **la carpeta del juego del usuario** |
+| El límite de jugadores no sale de `Game.ini` | Es una variable de consola: `-ini:Engine:[SystemSettings]:net.MaxPlayersOverride=N`. Probado: `playerLimit` pasó de 4 a 8 |
+| El puerto de la mensajería (**8888**) no sigue al del juego | Con `-Port=7788` el servidor siguió abriendo el 8888. **Solo puede haber un servidor de Satisfactory a la vez**, y el diagnóstico del puerto ocupado lo dice |
+| La API devuelve errores con **código 200** | Lo que decide si algo falló es `errorCode`, no el estado HTTP |
+| `PasswordlessLogin` solo funciona **antes** de reclamar | Reclamar se hace durante la instalación, en ese hueco. Después, `PasswordLogin` con la contraseña de administrador |
+| Reclamar **persiste** entre reinicios, y la sesión se autocarga | Instalar deja el servidor listo del todo: el usuario no abre el juego para configurar nada |
+| La API da **cuántos** jugadores hay, no quiénes | La pantalla de jugadores cuenta en vez de listar; el registro sí dice quién entra (`Join succeeded:`) |
+| El certificado autofirmado lleva la versión del juego en su descripción | De ahí sale «anniversary-2026 (build 502094)» para la ficha |
+| Arranca en ~6 s y se para por API en ~2,5 s | Los plazos de espera de la app se fijaron con esos números |
+
+**Comprobado que no se tocó nada del usuario.** Tiene Satisfactory instalado y 119 ficheros suyos en
+`%LOCALAPPDATA%\FactoryGame`. Se sacaron sus checksums antes de empezar; durante las pruebas el
+servidor creó ahí dos ficheros propios (una partida y `ServerSettings.7777.sav`) antes de dar con
+`-SavesUseProjectSavedDir`; se borraron y se comprobó fichero a fichero que los 119 originales
+seguían **idénticos**. La `e2e` de Satisfactory repite esa comprobación en cada ejecución.
+
+#### Cómo queda
+
+| Pieza | Dónde |
+|---|---|
+| Cliente de la API HTTPS (certificado autofirmado, errores traducidos) | `core/games/satisfactory/api.ts` |
+| Adaptador: instalar, reclamar, arrancar, sondear, parar, copiar | `core/games/satisfactory/adapter.ts` |
+| Partidas y ajustes (todo por API) | `core/games/satisfactory/service.ts`, IPC `satisfactory:` |
+| Asistentes, Ajustes y Partidas | `renderer/src/games/satisfactory/` |
+| Selector de juego con tarjetas | `renderer/src/GameChooser.tsx` |
+
+**Decisiones:**
+
+| Asunto | Resolución |
+|---|---|
+| **Aislamiento de los datos** | La carpeta del servidor va a `instances/<id>/server/datos`, con `-UserDir` + `-SavesUseProjectSavedDir`. Es la misma trampa que Project Zomboid y la única forma de que las copias de seguridad sepan dónde está la partida |
+| **Reclamar durante la instalación** | El asistente arranca el servidor una vez, lo reclama, le pone las contraseñas y crea la partida. Cuesta ~40 s y evita que el usuario tenga que abrir el juego. Si la instalación se quedó a medias y el servidor ya tenía dueño, se entra con la contraseña en vez de fallar |
+| **Estado por sondeo** | El contrato gana `poll()`: los juegos que no cuentan nada por el registro dicen por ahí si están listos y cuánta gente hay. «Listo» en Satisfactory no es que el proceso viva, sino que hay **partida cargada** |
+| **Líneas ocultas** | El contrato gana `hidden`: el registro de Satisfactory es ruido de motor casi entero (y casi todo en forma de *avisos*). Se enseña lo que cuenta algo y se guarda todo para diagnosticar. Lo que huele a fallo grave (`Fatal`, `Failed to bind`, memoria) no se esconde nunca |
+| **Contraseñas en el manifiesto** | La de administrador se guarda tal cual: la app la necesita en cada arranque para hablar con la API, y el usuario la necesita dentro del juego. Está en su equipo, junto a los datos del servidor, y la ficha técnica la enseña en vez de fingir que es un secreto de la app. Cifrarla con la protección de datos de Windows queda para la fase 7, que ya la necesita para Factorio |
+| **Sin comprobación desde internet** | Satisfactory no sale en ninguna lista pública: no hay servicio al que preguntar. La capacidad `externalCheck` lo declara, el botón no aparece y la pantalla explica cuál es la única prueba de verdad (que entre alguien de otra red) |
+| **Sin moderación ni nombres** | Capacidades `moderation` y `playerNames` en falso: la pantalla de jugadores cuenta cuántos hay y dice dónde se modera (dentro del juego) en vez de enseñar botones que no funcionarían |
+| **Sin consola de órdenes** | El servidor no lee stdin. La caja de texto de la consola no aparece y se explica por qué |
+| **`MapName` obligatorio** | `CreateNewGame` sin él responde `missing_params`. Se manda `GrassFields`; el servidor avisa de que no lo reconoce y usa el mapa por defecto, que es el único que hay. Queda anotado por si en el futuro admite más |
+| **Elegir juego y luego modo** | Se mantiene el flujo de dos pantallas (juego → modo → asistente): la de modo es donde se explican el básico y el avanzado, y quitarla dejaría esa elección sin explicación para quien crea su primer servidor |
+
+**Textos comunes que se generalizan.** El aviso de producto no oficial pasa a ser genérico con más
+de un juego (el literal que exige Mojang se mantiene aparte), el subtítulo deja de decir «Minecraft»
+y el asistente comparte sus piezas (`WizardParts`) para que crear un servidor se sienta igual en
+cualquier juego.
+
+**Encontrado usando la app de verdad (después de cerrar la fase).** Al intentar entrar en el
+servidor recién creado con la conexión directa por IP, el juego respondía **«Encryption token
+missing»**. No era un fallo de la app: Satisfactory exige un token que el cliente solo consigue
+cuando se añade el servidor desde su menú (**Servidores → Añadir servidor**), que es cuando habla
+con el panel del servidor. El registro del servidor lo decía en su idioma
+(`No EncryptionToken specified, disconnecting`) y la app lo soltaba tal cual. Ahora:
+
+- `GameInfo.joinSteps` / `joinWarning`: los juegos cuya forma de entrar no es «pega la dirección»
+  enseñan los pasos en la pantalla de conexión, con el aviso de que la conexión directa no vale.
+- La consola traduce ese rechazo a lenguaje humano, diciendo qué hay que hacer.
+
+**Y un fallo peor, encontrado por la misma vía.** La `e2e` se ejecutó con un servidor real del
+usuario en marcha: el servidor de la prueba no pudo coger el puerto 7777, pero su `HealthCheck`
+respondió igual —lo contestaba **el otro servidor**— y la prueba siguió adelante intentando
+reclamarlo. Falló solo porque las contraseñas no coincidían; con la misma contraseña, la app le
+habría creado una partida nueva encima al servidor que estaba jugándose. Ahora arrancar (y la
+instalación) empieza por comprobar que los dos puertos están libres, con un error que dice que solo
+puede haber un servidor de Satisfactory a la vez; el smoke lo cubre y la `e2e` se niega a correr si
+el 8888 está ocupado.
+
+**Fallo del núcleo encontrado por el camino.** El supervisor daba la parada por terminada justo al
+llamar a `kill()`, sin esperar a que el proceso muriera. En Windows los ficheros siguen bloqueados un
+instante, así que borrar el servidor o restaurar una copia inmediatamente después podía fallar con
+`EBUSY`. Ahora espera al cierre real (con un tope de 5 s) y el smoke lo cubre.
+
+**Cómo se ha comprobado:**
+
+- `smoke` (267): la API contra un servidor HTTPS de mentira con certificado autofirmado que devuelve
+  las respuestas **reales grabadas** (`fixtures/satisfactory/`), incluidos los errores con código
+  200; los argumentos de arranque —con una comprobación dedicada a que no falte
+  `-SavesUseProjectSavedDir`—; la lectura del registro con líneas reales; los diagnósticos; y los
+  puertos y capacidades.
+- `e2e:satisfactory` con el servidor real: instalar, reclamar sin abrir el juego, arrancar, detectar
+  «listo» por la API, puertos, partidas (listar, guardar, crear otra, volver), cambiar un ajuste en
+  caliente, copia con el servidor en marcha, parada limpia, restauración y borrado. Y al final, que
+  `%LOCALAPPDATA%\FactoryGame` no haya cambiado.
+- `e2e paper`, `e2e:restart` y `e2e:steam`: en verde, igual que antes. Minecraft no empeora.
+- Recorrido de Playwright por los dos modos y por el selector de juego nuevo.
+
+### 19.16 Siguiente
 
 **Ahora (uso privado):**
 

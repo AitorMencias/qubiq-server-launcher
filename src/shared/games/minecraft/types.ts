@@ -5,6 +5,7 @@
  * Lo común a cualquier juego (estado, registro, copias, conexión) vive en
  * `shared/types.ts`. No debe importar nada de Node ni de Electron.
  */
+import type { InstanceManifest, MinecraftManifest } from '../../types'
 export type Distribution = 'vanilla' | 'paper' | 'fabric' | 'forge'
 
 export const DISTRIBUTIONS: Distribution[] = ['vanilla', 'paper', 'fabric', 'forge']
@@ -253,3 +254,19 @@ export const LEVEL_TYPES: { value: string; label: string; help: string }[] = [
     help: 'Montañas enormes. Exige bastante al servidor.'
   }
 ]
+
+/**
+ * El manifiesto visto como lo que es: de Minecraft.
+ *
+ * Desde la fase 2 `InstanceManifest` es una unión de juegos, así que leer
+ * `manifest.data.minecraftVersion` sin mirar antes de qué juego es ya no
+ * compila. Las pantallas de Minecraft pasan por aquí: solo las abre el juego
+ * de Minecraft, y si alguna vez llegara otra cosa, salta con un error claro en
+ * vez de pintar campos vacíos.
+ */
+export function minecraftOf(manifest: InstanceManifest): MinecraftManifest {
+  if (manifest.game !== 'minecraft') {
+    throw new Error(`Esta pantalla es de Minecraft, y el servidor es de ${manifest.game}.`)
+  }
+  return manifest
+}

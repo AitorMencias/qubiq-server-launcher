@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Diagnosis, GameId, InstanceState, LogLine, ProgressUpdate, UiMode } from '@shared/types'
-import { GAME_IDS, appSubtitle, gameInfo, summaryLabel } from '@shared/games'
+import { GAME_IDS, appSubtitle, disclaimerLines, gameInfo, summaryLabel } from '@shared/games'
 import { GAME_UI } from './games'
 import { GameChooser } from './GameChooser'
 import { GameIcon } from './GameIcon'
@@ -21,6 +21,8 @@ export function App(): React.JSX.Element {
   const [createGame, setCreateGame] = useState<GameId>(GAME_IDS[0]!)
   const [logs, setLogs] = useState<Record<string, LogLine[]>>({})
   const [players, setPlayers] = useState<Record<string, string[]>>({})
+  /** Cuántos hay dentro en los juegos que no dan nombres (Satisfactory). */
+  const [playerCounts, setPlayerCounts] = useState<Record<string, number | null>>({})
   const [progress, setProgress] = useState<ProgressUpdate | null>(null)
   const [diagnoses, setDiagnoses] = useState<Record<string, Diagnosis>>({})
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -98,8 +100,9 @@ export function App(): React.JSX.Element {
       }
     })
 
-    const offPlayers = window.qubiq.on.players((id, list) => {
+    const offPlayers = window.qubiq.on.players((id, list, count) => {
       setPlayers((prev) => ({ ...prev, [id]: list }))
+      setPlayerCounts((prev) => ({ ...prev, [id]: count }))
     })
 
     const offProgress = window.qubiq.on.progress((update) => setProgress(update))
@@ -194,9 +197,9 @@ export function App(): React.JSX.Element {
         </div>
 
         <div className="disclaimer">
-          {GAME_IDS.map((id) => (
-            <p key={id} style={{ margin: 0 }}>
-              {gameInfo(id).disclaimer}
+          {disclaimerLines().map((line) => (
+            <p key={line} style={{ margin: 0 }}>
+              {line}
             </p>
           ))}
         </div>
@@ -283,7 +286,11 @@ export function App(): React.JSX.Element {
             // Cambiar de servidor vuelve a su pantalla principal, en vez de
             // arrastrar la pestaña o la configuración que tenía abiertas el otro.
             key={selected.manifest.id}
-            state={selected}
+            state={{
+              ...selected,
+              // El recuento llega por evento, igual que la lista de nombres.
+              playerCount: playerCounts[selected.manifest.id] ?? selected.playerCount
+            }}
             logs={logs[selected.manifest.id] ?? []}
             players={players[selected.manifest.id] ?? []}
             diagnosis={diagnoses[selected.manifest.id] ?? null}

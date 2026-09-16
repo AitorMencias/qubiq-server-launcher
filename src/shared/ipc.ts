@@ -41,7 +41,8 @@ export const IPC = {
   publicIp: 'network:publicIp',
 
   // Sistema
-  openInstanceFolder: 'system:openFolder'
+  openInstanceFolder: 'system:openFolder',
+  systemMemory: 'system:memory'
 } as const
 
 /** Canales exclusivos de Minecraft. */
@@ -76,6 +77,29 @@ export const MINECRAFT_IPC = {
   deleteWorld: 'minecraft:worlds:delete'
 } as const
 
+/** Canales exclusivos de Satisfactory. */
+export const SATISFACTORY_IPC = {
+  // Estado en vivo (jugadores, partida cargada, ritmo del servidor)
+  state: 'satisfactory:state',
+
+  // Partidas
+  listSessions: 'satisfactory:sessions:list',
+  createGame: 'satisfactory:sessions:create',
+  loadSave: 'satisfactory:sessions:load',
+  saveNow: 'satisfactory:sessions:save',
+  deleteSave: 'satisfactory:sessions:deleteSave',
+  deleteSession: 'satisfactory:sessions:deleteSession',
+
+  // Ajustes del servidor y reglas de la partida
+  getOptions: 'satisfactory:options:get',
+  setOptions: 'satisfactory:options:set',
+  getGameRules: 'satisfactory:rules:get',
+  setGameRules: 'satisfactory:rules:set',
+
+  // Contraseña de los jugadores
+  setClientPassword: 'satisfactory:password:client'
+} as const
+
 /** Eventos que el núcleo empuja hacia la interfaz. */
 export const EVENTS = {
   log: 'event:log',
@@ -89,4 +113,12 @@ export interface MemoryInfo {
   suggestedMb: number
   totalMb: number
   warningThresholdMb: number
+}
+
+/**
+ * Memoria del equipo, para poder avisar de lo que pide cada juego ANTES de
+ * descargar 15 GB. Es común: ya no es solo cosa de la memoria de la JVM.
+ */
+export interface SystemMemory {
+  totalMb: number
 }

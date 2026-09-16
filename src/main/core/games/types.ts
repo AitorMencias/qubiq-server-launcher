@@ -63,6 +63,29 @@ export interface ParsedEvent {
   playerLeft?: string
   chat?: { player: string; message: string }
   diagnosis?: Diagnosis
+  /**
+   * Línea que no sale en la consola del usuario.
+   *
+   * Hay juegos cuyo registro es casi todo ruido del motor (Satisfactory escribe
+   * cientos de avisos internos por arranque). Se sigue guardando para
+   * diagnosticar un cierre inesperado, pero enseñarla entera haría la consola
+   * inservible.
+   */
+  hidden?: boolean
+}
+
+/**
+ * Lo que se le puede preguntar a un servidor en marcha.
+ *
+ * Minecraft lo cuenta todo por el registro, pero Satisfactory no cuenta nada:
+ * si está listo y cuánta gente hay dentro solo lo dice su API. Por eso el
+ * núcleo pregunta cada pocos segundos a los juegos que lo necesitan.
+ */
+export interface LiveStatus {
+  /** Hay partida cargada y se puede entrar. */
+  ready?: boolean
+  /** Cuántos jugadores hay dentro, si el juego lo dice. */
+  playerCount?: number
 }
 
 /** Lo mínimo del supervisor que necesita un juego (p. ej. para copias en caliente). */
@@ -130,6 +153,14 @@ export interface GameAdapter<
   parseLine(raw: string): ParsedEvent
   diagnoseExit(code: number | null, recentLines: string[]): Diagnosis
 
+  /**
+   * Pregunta al servidor en marcha cómo va. Solo para juegos que no lo cuentan
+   * por el registro; sin esto, «listo» y los jugadores salen de `parseLine`.
+   */
+  poll?(manifest: M): Promise<LiveStatus>
+  /** Cada cuánto se le pregunta. Por defecto, 5 s. */
+  pollIntervalMs?: number
+
   // --- Copias de seguridad ---------------------------------------------------
 
   /**
@@ -145,18 +176,25 @@ export interface GameAdapter<
   backupMeta(manifest: M): { version: string; variant?: string }
 
   /**
-   * Deja la partida consistente en disco y suspende el guardado automático.
-   * Devuelve false si el servidor no lo confirmó a tiempo. Sin esto no se
-   * permiten copias en caliente.
+   * Deja la partida consistente en disco y, si el juego lo permite, suspende el
+   * guardado automático. Devuelve false si el servidor no lo confirmó a tiempo.
+   * Sin esto no se permiten copias en caliente.
    */
-  holdSaves?(supervisor: SupervisorHandle): Promise<boolean>
-  resumeSaves?(supervisor: SupervisorHandle): void
+  holdSaves?(manifest: M, supervisor: SupervisorHandle): Promise<boolean>
+  resumeSaves?(manifest: M, supervisor: SupervisorHandle): void
 
   // --- Red -------------------------------------------------------------------
 
   /** Consulta local del estado, con el protocolo del propio juego. */
   ping(manifest: M): Promise<PingResult>
 
-  /** Pide a un servicio externo que intente entrar desde internet. */
-  checkFromInternet(host: string, port: number): Promise<ExternalCheckResult>
+  /**
+   * Pide a un servicio externo que intente entrar desde internet.
+   *
+   * No todos pueden: para que exista una comprobación honesta hace falta que
+   * alguien de fuera sepa hablar ese protocolo. Un juego que no la tenga lo
+   * declara con la capacidad `externalCheck` y explica en su lugar cómo
+   * comprobarlo de verdad.
+   */
+  checkFromInternet?(host: string, port: number): Promise<ExternalCheckResult>
 }

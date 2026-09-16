@@ -16,7 +16,7 @@ import type {
   ProgressUpdate,
   ServerStatus
 } from '@shared/types'
-import { requiredAgreements, type UpdateCheck } from '@shared/games'
+import { gameInfo, requiredAgreements, type PortProtocol, type UpdateCheck } from '@shared/games'
 import { ServerSupervisor } from './runtime/supervisor'
 import * as instances from './instances/manager'
 import * as backups from './backup/manager'
@@ -26,6 +26,7 @@ import { serverDir, launcherLogPath, ensureBaseDirs } from './paths'
 import { evaluateRestart } from './runtime/restartPolicy'
 import { gameFor, gameOf, isKnownGame } from './games/registry'
 import { createMinecraftService, type GameHost } from './games/minecraft/service'
+import { createSatisfactoryService } from './games/satisfactory/service'
 
 /**
  * Orquestador del núcleo (§5).
@@ -38,7 +39,7 @@ import { createMinecraftService, type GameHost } from './games/minecraft/service
 export interface ServiceEvents {
   log: (instanceId: string, line: LogLine) => void
   status: (instanceId: string, status: ServerStatus) => void
-  players: (instanceId: string, players: string[]) => void
+  players: (instanceId: string, players: string[], playerCount: number | null) => void
   progress: (update: ProgressUpdate) => void
   diagnosis: (instanceId: string, diagnosis: Diagnosis) => void
 }
@@ -66,6 +67,9 @@ class LauncherService extends EventEmitter implements GameHost {
 
   /** Operaciones exclusivas de Minecraft (propiedades, plugins, mundos). */
   readonly minecraft = createMinecraftService(this)
+
+  /** Operaciones exclusivas de Satisfactory (partidas y ajustes por su API). */
+  readonly satisfactory = createSatisfactoryService(this)
 
   async initialize(): Promise<void> {
     await ensureBaseDirs()
@@ -117,6 +121,7 @@ class LauncherService extends EventEmitter implements GameHost {
       manifest,
       status,
       players: supervisor?.players ?? [],
+      playerCount: supervisor?.playerCount ?? null,
       uptimeSeconds: supervisor?.uptimeSeconds ?? null,
       lastError: null
     }
@@ -233,7 +238,12 @@ class LauncherService extends EventEmitter implements GameHost {
       ...spec,
       stop: game.stop(manifest),
       parseLine: (raw) => game.parseLine(raw),
-      diagnoseExit: (code, recent) => game.diagnoseExit(code, recent)
+      diagnoseExit: (code, recent) => game.diagnoseExit(code, recent),
+      // Los juegos que no cuentan nada por el registro (Satisfactory) dicen por
+      // aquí si ya se puede entrar y cuánta gente hay dentro.
+      ...(game.poll
+        ? { poll: () => game.poll!(manifest), pollIntervalMs: game.pollIntervalMs }
+        : {})
     })
   }
 
@@ -384,7 +394,9 @@ class LauncherService extends EventEmitter implements GameHost {
       if (status === 'running') void this.startBackupSchedule(id)
       else this.stopBackupSchedule(id)
     })
-    supervisor.on('players', (players: string[]) => this.emit('players', id, players))
+    supervisor.on('players', (players: string[], playerCount: number | null) =>
+      this.emit('players', id, players, playerCount)
+    )
     supervisor.on('diagnosis', (diagnosis: Diagnosis) => this.emit('diagnosis', id, diagnosis))
     supervisor.on('exit', (code: number | null, requested: boolean) => {
       void this.handleExit(id, code, requested)
@@ -435,11 +447,11 @@ class LauncherService extends EventEmitter implements GameHost {
         throw new Error('Este juego no permite copias con el servidor en marcha. Páralo primero.')
       }
       progress('Pidiendo al servidor que guarde la partida')
-      const flushed = await game.holdSaves(supervisor)
+      const flushed = await game.holdSaves(manifest, supervisor)
       if (!flushed) {
         // Se reanuda el guardado automático antes de rendirse: dejarlo apagado
         // sería mucho peor que no tener la copia.
-        game.resumeSaves?.(supervisor)
+        game.resumeSaves?.(manifest, supervisor)
         throw new Error(
           'El servidor no confirmó que había guardado la partida. ' +
             'No se hace la copia para no guardar datos a medias.'
@@ -457,7 +469,7 @@ class LauncherService extends EventEmitter implements GameHost {
         onProgress: progress
       })
     } finally {
-      if (running && supervisor) game.resumeSaves?.(supervisor)
+      if (running && supervisor) game.resumeSaves?.(manifest, supervisor)
     }
   }
 
@@ -575,9 +587,14 @@ class LauncherService extends EventEmitter implements GameHost {
     return network.publicIp()
   }
 
-  /** Sugiere un puerto libre cuando el elegido está ocupado (§7). */
-  async suggestFreePort(from: number): Promise<number> {
-    return network.findFreePort(from)
+  /**
+   * Sugiere un puerto libre cuando el elegido está ocupado (§7).
+   *
+   * El protocolo importa: un puerto UDP «reservable» no está libre, y los
+   * juegos de Steam usan casi siempre UDP (ver README).
+   */
+  async suggestFreePort(from: number, protocol: PortProtocol = 'tcp'): Promise<number> {
+    return network.findFreePortBlock(from, protocol)
   }
 
   /**
@@ -596,6 +613,21 @@ class LauncherService extends EventEmitter implements GameHost {
 
     const exposure = manifest.exposure ?? { mode: 'local' as const }
     const checkedAt = new Date().toISOString()
+
+    // Hay juegos a los que nadie de fuera sabe preguntar (Satisfactory no sale
+    // en ninguna lista pública). Decirlo es más honesto que un botón que
+    // siempre respondería que no se llega.
+    if (!game.checkFromInternet) {
+      return {
+        reachable: false,
+        address: '',
+        checkedAt,
+        error:
+          `${gameInfo(manifest.game).name} no aparece en ninguna lista pública, así que no hay ` +
+          'ningún servicio al que preguntar si se llega desde fuera. La única prueba de verdad es ' +
+          'que alguien de otra red añada tu dirección en su juego.'
+      }
+    }
 
     const supervisor = this.supervisors.get(id)
     if (supervisor?.status !== 'running') {

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState, UiMode } from '@shared/types'
 import type { ContentInfo, ContentItem } from '@shared/games/minecraft/types'
-import { CONTENT_SOURCES, DISTRIBUTION_LABELS, contentKindFor } from '@shared/games/minecraft/types'
+import {
+  CONTENT_SOURCES,
+  DISTRIBUTION_LABELS,
+  contentKindFor,
+  minecraftOf
+} from '@shared/games/minecraft/types'
 import { OfficialPlugins } from './OfficialPlugins'
 
 /**
@@ -22,7 +27,8 @@ interface Props {
 }
 
 export function ContentPanel({ state, mode }: Props): React.JSX.Element {
-  const { manifest, status } = state
+  const manifest = minecraftOf(state.manifest)
+  const { status } = state
   const running = status !== 'stopped' && status !== 'crashed'
   const basic = mode === 'basic'
 

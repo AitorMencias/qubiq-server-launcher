@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ConnectionInfo, ExposureMode, InstanceState } from '@shared/types'
 import { gameInfo, versionLabel } from '@shared/games'
 import { ExposureHelp } from './ExposureHelp'
+import { JoinSteps } from './JoinSteps'
 
 /**
  * Tarjeta de conexión en modo básico (§10).
@@ -164,6 +165,8 @@ export function BasicConnection({ state, onManifestChanged }: Props): React.JSX.
           </div>
         )}
       </div>
+
+      <JoinSteps manifest={manifest} />
 
       <div className="card">
         <div className="row between" style={{ marginBottom: 4 }}>

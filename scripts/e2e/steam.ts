@@ -8,8 +8,8 @@
  * 4. Comprobación de actualizaciones contra Steam.
  * 5. Arranque y parada con Ctrl+Break: el mundo se guarda y el proceso sale solo.
  *
- * Lo descargado se guarda entre ejecuciones en %TEMP%\qubiq-e2e-steam para no
- * bajar gigas cada vez. `--limpio` lo borra antes y lo prueba todo desde cero.
+ * Lo descargado se guarda entre ejecuciones en %LOCALAPPDATA%\qubiq-dev\e2e-steam
+ * (no en %TEMP%, que Windows puede vaciar) para no bajar gigas cada vez. `--limpio` lo borra antes y lo prueba todo desde cero.
  *
  * Ejecutar con:  npm run e2e:steam  [-- --limpio]
  */
@@ -53,7 +53,7 @@ async function exists(path: string): Promise<boolean> {
 }
 
 async function main(): Promise<void> {
-  const root = join(tmpdir(), 'qubiq-e2e-steam')
+  const root = join(process.env['LOCALAPPDATA'] ?? tmpdir(), 'qubiq-dev', 'e2e-steam')
   if (process.argv.includes('--limpio')) await rm(root, { recursive: true, force: true })
   await mkdir(root, { recursive: true })
   setDataRoot(root)

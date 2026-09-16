@@ -4,6 +4,7 @@
  */
 
 import type { MinecraftCreateOptions, MinecraftData } from './games/minecraft/types'
+import type { SatisfactoryCreateOptions, SatisfactoryData } from './games/satisfactory/types'
 
 /**
  * Nivel de detalle de la interfaz.
@@ -27,13 +28,13 @@ export interface BackupSettings {
 // --- Juegos -------------------------------------------------------------------
 
 /** Juegos que sabe gestionar la app. Cada uno vive en `games/<id>/`. */
-export type GameId = 'minecraft'
+export type GameId = 'minecraft' | 'satisfactory'
 
 /**
  * Condiciones que el usuario acepta de forma explícita al crear un servidor.
  * Nunca se marcan por él (§6): cada juego declara cuáles exige.
  */
-export type AgreementId = 'minecraft-eula'
+export type AgreementId = 'minecraft-eula' | 'steam-subscriber'
 
 /**
  * Lo que tiene cualquier servidor, sea del juego que sea.
@@ -66,7 +67,16 @@ export interface MinecraftManifest extends ManifestBase {
   data: MinecraftData
 }
 
-export type InstanceManifest = MinecraftManifest
+export interface SatisfactoryManifest extends ManifestBase {
+  game: 'satisfactory'
+  data: SatisfactoryData
+}
+
+/**
+ * Unión discriminada por `game`: quien lea `data` tiene que mirar antes de qué
+ * juego es el servidor, y así no puede colarse un campo de un juego en otro.
+ */
+export type InstanceManifest = MinecraftManifest | SatisfactoryManifest
 
 /**
  * Cambios que se pueden pedir sobre un manifiesto. `data` se fusiona con lo que
@@ -74,7 +84,7 @@ export type InstanceManifest = MinecraftManifest
  */
 export type ManifestChanges = Partial<
   Pick<ManifestBase, 'name' | 'expectedPlayers' | 'port' | 'autoRestart' | 'exposure' | 'backup'>
-> & { data?: Partial<MinecraftData> }
+> & { data?: Partial<MinecraftData> | Partial<SatisfactoryData> }
 
 export type ServerStatus =
   | 'stopped'
@@ -87,7 +97,14 @@ export type ServerStatus =
 export interface InstanceState {
   manifest: InstanceManifest
   status: ServerStatus
+  /**
+   * Quién está conectado. Vacío no significa «no hay nadie» en los juegos que
+   * no dan nombres (Satisfactory solo da cuántos son): para eso está
+   * `playerCount`, y la capacidad `playerNames` dice a cuál hay que hacer caso.
+   */
   players: string[]
+  /** Cuántos hay conectados, cuando el juego lo dice y no da los nombres. */
+  playerCount: number | null
   /** Segundos desde el arranque, o null si no está corriendo. */
   uptimeSeconds: number | null
   lastError: string | null
@@ -137,7 +154,12 @@ export interface MinecraftCreateRequest extends CreateRequestBase {
   options: MinecraftCreateOptions
 }
 
-export type CreateInstanceRequest = MinecraftCreateRequest
+export interface SatisfactoryCreateRequest extends CreateRequestBase {
+  game: 'satisfactory'
+  options: SatisfactoryCreateOptions
+}
+
+export type CreateInstanceRequest = MinecraftCreateRequest | SatisfactoryCreateRequest
 
 // --- Copias de seguridad (§12) ----------------------------------------------
 
