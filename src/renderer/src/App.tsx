@@ -23,6 +23,8 @@ export function App(): React.JSX.Element {
   const [players, setPlayers] = useState<Record<string, string[]>>({})
   /** Cuántos hay dentro en los juegos que no dan nombres (Satisfactory). */
   const [playerCounts, setPlayerCounts] = useState<Record<string, number | null>>({})
+  /** Código para entrar en los juegos que van por relé (Valheim con crossplay). */
+  const [joinCodes, setJoinCodes] = useState<Record<string, string | null>>({})
   const [progress, setProgress] = useState<ProgressUpdate | null>(null)
   const [diagnoses, setDiagnoses] = useState<Record<string, Diagnosis>>({})
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -105,6 +107,10 @@ export function App(): React.JSX.Element {
       setPlayerCounts((prev) => ({ ...prev, [id]: count }))
     })
 
+    const offJoinCode = window.qubiq.on.joinCode((id, code) => {
+      setJoinCodes((prev) => ({ ...prev, [id]: code }))
+    })
+
     const offProgress = window.qubiq.on.progress((update) => setProgress(update))
 
     const offDiagnosis = window.qubiq.on.diagnosis((id, diagnosis) => {
@@ -115,6 +121,7 @@ export function App(): React.JSX.Element {
       offLog()
       offStatus()
       offPlayers()
+      offJoinCode()
       offProgress()
       offDiagnosis()
     }
@@ -289,7 +296,9 @@ export function App(): React.JSX.Element {
             state={{
               ...selected,
               // El recuento llega por evento, igual que la lista de nombres.
-              playerCount: playerCounts[selected.manifest.id] ?? selected.playerCount
+              playerCount: playerCounts[selected.manifest.id] ?? selected.playerCount,
+              // Y el código para entrar, que el juego genera en cada arranque.
+              joinCode: joinCodes[selected.manifest.id] ?? selected.joinCode
             }}
             logs={logs[selected.manifest.id] ?? []}
             players={players[selected.manifest.id] ?? []}

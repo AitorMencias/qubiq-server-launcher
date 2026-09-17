@@ -21,7 +21,8 @@ Enshrouded, Rust y Factorio. Los juegos propuestos sin investigar quedan para m�
 a más riesgo, y cada juego nuevo aprovechando lo que dejó el anterior.
 - **Satisfactory va primero:** no depende del Ctrl+C y su API oficial pone a prueba la capa de
   Steam de principio a fin sin trucos.
-- **Valheim:** estrena la parada por señal de consola (Ctrl+Break: Ctrl+C no llega, ver fase 1).
+- **Valheim:** estrena la parada por señal de consola (Ctrl+Break: Ctrl+C no llega, ver fase 1) y
+  el crossplay como modo de exposición.
 - **Enshrouded:** reutiliza esa misma parada (Ctrl+Break).
 - **Project Zomboid:** se parece mucho a Minecraft y aprovecha casi toda la gestión existente.
 - **Rust y Factorio, al final:** cada uno trae un problema propio (el borrado mensual obligatorio y
@@ -274,14 +275,44 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
 
 ### Fase 3 — Valheim (0.6.0)
 
-- **Asistente:** nombre, contraseña (mínimo 5 caracteres, **a confirmar**), nombre del mundo,
-  *preset* de dificultad, modificadores y conexión.
+> **Estado: hecha** (pendiente de publicar como 0.6.0). Detalle, hallazgos del servidor real,
+> decisiones y verificación en [ANALISIS.md §19.16](ANALISIS.md). Cambios respecto a este plan:
+> - **Las reglas de sí/no no van por `-modifier`, sino por `-setkey`** (`nomap`, `nobuildcost`,
+>   `passivemobs`, `playerevents`, `noportals`). El servidor rechaza la otra forma con una línea de
+>   registro y arranca igual, así que el ajuste no se aplicaría y nadie se enteraría.
+> - **La contraseña mínima de 5 caracteres la comprueba la app, no el servidor:** el servidor 1.0.12
+>   arranca con cuatro (probado). Lo mismo con la contraseña metida en el nombre del servidor.
+> - **El crossplay se ha modelado como un modo de exposición** (`ExposureMode` gana `crossplay`), no
+>   como un ajuste del juego: es la forma de jugar desde fuera sin tocar el router, igual que
+>   playit.gg, y así la pantalla de conexión y su ayuda salen por el sitio de siempre.
+> - **Se añade la pestaña Mundos** (crear, cambiar y borrar), que no estaba en este plan: el modelo
+>   de Valheim es el mismo que el de Minecraft y `-savedir` ya lo dejaba servido.
+> - **Con `-public 0` el servidor no contesta al A2S**, ni desde el propio equipo: sin publicarlo no
+>   hay forma de preguntarle el estado ni los jugadores, y la app lo dice en vez de fingir que sí.
+> - El contrato gana `ParsedEvent.joinCode` (el código de crossplay solo se sabe por el registro) y
+>   `StopStrategy.retryEveryMs` (Ctrl+Break se ignora mientras se genera el mundo, así que se repite).
+> - **El A2S está grabado** con el servidor publicado medio minuto y parado justo después: solo
+>   contesta en el puerto de consulta, el mundo no viaja en la respuesta y la versión buena está en
+>   las palabras clave, no en `version`.
+> - **Vetar echa al jugador que está dentro** (comprobado por el usuario jugando), así que la
+>   moderación es una capacidad de verdad y sus botones están en la pantalla principal, junto a
+>   quién está conectado. Las capacidades se parten en `playerIds` y `playerNames`.
+> - **El crossplay está probado** de punta a punta. Y de ahí salió el fallo más gordo de la fase:
+>   con `-crossplay` **no aparece «Opened Steam server»**, que era la señal de «listo», sino
+>   «Opened PlayFab server». Sin eso, un servidor con crossplay se quedaba «Arrancando» para
+>   siempre. Además el servidor escribe la IP pública del equipo, que la app esconde.
+> - **Sin grabar** quedan solo las dos líneas de conexión de jugadores, cuyo comportamiento sí
+>   está comprobado (`scripts/smoke/fixtures/valheim/sinteticas.txt`).
+
+- **Asistente:** nombre, contraseña (mínimo 5 caracteres, **confirmado: lo exige la app**), nombre
+  del mundo, *preset* de dificultad, modificadores y conexión.
 - **Crossplay como opción recomendada para quien no puede abrir puertos:** sin router y con código
   de 6 dígitos. La pantalla principal enseña ese **código** en lugar de la IP.
 - **Parada:** Ctrl+Break (`ctrl-break`, fase 1; esperar a «Opened Steam server»). **Copias:** carpeta de mundos fijada con `-savedir` dentro de la
   instancia, para que la copia de seguridad sepa dónde está.
-- **Moderación:** edición de `adminlist.txt`, `bannedlist.txt` y `permittedlist.txt`, explicando que
-  hay que reiniciar para aplicar los cambios **(a confirmar)**.
+- **Moderación:** edición de `adminlist.txt`, `bannedlist.txt` y `permittedlist.txt`. El servidor
+  las relee al vuelo, así que **vetar echa al jugador al momento**; los botones están en la
+  pantalla principal, junto a quién está conectado.
 
 ### Fase 4 — Project Zomboid (0.7.0)
 

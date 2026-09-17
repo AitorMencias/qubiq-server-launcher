@@ -16,6 +16,7 @@ import { finish } from './harness'
 import { commonSmoke } from './common'
 import { minecraftSmoke } from './minecraft'
 import { satisfactorySmoke } from './satisfactory'
+import { valheimSmoke } from './valheim'
 import { steamSmoke } from './steam'
 import { setDataRoot, setResourcesRoot, ensureBaseDirs } from '../../src/main/core/paths'
 
@@ -29,6 +30,7 @@ async function main(): Promise<void> {
   await commonSmoke()
   await steamSmoke()
   await satisfactorySmoke()
+  await valheimSmoke()
   await minecraftSmoke()
 
   await rm(root, { recursive: true, force: true })

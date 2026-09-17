@@ -44,7 +44,17 @@ export interface LaunchSpec {
  */
 export type StopStrategy = (
   | { kind: 'stdin'; command: string }
-  | { kind: 'ctrl-break' }
+  | {
+      kind: 'ctrl-break'
+      /**
+       * Cada cuánto se repite la señal mientras el proceso siga vivo.
+       *
+       * Hay juegos que la ignoran mientras arrancan: Valheim no la atiende
+       * hasta que termina de generar el mundo. Sin repetirla, pulsar Parar en
+       * ese momento acabaría matando el proceso al agotarse el plazo.
+       */
+      retryEveryMs?: number
+    }
   | { kind: 'rcon'; host?: string; port: number; password: string; command: string }
   | { kind: 'webrcon'; host?: string; port: number; password: string; command: string }
   | { kind: 'api'; request: () => Promise<void> }
@@ -62,6 +72,11 @@ export interface ParsedEvent {
   playerJoined?: string
   playerLeft?: string
   chat?: { player: string; message: string }
+  /**
+   * Código con el que se entra en los juegos que se conectan por relé (Valheim
+   * con crossplay). Se genera en cada arranque y solo se sabe por el registro.
+   */
+  joinCode?: string
   diagnosis?: Diagnosis
   /**
    * Línea que no sale en la consola del usuario.

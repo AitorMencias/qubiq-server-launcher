@@ -25,6 +25,7 @@ interface Props {
 
 const MODE_LABELS: Record<ExposureMode, string> = {
   local: 'Solo en mi casa (misma red)',
+  crossplay: 'Por internet, con el crossplay del juego (sin tocar el router)',
   router: 'Por internet, abriendo un puerto en el router',
   tunnel: 'Por internet, con playit.gg (sin tocar el router)'
 }
@@ -115,6 +116,18 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
             : 'Arranca el servidor para poder conectarte.'}
         </p>
 
+        {/* Con crossplay la dirección no sirve para quien está fuera: lo que
+            hay que repartir es el código, y va primero por eso. */}
+        {exposure.mode === 'crossplay' && (
+          <AddressRow
+            label="Código para entrar desde fuera"
+            help="El que tienen que escribir tus amigos en «Unirse con código». Cambia en cada arranque."
+            value={state.joinCode ?? (running ? 'esperando al servidor…' : 'arranca el servidor')}
+            copied={copied}
+            onCopy={copy}
+          />
+        )}
+
         <AddressRow
           label="Desde este mismo equipo"
           help="Para jugar en el PC donde corre el servidor."
@@ -183,7 +196,7 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
           </button>
         </div>
         <p className="hint">
-          Para que entre gente que no está en tu wifi hay que elegir una de estas dos vías.
+          Para que entre gente que no está en tu wifi hay que elegir una de estas vías.
         </p>
 
         <div className="field">
@@ -192,11 +205,14 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
             value={exposure.mode}
             onChange={(e) => void changeMode(e.target.value as ExposureMode)}
           >
-            {(Object.keys(MODE_LABELS) as ExposureMode[]).map((mode) => (
-              <option key={mode} value={mode}>
-                {MODE_LABELS[mode]}
-              </option>
-            ))}
+            {(Object.keys(MODE_LABELS) as ExposureMode[])
+              // El crossplay solo existe en los juegos que lo traen de serie.
+              .filter((mode) => mode !== 'crossplay' || capabilities.crossplay)
+              .map((mode) => (
+                <option key={mode} value={mode}>
+                  {MODE_LABELS[mode]}
+                </option>
+              ))}
           </select>
           <div className="help">{MODE_HINTS[exposure.mode]}</div>
         </div>
@@ -277,6 +293,8 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
 
 const MODE_HINTS: Record<ExposureMode, string> = {
   local: 'Nadie de fuera podrá entrar. Es lo más seguro y no hay nada que configurar.',
+  crossplay:
+    'Lo trae el propio juego: no hay que tocar el router y funciona con CGNAT. Se entra con un código de 6 dígitos que cambia en cada arranque, no con una dirección.',
   router:
     'Hay que crear una regla en el router. Da el mejor ping, pero no funciona si tu operador usa CGNAT.',
   tunnel:

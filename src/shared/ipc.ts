@@ -100,11 +100,28 @@ export const SATISFACTORY_IPC = {
   setClientPassword: 'satisfactory:password:client'
 } as const
 
+/** Canales exclusivos de Valheim. */
+export const VALHEIM_IPC = {
+  // Mundos: todo con el servidor parado, porque el mundo activo va en la línea
+  // de órdenes del arranque.
+  listWorlds: 'valheim:worlds:list',
+  createWorld: 'valheim:worlds:create',
+  activateWorld: 'valheim:worlds:activate',
+  renameWorld: 'valheim:worlds:rename',
+  deleteWorld: 'valheim:worlds:delete',
+
+  // Moderación: las tres listas de texto (administradores, vetados, invitados)
+  getList: 'valheim:moderation:get',
+  addToList: 'valheim:moderation:add',
+  removeFromList: 'valheim:moderation:remove'
+} as const
+
 /** Eventos que el núcleo empuja hacia la interfaz. */
 export const EVENTS = {
   log: 'event:log',
   status: 'event:status',
   players: 'event:players',
+  joinCode: 'event:joinCode',
   progress: 'event:progress',
   diagnosis: 'event:diagnosis'
 } as const

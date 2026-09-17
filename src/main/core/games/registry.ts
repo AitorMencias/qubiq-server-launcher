@@ -2,6 +2,7 @@ import type { GameId, InstanceManifest } from '@shared/types'
 import type { GameAdapter } from './types'
 import { minecraftAdapter } from './minecraft/adapter'
 import { satisfactoryAdapter } from './satisfactory/adapter'
+import { valheimAdapter } from './valheim/adapter'
 
 /**
  * Registro de juegos del núcleo.
@@ -19,6 +20,7 @@ export function registerGame(adapter: GameAdapter): void {
 
 registerGame(minecraftAdapter as unknown as GameAdapter)
 registerGame(satisfactoryAdapter as unknown as GameAdapter)
+registerGame(valheimAdapter as unknown as GameAdapter)
 
 export function isKnownGame(id: string): boolean {
   return games.has(id)

@@ -5,6 +5,7 @@
 
 import type { MinecraftCreateOptions, MinecraftData } from './games/minecraft/types'
 import type { SatisfactoryCreateOptions, SatisfactoryData } from './games/satisfactory/types'
+import type { ValheimCreateOptions, ValheimData } from './games/valheim/types'
 
 /**
  * Nivel de detalle de la interfaz.
@@ -28,7 +29,7 @@ export interface BackupSettings {
 // --- Juegos -------------------------------------------------------------------
 
 /** Juegos que sabe gestionar la app. Cada uno vive en `games/<id>/`. */
-export type GameId = 'minecraft' | 'satisfactory'
+export type GameId = 'minecraft' | 'satisfactory' | 'valheim'
 
 /**
  * Condiciones que el usuario acepta de forma explícita al crear un servidor.
@@ -72,11 +73,16 @@ export interface SatisfactoryManifest extends ManifestBase {
   data: SatisfactoryData
 }
 
+export interface ValheimManifest extends ManifestBase {
+  game: 'valheim'
+  data: ValheimData
+}
+
 /**
  * Unión discriminada por `game`: quien lea `data` tiene que mirar antes de qué
  * juego es el servidor, y así no puede colarse un campo de un juego en otro.
  */
-export type InstanceManifest = MinecraftManifest | SatisfactoryManifest
+export type InstanceManifest = MinecraftManifest | SatisfactoryManifest | ValheimManifest
 
 /**
  * Cambios que se pueden pedir sobre un manifiesto. `data` se fusiona con lo que
@@ -84,7 +90,7 @@ export type InstanceManifest = MinecraftManifest | SatisfactoryManifest
  */
 export type ManifestChanges = Partial<
   Pick<ManifestBase, 'name' | 'expectedPlayers' | 'port' | 'autoRestart' | 'exposure' | 'backup'>
-> & { data?: Partial<MinecraftData> | Partial<SatisfactoryData> }
+> & { data?: Partial<MinecraftData> | Partial<SatisfactoryData> | Partial<ValheimData> }
 
 export type ServerStatus =
   | 'stopped'
@@ -105,6 +111,12 @@ export interface InstanceState {
   players: string[]
   /** Cuántos hay conectados, cuando el juego lo dice y no da los nombres. */
   playerCount: number | null
+  /**
+   * Código con el que se entra, en los juegos que se conectan por relé en vez
+   * de por dirección (Valheim con crossplay). Solo existe con el servidor
+   * arrancado: el juego lo genera en cada arranque y lo dice por el registro.
+   */
+  joinCode: string | null
   /** Segundos desde el arranque, o null si no está corriendo. */
   uptimeSeconds: number | null
   lastError: string | null
@@ -159,7 +171,15 @@ export interface SatisfactoryCreateRequest extends CreateRequestBase {
   options: SatisfactoryCreateOptions
 }
 
-export type CreateInstanceRequest = MinecraftCreateRequest | SatisfactoryCreateRequest
+export interface ValheimCreateRequest extends CreateRequestBase {
+  game: 'valheim'
+  options: ValheimCreateOptions
+}
+
+export type CreateInstanceRequest =
+  | MinecraftCreateRequest
+  | SatisfactoryCreateRequest
+  | ValheimCreateRequest
 
 // --- Copias de seguridad (§12) ----------------------------------------------
 
@@ -212,8 +232,11 @@ export type ConnectivityState = 'ok' | 'no-responde' | 'parado' | 'comprobando'
  * `router` exige abrir un puerto y falla de raíz bajo CGNAT.
  * `tunnel` no toca el router y funciona incluso con CGNAT, a cambio de latencia
  * y de depender de un tercero.
+ * `crossplay` es lo mismo pero de serie en el propio juego (Valheim lo hace con
+ * los relés de PlayFab): no hay dirección que dar, sino un código de 6 dígitos.
+ * Solo lo ofrecen los juegos que declaran la capacidad `crossplay`.
  */
-export type ExposureMode = 'local' | 'router' | 'tunnel'
+export type ExposureMode = 'local' | 'router' | 'tunnel' | 'crossplay'
 
 export interface ExposureSettings {
   mode: ExposureMode

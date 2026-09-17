@@ -3,6 +3,7 @@ import {
   IPC,
   MINECRAFT_IPC,
   SATISFACTORY_IPC,
+  VALHEIM_IPC,
   EVENTS,
   type MemoryInfo,
   type SystemMemory
@@ -36,6 +37,11 @@ import type {
   SatisfactorySessions,
   SatisfactoryState
 } from '../shared/games/satisfactory/types'
+import type {
+  ValheimListEntry,
+  ValheimListKind,
+  ValheimWorld
+} from '../shared/games/valheim/types'
 
 /** Ajustes del servidor de Satisfactory, con lo pendiente de un reinicio. */
 interface SatisfactoryOptions {
@@ -163,6 +169,39 @@ const satisfactory = {
     ipcRenderer.invoke(SATISFACTORY_IPC.setClientPassword, id, password)
 }
 
+const valheim = {
+  /**
+   * Mundos del servidor. Crear, cambiar y borrar exigen el servidor parado: el
+   * mundo activo va en la línea de órdenes del arranque.
+   */
+  worlds: {
+    list: (id: string): Promise<ValheimWorld[]> => ipcRenderer.invoke(VALHEIM_IPC.listWorlds, id),
+    create: (id: string, name: string): Promise<ValheimWorld[]> =>
+      ipcRenderer.invoke(VALHEIM_IPC.createWorld, id, name),
+    activate: (id: string, name: string): Promise<ValheimWorld[]> =>
+      ipcRenderer.invoke(VALHEIM_IPC.activateWorld, id, name),
+    rename: (id: string, name: string, newName: string): Promise<ValheimWorld[]> =>
+      ipcRenderer.invoke(VALHEIM_IPC.renameWorld, id, name, newName),
+    remove: (id: string, name: string): Promise<ValheimWorld[]> =>
+      ipcRenderer.invoke(VALHEIM_IPC.deleteWorld, id, name)
+  },
+
+  /** Las tres listas de texto con las que se modera en Valheim. */
+  moderation: {
+    get: (id: string, kind: ValheimListKind): Promise<ValheimListEntry[]> =>
+      ipcRenderer.invoke(VALHEIM_IPC.getList, id, kind),
+    add: (
+      id: string,
+      kind: ValheimListKind,
+      playerId: string,
+      note?: string
+    ): Promise<ValheimListEntry[]> =>
+      ipcRenderer.invoke(VALHEIM_IPC.addToList, id, kind, playerId, note),
+    remove: (id: string, kind: ValheimListKind, playerId: string): Promise<ValheimListEntry[]> =>
+      ipcRenderer.invoke(VALHEIM_IPC.removeFromList, id, kind, playerId)
+  }
+}
+
 const api = {
   settings: {
     get: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.getSettings),
@@ -219,6 +258,7 @@ const api = {
 
   minecraft,
   satisfactory,
+  valheim,
 
   on: {
     log: (handler: (id: string, line: LogLine) => void) =>
@@ -227,6 +267,8 @@ const api = {
       subscribe<[string, ServerStatus]>(EVENTS.status, handler),
     players: (handler: (id: string, players: string[], playerCount: number | null) => void) =>
       subscribe<[string, string[], number | null]>(EVENTS.players, handler),
+    joinCode: (handler: (id: string, code: string | null) => void) =>
+      subscribe<[string, string | null]>(EVENTS.joinCode, handler),
     progress: (handler: (update: ProgressUpdate) => void) =>
       subscribe<[ProgressUpdate]>(EVENTS.progress, handler),
     diagnosis: (handler: (id: string, diagnosis: Diagnosis) => void) =>

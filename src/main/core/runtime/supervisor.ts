@@ -34,6 +34,8 @@ export interface SupervisorEvents {
   /** Quién está dentro y, si el juego solo da el número, cuántos son. */
   players: (players: string[], playerCount: number | null) => void
   ready: () => void
+  /** Código para entrar, en los juegos que se conectan por relé (Valheim). */
+  joinCode: (code: string | null) => void
   diagnosis: (diagnosis: Diagnosis) => void
   /**
    * `requested` distingue quién decidió el cierre: true si lo pidió el usuario
@@ -69,10 +71,14 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
   private readonly recent: string[] = []
   private crashTimestamps: number[] = []
   private stopTimer: NodeJS.Timeout | null = null
+  /** Reenvío de la señal de cierre a los juegos que la ignoran al arrancar. */
+  private stopRetryTimer: NodeJS.Timeout | null = null
   private pollTimer: NodeJS.Timeout | null = null
   /** Cuántos jugadores dice el juego que hay, cuando no da los nombres. */
   private currentPlayerCount: number | null = null
   private startedAt: number | null = null
+  /** Código para entrar del arranque en curso; el juego lo cambia cada vez. */
+  private currentJoinCode: string | null = null
   /** Se pone a true cuando la parada la pide el usuario, no un fallo. */
   private stopRequested = false
   private autoRestartEnabled = false
@@ -93,6 +99,10 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
 
   get playerCount(): number | null {
     return this.currentPlayerCount
+  }
+
+  get joinCode(): string | null {
+    return this.currentJoinCode
   }
 
   get uptimeSeconds(): number | null {
@@ -116,6 +126,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     this.stopRequested = false
     this.onlinePlayers.clear()
     this.currentPlayerCount = null
+    this.currentJoinCode = null
     this.recent.length = 0
     this.setStatus('starting')
 
@@ -215,6 +226,20 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
       ])
     }
 
+    // Hay juegos que ignoran la señal mientras arrancan (Valheim, durante la
+    // generación del mundo). Repetirla es lo que evita tener que matarlos.
+    if (strategy && 'retryEveryMs' in strategy && strategy.retryEveryMs) {
+      this.stopRetryTimer = setInterval(() => {
+        const alive = this.child
+        if (!alive) return
+        void requestStop(strategy, {
+          pid: alive.pid,
+          writeStdin: (text) => alive.stdin.write(text)
+        }).catch(() => undefined)
+      }, strategy.retryEveryMs)
+      this.stopRetryTimer.unref?.()
+    }
+
     await new Promise<void>((resolve) => {
       let settled = false
       const done = (): void => {
@@ -222,6 +247,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
         settled = true
         if (this.stopTimer) clearTimeout(this.stopTimer)
         this.stopTimer = null
+        this.clearStopRetry()
         resolve()
       }
 
@@ -313,9 +339,20 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
       this.emit('players', this.players, this.currentPlayerCount)
     }
 
+    if (event.joinCode && event.joinCode !== this.currentJoinCode) {
+      this.currentJoinCode = event.joinCode
+      this.emit('joinCode', event.joinCode)
+    }
+
     if (event.diagnosis) {
       this.emit('diagnosis', event.diagnosis)
     }
+  }
+
+  private clearStopRetry(): void {
+    if (!this.stopRetryTimer) return
+    clearInterval(this.stopRetryTimer)
+    this.stopRetryTimer = null
   }
 
   private finish(code: number | null): void {
@@ -323,6 +360,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
       clearTimeout(this.stopTimer)
       this.stopTimer = null
     }
+    this.clearStopRetry()
     if (this.pollTimer) {
       clearInterval(this.pollTimer)
       this.pollTimer = null
@@ -333,6 +371,10 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     this.onlinePlayers.clear()
     this.currentPlayerCount = null
     this.emit('players', [], null)
+    if (this.currentJoinCode !== null) {
+      this.currentJoinCode = null
+      this.emit('joinCode', null)
+    }
 
     const wasRequested = this.stopRequested
     this.stopRequested = false

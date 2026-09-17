@@ -392,6 +392,7 @@ export async function satisfactorySmoke(): Promise<void> {
 
     const capabilities = capabilitiesFor(manifest)
     check('no ofrece consola de órdenes', !capabilities.commands)
+    check('no dice quién está dentro, solo cuántos', !capabilities.playerIds)
     check('no promete nombres de jugadores', !capabilities.playerNames)
     check('no promete moderación', !capabilities.moderation)
     check('no promete comprobación desde internet', !capabilities.externalCheck)

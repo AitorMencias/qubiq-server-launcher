@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 
 import { check, execFileAsync, fileExists, section } from './harness'
 import { backupsDir, instanceDir, serverDir, slugify, systemTarPath } from '../../src/main/core/paths'
@@ -63,7 +63,50 @@ function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean> 
   })
 }
 
+/**
+ * Ficheros de código del proyecto, para revisarlos enteros.
+ */
+async function sourceFiles(dir: string, out: string[] = []): Promise<string[]> {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) await sourceFiles(path, out)
+    else if (/\.(ts|tsx|mjs)$/.test(entry.name)) out.push(path)
+  }
+  return out
+}
+
 export async function commonSmoke(): Promise<void> {
+  /**
+   * Caracteres de control invisibles en el código.
+   *
+   * Parece una manía, pero costó una tarde: editando desde Git Bash se coló un
+   * **retroceso de verdad** (0x08) dentro de una expresión regular, donde tenía
+   * que haber un `\b`. El fichero se veía perfecto, TypeScript compilaba y la
+   * regla no casaba nunca. Es justo la trampa que avisa el README, y esto es lo
+   * único que la caza.
+   */
+  await section('Código sin caracteres invisibles', async () => {
+    const ficheros = [
+      ...(await sourceFiles(join(process.cwd(), 'src'))),
+      ...(await sourceFiles(join(process.cwd(), 'scripts')))
+    ]
+    const sospechosos: string[] = []
+    for (const fichero of ficheros) {
+      const texto = await readFile(fichero, 'utf8')
+      // Tabulador, salto de línea y retorno de carro son los únicos legítimos.
+      const malo = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.exec(texto)
+      if (malo) {
+        const linea = texto.slice(0, malo.index).split('\n').length
+        sospechosos.push(`${fichero.replace(process.cwd(), '')}:${linea}`)
+      }
+    }
+    check(
+      `${ficheros.length} ficheros de código, ninguno con caracteres de control`,
+      sospechosos.length === 0,
+      sospechosos.join(', ')
+    )
+  })
+
   await section('Lógica común', async () => {
     check('slugify quita tildes', slugify('Añoranza Ñoña') === 'anoranza-nona', slugify('Añoranza Ñoña'))
     check('slugify evita nombres reservados de Windows', slugify('CON') === 'con-1')

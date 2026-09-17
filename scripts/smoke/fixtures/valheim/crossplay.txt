@@ -1,0 +1,35 @@
+// Lineas REALES del arranque con crossplay del servidor de Valheim 1.0.12.
+//
+// Grabadas arrancando el servidor con -crossplay y parandolo en cuanto se
+// tuvo el codigo. Lo que ensenan, y que no se sabia:
+//
+//  - Con crossplay NO aparece "Opened Steam server": la senal de listo es
+//    "Opened PlayFab server". Buscando solo la de Steam, un servidor con
+//    crossplay se queda "Arrancando" para siempre (se esperaron 3 minutos).
+//  - El codigo llega DESPUES de estar listo, en dos formatos distintos.
+//  - El servidor escribe la IP PUBLICA del equipo en varias lineas.
+//
+// Limpiado antes de traerlo al repo: la IP publica (sustituida por una de
+// documentacion), el identificador de PlayFab del equipo y los de la sesion
+// (red, lobby y cadena de conexion). El codigo de 6 digitos se conserva: esa
+// sesion murio al parar el servidor.
+
+09/17/2026 12:46:33: Sending PlayFab login request (attempt 1)
+09/17/2026 12:46:38: PlayFab custom ID set to "PlayFab_QubiQ crossplay_2456_<hash>"
+09/17/2026 12:46:38: Opened PlayFab server
+09/17/2026 12:46:39: Game server connected
+09/17/2026 12:46:39: Logged in PlayFab user via custom ID
+09/17/2026 12:46:39: PlayFab logged in as "PlayFab_QubiQ crossplay_2456_<hash>"
+09/17/2026 12:46:39: PlayFab local entity ID is <entidad>
+09/17/2026 12:46:39: New session server "QubiQ crossplay" that has join code , now 0 player(s)
+09/17/2026 12:46:39: Register PlayFab server "QubiQ crossplay" with IP 203.0.113.10:2456
+09/17/2026 12:46:39: Server 'QubiQ crossplay' begin PlayFab create and join network for server 
+09/17/2026 12:46:41: Joined PlayFab Party network with ID "<red>"
+09/17/2026 12:46:41: Created PlayFab lobby with ID "<lobby>", ConnectionString "<conexión>" and owned by "<entidad>"
+09/17/2026 12:46:41: Session "QubiQ crossplay" registered with join code 835901
+09/17/2026 12:46:43: Session "QubiQ crossplay" with join code 835901 and IP 203.0.113.10:2456 is active with 0 player(s)
+ZPlayFabMatchmaking::UnregisterServer - unregistering server now. State: Active
+09/17/2026 12:49:48: Unregister PlayFab server "QubiQ crossplay" and leaving network "<red>"
+ZPlayFabSocket::Dispose. State: LISTEN
+ZPlayFabSocket::Dispose. leave lobby. LobbyId: 
+ZPlayFabSocket::Dispose. State: CLOSED

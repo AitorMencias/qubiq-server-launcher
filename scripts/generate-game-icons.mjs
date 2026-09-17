@@ -66,8 +66,10 @@ function longship() {
     `<circle cx="32" cy="43.8" r="2.7" fill="#12304e" fill-opacity=".55"/>` +
     `<circle cx="38" cy="43.5" r="2.7" fill="#12304e" fill-opacity=".55"/>` +
     `<circle cx="44" cy="42.6" r="2.7" fill="#12304e" fill-opacity=".55"/>` +
-    // Mar.
-    stroke('M4 51 Q12 47 20 51 T36 51 T52 51 T62 51', 3, ' stroke-opacity=".7"') +
+    // Mar. Ojo con los extremos: a y=51 el azulejo ya está curvando la esquina y
+    // acaba en x=62.7, así que con grosor 3 y remate redondo no se puede pasar
+    // de x=61.2. La ola terminaba en 62 y asomaba por fuera.
+    stroke('M4 51 Q11 47 18 51 T32 51 T46 51 T60 51', 3, ' stroke-opacity=".7"') +
     stroke('M8 57 Q16 53 24 57 T40 57 T56 57', 3, ' stroke-opacity=".4"')
   )
 }
@@ -95,6 +97,27 @@ function c4Charge() {
     `<path d="M34 21 H51" fill="none" stroke="#5e120d" stroke-opacity=".3" stroke-width="1"/>` +
     // Contorno común: cierra el conjunto por arriba.
     `<path d="${SILUETA}" fill="none" stroke="#5e120d" stroke-opacity=".5" stroke-width="1.6" stroke-linejoin="round"/>`
+  )
+}
+
+// Antena parabólica sobre torre de celosía. El plato es una elipse girada −22°;
+// el brazo del alimentador sale perpendicular a su plano (es decir, a −112°) y
+// por la cara cóncava. Siguiendo el eje mayor parecía el asa de una cesta.
+function satelliteDish() {
+  return (
+    // Torre y base.
+    fill('M27 38 L23 56 H29 L31 40 Z') +
+    fill('M37 36 L45 56 H39 L33 40 Z') +
+    stroke('M25.5 47 H41 M27 42 H36', 2.2) +
+    fill('M18 56 H50 V59 H18 Z') +
+    // Plato, con el cuenco insinuado por dentro.
+    '<g transform="rotate(-22 32 25)">' +
+    `<ellipse cx="32" cy="25" rx="21" ry="13.5" fill="${W}"/>` +
+    '<ellipse cx="32" cy="25" rx="15.5" ry="9" fill="#5e120d" fill-opacity=".3"/>' +
+    '</g>' +
+    // Brazo y alimentador.
+    stroke('M32 25 L26 10.16', 2.6) +
+    `<circle cx="25.26" cy="8.3" r="3.2" fill="${W}"/>`
   )
 }
 
@@ -301,7 +324,7 @@ const GAMES = [
   { id: 'enshrouded', name: 'Enshrouded', top: '#3247a0', bottom: '#131a44', node: '#ffd27a',
     art: () => staffTip(), nodes: [[32, 23]] },
   { id: 'rust', name: 'Rust', top: '#c0392b', bottom: '#5e120d', node: '#ffd9b8',
-    art: () => c4Charge(), nodes: [] },
+    art: () => satelliteDish(), nodes: [] },
   { id: 'factorio', name: 'Factorio', top: '#8a5a30', bottom: '#3d2212', node: '#fff0c2',
     art: () => isoGear(), nodes: [] }
 ]

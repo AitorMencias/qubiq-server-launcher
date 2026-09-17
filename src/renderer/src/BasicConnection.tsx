@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ConnectionInfo, ExposureMode, InstanceState } from '@shared/types'
-import { gameInfo, versionLabel } from '@shared/games'
+import { capabilitiesFor, gameInfo, versionLabel } from '@shared/games'
 import { ExposureHelp } from './ExposureHelp'
 import { JoinSteps } from './JoinSteps'
 
@@ -22,6 +22,7 @@ interface Props {
 
 const MODE_LABELS: Record<ExposureMode, string> = {
   local: 'Solo quien esté en mi casa',
+  crossplay: 'También desde fuera, con el crossplay del juego',
   router: 'También desde fuera, abriendo el router',
   tunnel: 'También desde fuera, con playit.gg'
 }
@@ -88,6 +89,9 @@ export function useShareAddress(state: InstanceState): ShareAddress {
    * una 192.168.x hace que no puedan entrar sin entender por qué.
    */
   const address = (() => {
+    // Con crossplay no hay dirección: el juego da un código de 6 dígitos, y lo
+    // genera de nuevo en cada arranque. Con el servidor parado no existe.
+    if (exposure.mode === 'crossplay') return state.joinCode
     if (exposure.mode === 'tunnel') {
       return exposure.tunnelAddress?.trim() || null
     }
@@ -102,16 +106,26 @@ export function useShareAddress(state: InstanceState): ShareAddress {
     if (exposure.mode === 'local') {
       return 'Vale para quien esté conectado a tu mismo wifi o router.'
     }
+    if (exposure.mode === 'crossplay') {
+      return 'Es el código de tu partida: vale para tus amigos estén donde estén, sin abrir nada en el router. Cambia cada vez que arrancas el servidor.'
+    }
     if (exposure.mode === 'router') {
       return 'Es tu dirección de internet: vale para tus amigos estén donde estén, siempre que hayas abierto el puerto en el router.'
     }
     return 'Es tu dirección de playit.gg: vale para tus amigos estén donde estén.'
   })()
 
-  const missing =
-    exposure.mode === 'tunnel'
-      ? 'Falta pegar la dirección que te da playit.gg. En Configuración → Conexión, pulsa "¿Cómo se hace?" para verlo paso a paso.'
-      : 'No se ha podido averiguar tu dirección de internet. Comprueba que tienes conexión.'
+  const missing = (() => {
+    if (exposure.mode === 'crossplay') {
+      return status === 'running'
+        ? 'El servidor todavía no ha dado el código. Tarda unos segundos desde que arranca.'
+        : 'El código lo genera el juego al arrancar: arranca el servidor y aparecerá aquí.'
+    }
+    if (exposure.mode === 'tunnel') {
+      return 'Falta pegar la dirección que te da playit.gg. En Configuración → Conexión, pulsa "¿Cómo se hace?" para verlo paso a paso.'
+    }
+    return 'No se ha podido averiguar tu dirección de internet. Comprueba que tienes conexión.'
+  })()
 
   return { address, note, missing, info, refresh }
 }
@@ -192,11 +206,14 @@ export function BasicConnection({ state, onManifestChanged }: Props): React.JSX.
               })
           }}
         >
-          {(Object.keys(MODE_LABELS) as ExposureMode[]).map((mode) => (
-            <option key={mode} value={mode}>
-              {MODE_LABELS[mode]}
-            </option>
-          ))}
+          {(Object.keys(MODE_LABELS) as ExposureMode[])
+            // El crossplay solo existe en los juegos que lo traen de serie.
+            .filter((mode) => mode !== 'crossplay' || capabilitiesFor(manifest).crossplay)
+            .map((mode) => (
+              <option key={mode} value={mode}>
+                {MODE_LABELS[mode]}
+              </option>
+            ))}
         </select>
       </div>
 

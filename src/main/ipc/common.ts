@@ -97,6 +97,7 @@ export function registerCommonIpc(getWindow: () => BrowserWindow | null): void {
   service.on('players', (id: string, players: string[], playerCount: number | null) =>
     send(EVENTS.players, id, players, playerCount)
   )
+  service.on('joinCode', (id: string, code: string | null) => send(EVENTS.joinCode, id, code))
   service.on('progress', (update: ProgressUpdate) => send(EVENTS.progress, update))
   service.on('diagnosis', (id: string, diagnosis: Diagnosis) =>
     send(EVENTS.diagnosis, id, diagnosis)

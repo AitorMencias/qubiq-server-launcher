@@ -6,6 +6,13 @@ import {
   MEMORY_RECOMMENDED_GB,
   RELIABLE_PORT
 } from './satisfactory/types'
+import {
+  DEFAULT_GAME_PORT as VALHEIM_DEFAULT_PORT,
+  MAX_PLAYERS as VALHEIM_MAX_PLAYERS,
+  MEMORY_MIN_GB as VALHEIM_MEMORY_MIN_GB,
+  MEMORY_RECOMMENDED_GB as VALHEIM_MEMORY_RECOMMENDED_GB,
+  queryPortFor
+} from './valheim/types'
 
 /**
  * Catálogo de juegos visible desde los dos lados (núcleo e interfaz).
@@ -36,11 +43,22 @@ export interface GameCapabilities {
   /** Consola con entrada de comandos. */
   commands: boolean
   /**
-   * El juego dice QUIÉN está conectado, no solo cuántos. Satisfactory solo da
-   * el número, así que su pantalla de jugadores cuenta en vez de listar.
+   * El juego dice QUIÉN está conectado, aunque sea con un identificador en vez
+   * de un nombre. Satisfactory solo da el número, así que su pantalla de
+   * jugadores cuenta en vez de listar.
+   */
+  playerIds: boolean
+  /**
+   * Y además ese «quién» es un nombre que el usuario reconoce. Valheim solo da
+   * el identificador de Steam: se puede listar y moderar, pero la pantalla
+   * tiene que explicar qué es ese número en vez de hacerlo pasar por un nombre.
    */
   playerNames: boolean
-  /** Expulsar, banear o dar permisos desde la app. */
+  /**
+   * Expulsar, banear o dar permisos desde la app. Cómo se hace es cosa de cada
+   * juego (Minecraft por la consola, Valheim escribiendo en sus listas): lo
+   * declara aquí y aporta los botones en `GameUi.playerActions`.
+   */
   moderation: boolean
   /**
    * Se puede comprobar desde internet si se llega al servidor. Hace falta un
@@ -48,6 +66,12 @@ export interface GameCapabilities {
    * Satisfactory no, y decirlo vale más que un botón que no prueba nada.
    */
   externalCheck: boolean
+  /**
+   * El juego trae su propia forma de jugar desde fuera sin abrir puertos
+   * (Valheim: crossplay con código de 6 dígitos). Solo entonces se ofrece ese
+   * modo de exposición, porque en los demás juegos no existe.
+   */
+  crossplay: boolean
 }
 
 export interface AgreementInfo {
@@ -95,6 +119,12 @@ export interface GameInfo {
    * no, el error que da (**Encryption token missing**) no dice qué hacer.
    */
   joinSteps?: string[]
+  /**
+   * Los pasos cuando se entra por el crossplay del juego, que no son los
+   * mismos: no hay dirección que pegar, sino un código que escribir. Solo
+   * tienen sentido en los juegos con la capacidad `crossplay`.
+   */
+  joinStepsCrossplay?: string[]
   /** El fallo típico al entrar mal, dicho antes de que ocurra. */
   joinWarning?: string
   /** Ejemplo de dirección que da playit.gg para este juego, para reconocerla. */
@@ -106,6 +136,13 @@ export interface GameInfo {
   save: SaveNoun
   /** Qué entra en una copia de seguridad, en una o dos frases. */
   backupScope: string
+  /**
+   * Qué se puede moderar y dónde, en los juegos que no dan los nombres de
+   * quien está dentro. Lo dice la pantalla de jugadores en vez de enseñar
+   * botones que no funcionarían; cambia mucho de un juego a otro (Satisfactory
+   * no deja nada desde fuera, Valheim deja listas pero no expulsar en caliente).
+   */
+  moderationHint?: string
 }
 
 export interface SaveNoun {
@@ -187,7 +224,59 @@ export const GAMES: Record<GameId, GameInfo> = {
     tunnelAddressExample: 'algo.gl.at.ply.gg',
     save: { singular: 'partida', plural: 'partidas', feminine: true },
     backupScope:
-      'Se guardan las partidas y los ajustes del servidor. El juego no hace falta: se vuelve a descargar de Steam.'
+      'Se guardan las partidas y los ajustes del servidor. El juego no hace falta: se vuelve a descargar de Steam.',
+    moderationHint:
+      'Este juego no deja expulsar ni banear desde fuera. Entra tú a la partida con tu contraseña ' +
+      'de administrador y hazlo desde el menú del propio juego. Si hace falta cortar de raíz, para ' +
+      'el servidor o ponle una contraseña para entrar desde Ajustes.'
+  },
+
+  valheim: {
+    id: 'valheim',
+    name: 'Valheim',
+    card: {
+      tagline: 'Sobrevivir, construir y matar jefes en un mundo vikingo.',
+      players: `Hasta ${VALHEIM_MAX_PLAYERS}`,
+      memoryGb: { min: VALHEIM_MEMORY_MIN_GB, recommended: VALHEIM_MEMORY_RECOMMENDED_GB },
+      download: '2 GB',
+      downloadMeasured: true,
+      highlights: [
+        { text: 'Se juega desde fuera sin abrir puertos', tone: 'good' },
+        { text: 'El más ligero de todos', tone: 'good' },
+        { text: 'No se modera en caliente', tone: 'warn' }
+      ]
+    },
+    // Igual que Satisfactory: el servidor se baja de Steam de forma anónima, y
+    // lo que se acepta es el acuerdo de Steam.
+    agreements: [
+      {
+        id: 'steam-subscriber',
+        label: 'el Acuerdo de Suscriptor de Steam',
+        url: 'https://store.steampowered.com/subscriber_agreement/'
+      }
+    ],
+    disclaimer: 'Herramienta no oficial. No está asociada a Iron Gate ni a Valheim.',
+    joinHint: 'En Valheim: Unirse a partida → Añadir servidor, con esta dirección.',
+    joinSteps: [
+      'Abre Valheim, elige tu personaje y entra en «Unirse a partida».',
+      'Pulsa «Añadir servidor» y pega ahí la dirección, con el puerto incluido.',
+      'Escribe la contraseña del servidor cuando te la pida.',
+      'El servidor queda en tu lista de favoritos: la próxima vez basta con pulsar «Conectar».'
+    ],
+    joinStepsCrossplay: [
+      'Abre Valheim, elige tu personaje y entra en «Unirse a partida».',
+      'Pulsa «Unirse con código» y escribe el código de 6 dígitos que da la app.',
+      'Escribe la contraseña del servidor cuando te la pida.',
+      'El código cambia cada vez que se arranca el servidor: habrá que pasarlo de nuevo.'
+    ],
+    tunnelAddressExample: 'algo.gl.at.ply.gg',
+    save: { singular: 'mundo', plural: 'mundos', feminine: false },
+    backupScope:
+      'Se guardan los mundos y las listas de moderación. El juego no hace falta: se vuelve a descargar de Steam.',
+    moderationHint:
+      'En Valheim se modera por identificador de Steam, no por nombre: el juego no dice cómo se ' +
+      'llama el personaje de nadie. Vetar a alguien lo echa al momento, y las listas completas ' +
+      '(administradores, vetados e invitados) están en Configuración → Moderación.'
   }
 }
 
@@ -258,6 +347,19 @@ export function serverPorts(manifest: InstanceManifest): ServerPort[] {
         { port: manifest.port, protocol: 'tcp+udp', label: 'Juego', tunnelType: 'UDP y TCP' },
         { port: RELIABLE_PORT, protocol: 'tcp', label: 'Mensajería del juego', tunnelType: 'TCP' }
       ]
+    case 'valheim':
+      // Todo por UDP, y el de consulta es siempre el siguiente al de juego.
+      // Con crossplay no hace falta abrir ninguno, pero se siguen listando:
+      // son los que el servidor usa, y quien elija abrir el router los necesita.
+      return [
+        { port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' },
+        {
+          port: queryPortFor(manifest.port),
+          protocol: 'udp',
+          label: 'Consulta de Steam',
+          tunnelType: 'UDP'
+        }
+      ]
   }
 }
 
@@ -294,9 +396,11 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
         settings: true,
         reinstall: true,
         commands: true,
+        playerIds: true,
         playerNames: true,
         moderation: true,
-        externalCheck: true
+        externalCheck: true,
+        crossplay: false
       }
     }
     case 'satisfactory':
@@ -311,9 +415,33 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
         settings: true,
         reinstall: true,
         commands: false,
+        playerIds: false,
         playerNames: false,
         moderation: false,
-        externalCheck: false
+        externalCheck: false,
+        crossplay: false
+      }
+    case 'valheim':
+      // Los mundos y la moderación los aporta el juego con sus propias pestañas
+      // (las listas son ficheros de texto, no comandos). El servidor no lee
+      // órdenes por la consola y solo dice el SteamID de quien entra, no su
+      // nombre, así que ni `commands` ni `playerNames`.
+      return {
+        worlds: false,
+        content: false,
+        officialPlugins: false,
+        memory: false,
+        settings: true,
+        reinstall: true,
+        commands: false,
+        // El registro dice QUIÉN entra, pero con su identificador de Steam, no
+        // con el nombre de su personaje. Se puede listar y moderar; lo que hay
+        // que explicar es qué es ese número.
+        playerIds: true,
+        playerNames: false,
+        moderation: true,
+        externalCheck: true,
+        crossplay: true
       }
   }
 }
@@ -329,6 +457,8 @@ export function versionLabel(manifest: InstanceManifest): string {
       return manifest.data.gameVersion
         ? `Satisfactory ${manifest.data.gameVersion}`
         : 'Satisfactory'
+    case 'valheim':
+      return manifest.data.gameVersion ? `Valheim ${manifest.data.gameVersion}` : 'Valheim'
   }
 }
 
@@ -339,6 +469,8 @@ export function summaryLabel(manifest: InstanceManifest): string {
       return `${DISTRIBUTION_LABELS[manifest.data.distribution].name} · ${manifest.data.minecraftVersion}`
     case 'satisfactory':
       return `Satisfactory · ${manifest.data.sessionName}`
+    case 'valheim':
+      return `Valheim · ${manifest.data.worldName}`
   }
 }
 
@@ -349,5 +481,7 @@ export function defaultPortFor(game: GameId): number {
       return 25565
     case 'satisfactory':
       return DEFAULT_GAME_PORT
+    case 'valheim':
+      return VALHEIM_DEFAULT_PORT
   }
 }

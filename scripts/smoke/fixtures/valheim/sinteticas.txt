@@ -1,0 +1,19 @@
+// ⚠ LINEAS SINTETICAS, NO GRABADAS DEL SERVIDOR REAL.
+//
+// Son las dos que el servidor escribe cuando alguien entra y cuando se va.
+// Estan copiadas LITERALMENTE de las cadenas de formato del binario del juego
+// (assembly_valheim.dll, version 1.0.12), rellenando sus huecos:
+//
+//   "Got connection SteamID "   -> Got connection SteamID 76561198000000001
+//   "  Closing socket "         -> Closing socket 76561198000000001
+//
+// El COMPORTAMIENTO si esta comprobado: con un jugador entrando de verdad en un
+// servidor local, la app enseño su identificador de Steam en la consola y en la
+// pantalla de jugadores, cosa que solo pasa si estas lineas se interpretan
+// bien. Lo que falta es la grabacion literal, no saber si funciona.
+//
+// (Las del codigo de crossplay ya no estan aqui: se grabaron del servidor real
+// y viven en `crossplay.txt`.)
+
+09/17/2026 11:06:40: Got connection SteamID 76561198000000001
+09/17/2026 11:06:41: Closing socket 76561198000000001

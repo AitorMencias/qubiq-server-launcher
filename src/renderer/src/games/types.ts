@@ -31,6 +31,24 @@ export interface GameConfigContext {
   onRefresh: () => void
 }
 
+/**
+ * Una acción sobre alguien que está conectado, de las que salen en la pantalla
+ * principal del servidor.
+ *
+ * Cada juego modera a su manera —Minecraft por la consola, Valheim escribiendo
+ * en sus listas de texto—, así que los botones los pone el juego y la pantalla
+ * común solo los coloca.
+ */
+export interface GamePlayerAction {
+  id: string
+  label: string
+  /** Se pinta como acción destructiva (echar, vetar). */
+  danger?: boolean
+  /** Qué se le dice al usuario al pulsarlo, si conviene explicarlo. */
+  help?: string
+  run: (player: string) => Promise<void>
+}
+
 export interface GameUi {
   /** URL de su icono propio (`games/<juego>/icon.png`, 128×128), nunca el logo oficial. */
   icon: string
@@ -45,6 +63,16 @@ export interface GameUi {
    * con todo lo construido»).
    */
   describeLoss(manifest: InstanceManifest): Promise<string>
+  /**
+   * Qué se puede hacer con quien está dentro. Solo se piden a los juegos que
+   * declaran la capacidad `moderation`.
+   */
+  playerActions?(context: GameConfigContext): GamePlayerAction[]
+  /**
+   * Cómo se enseña un jugador cuando el juego no da nombres, sino
+   * identificadores (Valheim: «Steam 7656…»).
+   */
+  playerLabel?(player: string): string
   /** Qué ajustes del juego proteger antes de abrir un puerto en el router. */
   routerSafetyNote: ReactNode
 }

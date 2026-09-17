@@ -27,6 +27,7 @@ import { evaluateRestart } from './runtime/restartPolicy'
 import { gameFor, gameOf, isKnownGame } from './games/registry'
 import { createMinecraftService, type GameHost } from './games/minecraft/service'
 import { createSatisfactoryService } from './games/satisfactory/service'
+import { createValheimService } from './games/valheim/service'
 
 /**
  * Orquestador del núcleo (§5).
@@ -40,6 +41,8 @@ export interface ServiceEvents {
   log: (instanceId: string, line: LogLine) => void
   status: (instanceId: string, status: ServerStatus) => void
   players: (instanceId: string, players: string[], playerCount: number | null) => void
+  /** Código para entrar, en los juegos que se conectan por relé (Valheim). */
+  joinCode: (instanceId: string, code: string | null) => void
   progress: (update: ProgressUpdate) => void
   diagnosis: (instanceId: string, diagnosis: Diagnosis) => void
 }
@@ -70,6 +73,9 @@ class LauncherService extends EventEmitter implements GameHost {
 
   /** Operaciones exclusivas de Satisfactory (partidas y ajustes por su API). */
   readonly satisfactory = createSatisfactoryService(this)
+
+  /** Operaciones exclusivas de Valheim (mundos y listas de moderación). */
+  readonly valheim = createValheimService(this)
 
   async initialize(): Promise<void> {
     await ensureBaseDirs()
@@ -122,6 +128,7 @@ class LauncherService extends EventEmitter implements GameHost {
       status,
       players: supervisor?.players ?? [],
       playerCount: supervisor?.playerCount ?? null,
+      joinCode: supervisor?.joinCode ?? null,
       uptimeSeconds: supervisor?.uptimeSeconds ?? null,
       lastError: null
     }
@@ -397,6 +404,7 @@ class LauncherService extends EventEmitter implements GameHost {
     supervisor.on('players', (players: string[], playerCount: number | null) =>
       this.emit('players', id, players, playerCount)
     )
+    supervisor.on('joinCode', (code: string | null) => this.emit('joinCode', id, code))
     supervisor.on('diagnosis', (diagnosis: Diagnosis) => this.emit('diagnosis', id, diagnosis))
     supervisor.on('exit', (code: number | null, requested: boolean) => {
       void this.handleExit(id, code, requested)

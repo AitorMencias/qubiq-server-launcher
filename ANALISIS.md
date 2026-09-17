@@ -1748,7 +1748,126 @@ instante, así que borrar el servidor o restaurar una copia inmediatamente despu
 - `e2e paper`, `e2e:restart` y `e2e:steam`: en verde, igual que antes. Minecraft no empeora.
 - Recorrido de Playwright por los dos modos y por el selector de juego nuevo.
 
-### 19.16 Siguiente
+### 19.16 Valheim (Fase 3)
+
+Cuarta fase de [HOJA-DE-RUTA-MULTIJUEGO.md](HOJA-DE-RUTA-MULTIJUEGO.md) y segundo juego nuevo.
+Valheim es el contrario de Satisfactory: **no tiene API, ni consola, ni fichero de configuración**.
+Todo lo que se puede decidir va en la línea de órdenes del arranque, y todo lo que el servidor
+cuenta lo cuenta por su registro. Eso cambia dónde vive cada cosa, no la forma de la app.
+
+#### Lo que se averiguó contra el servidor real
+
+Se lanzó el servidor de verdad (el ya instalado en `qubiq-dev`, versión 1.0.12, red 40) **siempre
+con `-public 0` y sin crossplay**, así que no salió nada hacia fuera en ningún momento. La lista de
+lo que acepta cada argumento no está copiada de ninguna wiki: el servidor escribe «Setting world
+modifier: combat->veryhard» cuando entiende algo y «Could not parse … as a world modifier» cuando
+no, así que se le preguntó una por una.
+
+| Hallazgo | Consecuencia |
+|---|---|
+| **Las reglas de sí/no no son modificadores.** `-modifier nobuildcost true` se rechaza; `nomap`, `nobuildcost`, `passivemobs`, `playerevents` y `noportals` son **claves globales** y van con `-setkey` | Es la trampa de esta fase: el servidor lo rechaza con una línea de registro que nadie lee y arranca igual, así que el ajuste simplemente no se aplica. El smoke comprueba las dos formas |
+| `-modifier` acepta **cinco claves** (combat, deathpenalty, resources, raids, portals) con valores medidos uno a uno; `default` significa «lo que diga el preset» | El catálogo de `shared/games/valheim/types.ts` es exactamente lo que el servidor contestó. Los que están en `default` **no se mandan**, para no pisar lo que ya tuviera el mundo |
+| `-preset` acepta ocho: `default`, `normal`, `casual`, `easy`, `hard`, `hardcore`, `immersive`, `hammer` | Los siete con sentido para el usuario salen en el selector de dificultad; en básico solo tres |
+| **El servidor NO comprueba la longitud de la contraseña**: arranca con cuatro caracteres | El `.bat` oficial dice que el mínimo son cinco y el juego los exige. Lo comprueba la app antes de crear nada, que es donde se puede explicar. Lo mismo con la contraseña metida en el nombre del servidor: el servidor no dice nada y la app sí |
+| **Con `-public 0` no contesta a las consultas de Steam** (A2S), ni en el puerto de juego ni en el de consulta, ni desde el propio equipo | «¿Responde el servidor?» no se puede contestar con el protocolo del juego salvo que esté publicado. Sin publicar se mira si tiene su puerto UDP abierto, y se dice que eso es lo que se ha mirado |
+| **Publicado, solo contesta en el puerto de consulta**, nunca en el de juego; el nombre del mundo no viaja (`map` repite el del servidor) y la versión útil está en las palabras clave (`g=1.0.12,n=40`), no en `version`, que dice siempre «1.0.0.0» | La consulta de estado usa el puerto de consulta y saca la versión de las palabras clave. Todo grabado en `fixtures/valheim/a2s.json` |
+| El registro dice **el SteamID de quien entra, no su nombre** (`Got connection SteamID …` / `Closing socket …`) | Se puede listar quién está dentro y moderarlo, pero con ese número por delante: la pantalla lo explica en vez de hacerlo pasar por un nombre. Es justo lo que piden las listas del juego |
+| **El servidor relee las listas al vuelo: vetar a alguien que está dentro lo echa** (comprobado por el usuario con un jugador real) | La moderación de Valheim no es solo «para la próxima vez»: es una capacidad de verdad, y los botones están donde se ve quién está conectado |
+| El servidor crea `adminlist.txt`, `bannedlist.txt` y `permittedlist.txt` **dentro de `-savedir`** | Las tres listas se editan desde la app sin abrir ficheros, y entran en la copia de seguridad |
+| «Listo» es la línea `Opened Steam server`; generar un mundo nuevo tarda ~35 s y cargar uno existente ~12 s | Los plazos de la app salen de ahí |
+| El mundo es una **carpeta** dentro de `worlds_local`, no un par de ficheros sueltos | La pestaña Mundos lista carpetas y la copia guarda la carpeta entera |
+| Valheim avisa de que **necesita Visual C++ Redistributable** para el crossplay (PlayFabParty) | La consola y el diagnóstico lo traducen, con la salida de emergencia: se puede jugar sin crossplay |
+| **Con `-crossplay` la señal de «listo» es otra**: dice «Opened PlayFab server» y la de Steam **no llega nunca** (se esperaron tres minutos) | Buscando solo la de Steam, un servidor con crossplay se quedaría «Arrancando» para siempre. Es el fallo que encontró esta prueba |
+| **Con crossplay el servidor escribe la IP pública del equipo** en cuatro líneas, porque es la que registra en PlayFab | No puede acabar en una consola que se enseña y se copia y pega: se esconde y se borra hasta del texto que se guarda. El código sí se rescata de esa línea |
+| El código llega **después** de estar listo, y en dos líneas distintas | La pantalla dice «todavía no ha dado el código» mientras tanto, en vez de parecer rota |
+
+**Comprobado que no se tocó nada del usuario.** Sin `-savedir`, Valheim escribe los mundos en
+`%USERPROFILE%\AppData\LocalLow\IronGate\Valheim`, junto a las partidas de un jugador. Es la
+misma trampa que Project Zomboid y Satisfactory. La `e2e` mira esa carpeta antes y después de cada
+ejecución y falla si ha cambiado algo.
+
+#### Cómo queda
+
+| Pieza | Dónde |
+|---|---|
+| Adaptador: instalar, arrancar, leer el registro, parar y copiar | `core/games/valheim/adapter.ts` |
+| Mundos y listas de moderación (ficheros, con el servidor parado) | `core/games/valheim/service.ts`, IPC `valheim:` |
+| Catálogo de presets, modificadores y claves globales | `shared/games/valheim/types.ts` |
+| Asistentes, Ajustes, Mundos y Moderación | `renderer/src/games/valheim/` |
+
+**Decisiones:**
+
+| Asunto | Resolución |
+|---|---|
+| **El crossplay es un modo de exposición, no un ajuste** | `ExposureMode` gana `crossplay`, y las capacidades, `crossplay: boolean`. Guardarlo además en `data` habría dado dos fuentes de verdad para lo mismo. Consecuencia buena: la pantalla de conexión, la ayuda y los pasos para entrar salen solos por el mismo sitio que los demás modos |
+| **El código para entrar** | El juego lo genera en cada arranque y solo lo dice por el registro. El contrato gana `ParsedEvent.joinCode` y el estado `InstanceState.joinCode`; en modo básico ocupa el sitio de la dirección, porque con crossplay **la dirección no sirve**. Comprobado de punta a punta con el servidor real: el código sale en la pantalla principal con su botón de copiar |
+| **Reintentar la señal de cierre** | Ctrl+Break se ignora mientras el mundo se genera (fase 1). `StopStrategy` gana `retryEveryMs` y el supervisor la repite mientras el proceso siga vivo: sin eso, parar durante la generación acabaría matando el servidor al agotarse el plazo |
+| **Ajustes con el servidor parado** | Al revés que Satisfactory. Toda la configuración es la línea de órdenes, así que se guarda en el manifiesto y se aplica al arrancar. La pantalla lo dice en vez de dejar que el usuario cambie algo y no note nada |
+| **Un servidor, varios mundos** | Como Minecraft: crear, cambiar y borrar, con copia automática antes de borrar y sin dejar borrar el que se está jugando. El mundo recién creado sale como «sin generar» en vez de desaparecer hasta el primer arranque |
+| **Moderación por identificador, y en la pantalla principal** | Vetar **echa al jugador al momento**, así que la moderación de Valheim es de verdad y sus botones están donde se ve quién está dentro (Jugadores), no escondidos en Configuración. La pestaña Moderación se queda con las listas completas, para quien no está conectado |
+| **La lista de invitados avisa** | En cuanto tiene una línea, **solo entra quien esté en ella**. Es la forma más fácil de que el usuario se quede fuera de su propio servidor, así que sale un aviso en cuanto deja de estar vacía |
+| **Copia en caliente sin poder pedir un guardado** | No hay a quién pedírselo. Se espera a que le toque guardar y se copia justo después; si no llega ninguno a tiempo, la copia se cancela en vez de guardar un mundo a medio escribir |
+
+**Textos comunes que se generalizan.** La pantalla de jugadores **ya no nombra a ningún juego**.
+Antes tenía escritos a fuego los tres comandos de Minecraft (`kick`, `ban`, `op`) y el caso de
+Satisfactory; ahora los botones los aporta cada juego (`GameUi.playerActions`) y el texto que
+explica qué se puede moderar sale de `GameInfo.moderationHint`. Las capacidades se parten en dos,
+porque no eran lo mismo: `playerIds` («el juego dice quién está dentro») y `playerNames` («y
+además con un nombre que el usuario reconoce»). Valheim es el caso que lo demuestra: da el
+primero y no el segundo. El recuento cae en los identificadores vistos cuando el juego no da un
+número, y las pestañas del juego reciben los jugadores al día.
+
+**Encontrado con el recorrido de la interfaz.** Con crossplay, los pasos para entrar seguían
+diciendo «pega ahí la dirección», que es justo lo que no hay que hacer. Los juegos con crossplay
+declaran ahora sus propios pasos (`joinStepsCrossplay`).
+
+**Cómo se ha comprobado:**
+
+- `smoke` (376): argumentos de arranque —con comprobaciones dedicadas a que no falte `-savedir` y a
+  que las reglas de sí/no vayan por `-setkey`—, el catálogo de modificadores, la lectura del
+  registro contra **líneas reales grabadas** (`fixtures/valheim/registro.txt`), la **consulta de
+  Steam contra la grabación real del servidor publicado** (`fixtures/valheim/a2s.json`), el
+  **arranque con crossplay grabado** (`fixtures/valheim/crossplay.txt`, con la comprobación de
+  que la IP pública no se enseña), los diagnósticos, la parada, lo que el asistente no deja
+  crear, las listas de moderación y los puertos y capacidades.
+- `e2e:valheim` con el servidor real: instalar, arrancar generando el mundo, puertos, moderación,
+  copia en caliente esperando a un guardado, parada limpia con Ctrl+Break, parar mientras arranca,
+  mundos (crear, cambiar, no dejar borrar el activo), restauración y **comprobar que la carpeta de
+  Valheim del usuario no ha cambiado**.
+- `e2e paper`, `e2e:restart` y `e2e:steam`: en verde. Minecraft no empeora.
+- Recorrido de Playwright: el selector con tres juegos, el asistente de Valheim en los dos modos y
+  las pantallas del servidor (ajustes, conexión con crossplay, mundos, moderación y ficha técnica).
+- Y con el servidor **arrancado de verdad desde la app** (`valheim-vivo.mjs`): arranque, mundo
+  cargado, consola con las líneas reales ya traducidas y parada limpia; y otra vuelta **con
+  crossplay**, viendo el código aparecer en la pantalla principal.
+
+**El A2S, grabado con permiso.** Se arrancó el servidor real con `-public 1` durante medio minuto
+y se paró en cuanto se tuvo la grabación. De ahí salen los cinco hallazgos de la tabla sobre la
+consulta de Steam, y de ahí sale que la versión que se enseña ya no es «1.0.0.0».
+
+**Lo que confirmó el usuario jugando.** Entrando de verdad en un servidor local: el identificador
+de Steam aparece en la consola y en la pantalla de moderación (o sea, las líneas de conexión se
+interpretan bien), y **vetar echa al jugador que está dentro**. Eso último cambió el diseño: la
+moderación pasó de «solo para la próxima vez» a una capacidad de verdad, con botones en la
+pantalla principal.
+
+**El crossplay, también grabado con permiso.** Se arrancó con `-crossplay` y se paró en cuanto
+llegó el código. De ahí salieron las dos filas de la tabla, y con ellas **el fallo más gordo de
+la fase**: la señal de «listo» que buscaba la app no existe con crossplay, así que un servidor
+con crossplay se habría quedado «Arrancando» para siempre. Probado después de punta a punta
+desde la app: arranca, se pone en marcha y enseña el código en la pantalla principal.
+
+**Lo único que queda sin grabar** son las dos líneas de conexión de jugadores
+(`fixtures/valheim/sinteticas.txt`, **marcadas como sintéticas**). Su comportamiento sí está
+comprobado: con un jugador dentro, la app enseña su identificador.
+
+**Y un fallo del que conviene acordarse.** La regla que esconde la IP pública no funcionaba, y
+el fichero se veía perfecto: editándolo desde Git Bash se había colado un **retroceso de verdad**
+(0x08) donde tenía que ir un `\b`. TypeScript compilaba, la expresión regular no casaba nunca y
+la prueba fallaba sin explicación. Ahora el smoke revisa los 123 ficheros de código y falla si
+aparece cualquier carácter de control invisible.
+
+### 19.17 Siguiente
 
 **Ahora (uso privado):**
 

@@ -90,7 +90,9 @@ export function ServerPanel({
   )
 
   if (configuring) {
-    const gameTabs = gameUi.configTabs({ state, mode, onRefresh })
+    // Los jugadores llegan por evento, no en el estado que se listó al abrir:
+    // las pestañas del juego (moderar en Valheim) los necesitan al día.
+    const gameTabs = gameUi.configTabs({ state: { ...state, players }, mode, onRefresh })
     const common = (id: CommonConfigTab, label: string): { id: string; label: string } => ({ id, label })
     const tabs = [
       ...gameTabs.filter((t) => t.slot === 'first'),
@@ -236,7 +238,15 @@ export function ServerPanel({
         </button>
       </div>
 
-      {mainTab === 'jugadores' && <PlayersPanel state={state} players={players} onRun={run} />}
+      {mainTab === 'jugadores' && (
+        <PlayersPanel
+          state={state}
+          players={players}
+          mode={mode}
+          onRun={run}
+          onRefresh={onRefresh}
+        />
+      )}
       {mainTab === 'consola' && <ConsolePanel state={state} logs={logs} onRun={run} />}
     </>
   )

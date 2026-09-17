@@ -47,6 +47,7 @@ export function ExposureHelp({
               safetyNote={uiFor(manifest).routerSafetyNote}
             />
           )}
+          {mode === 'crossplay' && <CrossplayHelp game={gameInfo(manifest.game).name} />}
           {mode === 'tunnel' && (
             <TunnelHelp ports={ports} addressExample={gameInfo(manifest.game).tunnelAddressExample} />
           )}
@@ -58,8 +59,38 @@ export function ExposureHelp({
 
 const TITLES: Record<ExposureMode, string> = {
   local: 'Jugar en la misma casa',
+  crossplay: 'Jugar desde fuera con el crossplay del juego',
   router: 'Abrir el puerto en el router',
   tunnel: 'Usar playit.gg'
+}
+
+/**
+ * El crossplay del propio juego: sin router, sin túnel y sin dirección. Es la
+ * opción buena para quien tiene CGNAT, que es justo donde abrir puertos no
+ * sirve de nada.
+ */
+function CrossplayHelp({ game }: { game: string }): React.JSX.Element {
+  return (
+    <>
+      <p>
+        No hay nada que configurar: {game} trae su propia forma de jugar entre casas. El servidor se
+        conecta hacia fuera y tus amigos entran con un <strong>código de 6 dígitos</strong>, sin
+        tocar el router ni instalar nada.
+      </p>
+      <ol>
+        <li>Arranca el servidor y espera unos segundos: el código aparece en la pantalla principal.</li>
+        <li>Pásaselo a tus amigos junto con la contraseña del servidor.</li>
+        <li>
+          Ellos entran por <strong>Unirse a partida → Unirse con código</strong> y lo escriben ahí.
+        </li>
+      </ol>
+      <p className="note">
+        <strong>El código cambia cada vez que arrancas el servidor</strong>, así que hay que volver a
+        pasarlo. A cambio, funciona aunque tu compañía use CGNAT, que es cuando abrir puertos no
+        sirve de nada.
+      </p>
+    </>
+  )
 }
 
 function LocalHelp(): React.JSX.Element {

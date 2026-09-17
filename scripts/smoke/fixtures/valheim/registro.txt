@@ -1,0 +1,61 @@
+// Lineas reales del registro del servidor de Valheim 1.0.12, tal cual las
+// escribe (arranque, generacion del mundo, listo y parada con Ctrl+Break).
+// Grabadas con el servidor de verdad; sin rutas del usuario.
+
+    "memorysetup-bucket-allocator-granularity=16"
+Initialize engine version: 6000.0.75f1 (26349cd2a5c8)
+09/17/2026 11:05:53: Loaded localization file #0 - 'localization' language: 'English'
+09/17/2026 11:05:53: Loaded localization file #0 - 'localization' language: 'Spanish'
+Unloading 26 unused Assets to reduce memory usage. Loaded Objects now: 3039.
+The referenced script on this Behaviour (Game Object '<null>') is missing!
+The referenced script on this Behaviour (Game Object '') is missing!
+09/17/2026 11:05:57: Get create world Proto
+09/17/2026 11:05:57: Setting world modifier preset: hard
+09/17/2026 11:05:57: Setting world modifier: combat->veryhard
+09/17/2026 11:05:57: Setting world modifier: deathpenalty->casual
+09/17/2026 11:05:57: Setting world modifier: portals->casual
+09/17/2026 11:05:57: Could not parse 'nomap' with a value of '-modifier' as a world modifier.
+09/17/2026 11:05:57: Could not parse 'inventado' with a value of 'loquesea' as a world modifier.
+09/17/2026 11:05:57: Authentication:k_ESteamNetworkingAvailability_Waiting
+09/17/2026 11:05:57: Steam game server initialized
+09/17/2026 11:05:57: Valheim version: 1.0.12 (network version 40)
+09/17/2026 11:05:57: Worldgenerator version setup:2
+09/17/2026 11:06:00: Zonesystem Start 32151
+09/17/2026 11:06:00: DungeonDB Start 32151
+09/17/2026 11:06:00: Load world: Proto (Proto)
+09/17/2026 11:06:05: Game server connected
+09/17/2026 11:06:08: Location GoblinCamp2 took more than 0,5 seconds to place, check spawn conditions to improve! (placed 197 out of 200 with 0)
+09/17/2026 11:06:08: Failed to place all GoblinCamp2, placed 197 out of 200 with 0 tries in 00:00:01.0019917
+09/17/2026 11:06:10: Location Crypt4 took more than 0,5 seconds to place, check spawn conditions to improve! (placed 190 out of 200 with 0)
+09/17/2026 11:06:10: Failed to place all Crypt4, placed 190 out of 200 with 0 tries in 00:00:00.6733953
+09/17/2026 11:06:11: Failed to place all StoneTowerRuins05, placed 44 out of 50 with 0 tries in 00:00:00.3567565
+09/17/2026 11:06:12: Failed to place all AbandonedLogCabin04, placed 47 out of 50 with 0 tries in 00:00:00.4942046
+09/17/2026 11:06:13: Failed to place all MountainWell1, placed 12 out of 25 with 0 tries in 00:00:00.4078802
+09/17/2026 11:06:13: Failed to place all Runestone_Mountains, placed 56 out of 100 with 0 tries in 00:00:00.3677510
+09/17/2026 11:06:14: Failed to place all TarPit1, placed 82 out of 100 with 0 tries in 00:00:00.3839253
+09/17/2026 11:06:15: Failed to place all MountainCave02, placed 106 out of 120 with 0 tries in 00:00:00.2831875
+09/17/2026 11:06:18: Failed to place all MorgenHole3, placed 38 out of 40 with 0 tries in 00:00:00.3532580
+09/17/2026 11:06:19: Location NorthVillage took more than 0,5 seconds to place, check spawn conditions to improve! (placed 51 out of 135 with 0)
+09/17/2026 11:06:19: Failed to place all NorthVillage, placed 51 out of 135 with 0 tries in 00:00:00.9581520
+09/17/2026 11:06:20: Failed to place all WoodVillage2, placed 1 out of 15 with 0 tries in 00:00:00.2466306
+09/17/2026 11:06:21: Failed to place all SwampHut1_1, placed 26 out of 50 with 0 tries in 00:00:00.3073941
+09/17/2026 11:06:22: Failed to place all StoneTowerRuins05_leet, placed 0 out of 10 with 0 tries in 00:00:00.2112698
+09/17/2026 11:06:22: Failed to place all GoblinCamp2_1, placed 0 out of 5 with 0 tries in 00:00:00.0177399
+09/17/2026 11:06:23: Location GoblinHut01 took more than 0,5 seconds to place, check spawn conditions to improve! (placed 30 out of 30 with 0)
+09/17/2026 11:06:24: Failed to place all GoblinHut02, placed 11 out of 30 with 0 tries in 00:00:00.8828106
+09/17/2026 11:06:25: Failed to place all TarPit1_1, placed 0 out of 50 with 0 tries in 00:00:00.4243378
+09/17/2026 11:06:26: Registering lobby
+09/17/2026 11:06:26: Opened Steam server
+09/17/2026 11:07:10: Game - OnApplicationQuit
+09/17/2026 11:07:10: Available space to current user: 100352925696. Saving is blocked if below: 213909504 bytes. Warnings are given if below: 427819008
+09/17/2026 11:07:10: Shutting down
+09/17/2026 11:07:10: ZNet Shutdown
+09/17/2026 11:07:10: Considering autobackup for World. World time: 64,27998, short time: 7200, long time: 43200, backup count: 2
+09/17/2026 11:07:10: Skipping backup. World session not long enough.
+09/17/2026 11:07:10: World save (1/5) Cloud & Backup checks done [0ms] => Save number 1
+09/17/2026 11:07:10: World save (2/5) Chunks writing done [12ms]
+09/17/2026 11:07:10: World save (3/5) DB2 writing done [42ms]
+09/17/2026 11:07:10: World save (4/5) FWL writing done [1ms]
+09/17/2026 11:07:10: World save (5/5) done. Total time [60ms]
+09/17/2026 11:07:10: Sending disconnect msg
+09/17/2026 11:07:12: ZNet OnDestroy

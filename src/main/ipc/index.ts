@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 import { registerCommonIpc } from './common'
 import { registerMinecraftIpc } from './minecraft'
 import { registerSatisfactoryIpc } from './satisfactory'
+import { registerValheimIpc } from './valheim'
 
 /**
  * Puente entre el núcleo y la interfaz.
@@ -13,4 +14,5 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   registerCommonIpc(getWindow)
   registerMinecraftIpc()
   registerSatisfactoryIpc()
+  registerValheimIpc()
 }

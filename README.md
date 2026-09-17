@@ -3,8 +3,8 @@
 Crea y gestiona tu servidor de juegos en tres clics.
 
 Aplicación de escritorio para Windows que descarga, configura, arranca y modera servidores de
-**Minecraft** y **Satisfactory** sin que el usuario tenga que instalar Java, editar ficheros de
-configuración ni tocar la línea de comandos. Van llegando más juegos por fases.
+**Minecraft**, **Satisfactory** y **Valheim** sin que el usuario tenga que instalar Java, editar
+ficheros de configuración ni tocar la línea de comandos. Van llegando más juegos por fases.
 
 > NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
 > Herramienta no oficial: no está asociada a los estudios de los juegos que gestiona.
@@ -18,7 +18,7 @@ El análisis completo —decisiones, arquitectura, fuentes de datos y hoja de ru
 
 ## Estado
 
-MVP funcional. Dos juegos, con todas sus distribuciones instalándose, arrancando y parando:
+MVP funcional. Tres juegos, con todas sus distribuciones instalándose, arrancando y parando:
 
 | Juego | Instalación | Arranque | Notas |
 |---|---|---|---|
@@ -27,6 +27,7 @@ MVP funcional. Dos juegos, con todas sus distribuciones instalándose, arrancand
 | Minecraft · Mods (Fabric) | ✅ | ✅ | Descarga dependencias en el primer arranque |
 | Minecraft · Mods (Forge) | ✅ | ✅ | Instalador en dos fases + argfile |
 | Satisfactory | ✅ | ✅ | SteamCMD (15,5 GB); la app reclama el servidor y crea la partida sola |
+| Valheim | ✅ | ✅ | SteamCMD (2 GB); crossplay con código, sin abrir puertos |
 
 Funciones disponibles:
 
@@ -45,7 +46,9 @@ Funciones disponibles:
   lista de lo instalado con activar/desactivar (solo en Paper, Fabric y Forge)
 - **Plugins oficiales** — los nuestros viajan dentro de la app: se instalan con un botón y se
   configuran con un formulario, sin tocar ficheros YAML
-- **Moderar** — jugadores conectados con expulsar, banear y dar OP
+- **Moderar** — quién está conectado, con las acciones que permita cada juego: en Minecraft expulsar,
+  banear y dar OP por la consola; en Valheim, hacer administrador, invitar o vetar escribiendo en sus
+  listas. Lo que un juego no deja hacer se dice, en vez de esconderlo
 - **Borrar** — elimina el servidor con confirmación escribiendo su nombre
 - **Copias de seguridad** — en caliente, restauración, retención y programadas
 - **Conexión** — direcciones local y de red verificadas con el protocolo real de cada juego, y
@@ -56,6 +59,9 @@ Funciones disponibles:
   y la app dice lo que ese juego **no** deja hacer en vez de esconderlo
 - **Satisfactory** — se instala de Steam, se reclama solo (sin abrir el juego), y desde la app se
   gestionan sus partidas (crear, cargar, guardar, borrar) y sus ajustes en caliente por su API
+- **Valheim** — se instala de Steam, se juega desde fuera **sin abrir puertos** con el crossplay del
+  propio juego (la app enseña el código de 6 dígitos), varios mundos por servidor, dificultad y
+  modificadores en cristiano, y moderación por las tres listas del juego
 
 ---
 
@@ -88,10 +94,11 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 267 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio y red. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Minecraft: lógica pura, mundos, plugins oficiales y contrato con las APIs externas |
+| `npm run smoke` | 376 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Minecraft: lógica pura, mundos, plugins oficiales y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge` |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
 | `npm run e2e:satisfactory` | **Con todos los servidores de Satisfactory parados** (solo puede haber uno a la vez). Satisfactory de verdad: instalar, reclamar el servidor sin abrir el juego, arrancar, detectar «listo» por su API, puertos, partidas, ajustes en caliente, copia con el servidor en marcha, parada limpia, restauración y **comprobar que no se ha tocado `%LOCALAPPDATA%\FactoryGame`**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\satisfactory` con un enlace; `-- --descargar` baja los 15,5 GB de cero |
+| `npm run e2e:valheim` | Valheim de verdad: instalar, arrancar generando el mundo, puertos UDP, moderación, copia en caliente esperando a que el servidor guarde, parada con Ctrl+Break, parar mientras arranca, mundos, restauración y **comprobar que no se ha tocado la carpeta de Valheim del usuario**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\valheim` con un enlace; `-- --descargar` baja los 2 GB de cero. No publica el servidor: arranca con `-public 0` y sin crossplay |
 | `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%LOCALAPPDATA%\qubiq-dev\e2e-steam`); `-- --limpio` empieza de cero |
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
@@ -182,10 +189,13 @@ src/
 │       │       ├── worlds/      Varios mundos por servidor (level-name)
 │       │       ├── logParser.ts Formatos de log y diagnósticos
 │       │       └── ping.ts      Server List Ping y comprobación desde internet
-│       │   └── satisfactory/ Todo lo de Satisfactory:
+│       │   ├── satisfactory/ Todo lo de Satisfactory:
 │       │       ├── adapter.ts   Contrato: SteamCMD, reclamar, arrancar, sondear y parar por API
 │       │       ├── api.ts       Su API HTTPS, con el certificado autofirmado
 │       │       └── service.ts   Partidas y ajustes, todo por API
+│       │   └── valheim/      Todo lo de Valheim:
+│       │       ├── adapter.ts   Contrato: SteamCMD, línea de órdenes, registro y Ctrl+Break
+│       │       └── service.ts   Mundos y listas de moderación (ficheros, servidor parado)
 │       └── service.ts       Orquestador: lo común, y delega en el juego
 ├── preload/                 Superficie expuesta al renderer (nada de Node)
 └── renderer/src/            Interfaz React
@@ -195,6 +205,7 @@ src/
         ├── types.ts         Lo que aporta cada juego a la interfaz (GameUi)
         ├── minecraft/       Asistentes, Ajustes, Mundos, Plugins/Mods, plugins oficiales
         ├── satisfactory/    Asistentes, Ajustes y Partidas
+        ├── valheim/         Asistentes, Ajustes, Mundos y Moderación
         └── <juego>/icon.svg Icono propio de cada juego, ya dibujado para su fase
 
 resources/<juego>/           Ficheros que se empaquetan por juego (resources/minecraft/plugins/)
@@ -277,6 +288,58 @@ que es cuando habla con el panel del servidor y se lo dan. Quien lo intente a pe
 campo `errorCode` del cuerpo, no el estado HTTP. Y `PasswordlessLogin` —con el que la app reclama el
 servidor sola— solo funciona antes de que el servidor tenga dueño: después hay que entrar con la
 contraseña de administrador.
+
+**En Valheim, las reglas de sí o no NO son modificadores.** `-modifier combat veryhard` funciona,
+pero `-modifier nobuildcost true` **no**: `nobuildcost`, `nomap`, `passivemobs`, `playerevents` y
+`noportals` son *claves globales* del mundo y se ponen con `-setkey`. Lo peor es cómo falla: el
+servidor escribe una línea («Could not parse 'nobuildcost' … as a world modifier») y arranca tan
+tranquilo, así que el ajuste no se aplica y nadie se entera. El smoke comprueba las dos formas.
+
+**Y el servidor de Valheim no valida la contraseña.** El `.bat` oficial dice que el mínimo son 5
+caracteres y que no puede estar dentro del nombre del servidor, pero el servidor arranca igual con
+cuatro (probado con el 1.0.12). Las dos reglas las comprueba la app **antes de crear nada**, que es
+donde se puede explicar en cristiano.
+
+**Un servidor de Valheim sin publicar no contesta a nadie.** Con `-public 0` abre su puerto de
+consulta pero **no responde al A2S**, ni siquiera desde el propio equipo. Por eso «¿responde el
+servidor?» se contesta de dos formas distintas según esté publicado o no, y cuando no lo está se
+dice exactamente lo que se ha mirado (que tiene el puerto abierto), sin prometer que se pueda entrar.
+
+**Valheim solo dice el SteamID de quien entra, no su nombre.** En el registro salen
+`Got connection SteamID …` y `Closing socket …`, y nada más. Por eso las capacidades distinguen
+`playerIds` («el juego dice quién está dentro») de `playerNames` («y con un nombre que se
+reconoce»): Valheim tiene la primera y no la segunda, así que se lista a la gente pero con su
+identificador por delante y explicando qué es. **Vetar a alguien lo echa al momento**: el servidor
+relee sus listas al vuelo.
+
+**La pantalla de jugadores no sabe de ningún juego.** Los botones de moderar los pone cada juego en
+`GameUi.playerActions` —Minecraft manda `kick`/`ban`/`op` por la consola, Valheim escribe en sus
+listas de texto— y el armazón común solo los coloca. Si añades un juego que modere de otra forma,
+no hay que tocar `PlayersPanel`.
+
+**La consulta de Steam de Valheim solo responde en el puerto de consulta.** Ni publicado contesta
+en el de juego. Y no te fíes de su campo `version`, que dice siempre «1.0.0.0»: la versión de
+verdad viaja en las palabras clave (`g=1.0.12,n=40`). El nombre del mundo no viaja en la respuesta:
+`map` repite el nombre del servidor.
+
+**Con crossplay, Valheim no dice «Opened Steam server».** Dice **«Opened PlayFab server»**, y la
+de Steam no llega nunca (comprobado esperando tres minutos). Como esa línea es la señal de
+«listo», buscando solo la de Steam un servidor con crossplay se queda «Arrancando» para siempre.
+
+**Y con crossplay el servidor escribe tu IP pública en el registro**, cuatro veces, porque es la
+que registra en PlayFab. La consola se enseña y se copia y se pega, así que `parseLine` esconde
+esas líneas y le quita la dirección hasta al texto que guarda. Si tocas ese parser, esa regla va
+la primera de todas.
+
+**Cuidado con los caracteres invisibles al editar desde Git Bash.** Costó una tarde: donde tenía
+que haber un `\b` se coló un **retroceso de verdad** (0x08) dentro de una expresión regular. El
+fichero se veía perfecto, TypeScript compilaba y la regla no casaba nunca. El smoke revisa ahora
+todo el código y falla si aparece cualquier carácter de control.
+
+**Si un juego traduce una línea del registro, `waitForLog` ve la traducción.** El supervisor busca
+el patrón en el texto que ya ha pasado por `parseLine`, no en la línea original. La copia en
+caliente de Valheim espera a «Mundo guardado.», no a «World save (5/5) done»; la constante la
+comparten las dos partes para que no puedan divergir.
 
 **Un puerto UDP "reservable" no es un puerto libre.** Si un servidor abre el suyo permitiendo
 compartirlo (Valheim), Windows deja reservarlo encima sin error. `isUdpPortInUse` lo confirma con

@@ -9,20 +9,26 @@ import { gameInfo } from '@shared/games'
  * un «Encryption token missing» que no explica nada, y la forma correcta
  * —añadir el servidor desde el menú del juego— no se le ocurre a nadie. Los
  * juegos que no declaran pasos no pintan nada aquí.
+ *
+ * Los pasos dependen de CÓMO esté expuesto el servidor: con el crossplay de
+ * Valheim no hay dirección que pegar, sino un código que escribir, y enseñar
+ * los pasos de la dirección sería mandar al usuario por donde no es.
  */
 export function JoinSteps({ manifest }: { manifest: InstanceManifest }): React.JSX.Element | null {
   const info = gameInfo(manifest.game)
-  if (!info.joinSteps || info.joinSteps.length === 0) return null
+  const crossplay = manifest.exposure?.mode === 'crossplay'
+  const steps = (crossplay ? info.joinStepsCrossplay : undefined) ?? info.joinSteps
+  if (!steps || steps.length === 0) return null
 
   return (
     <div className="card">
       <h3>Cómo entran en el servidor</h3>
       <ol className="join-steps">
-        {info.joinSteps.map((step) => (
+        {steps.map((step) => (
           <li key={step}>{step}</li>
         ))}
       </ol>
-      {info.joinWarning && (
+      {info.joinWarning && !crossplay && (
         <div className="alert warn" style={{ textAlign: 'left', marginBottom: 0 }}>
           <strong>Ojo con la conexión directa</strong>
           <p>{info.joinWarning}</p>

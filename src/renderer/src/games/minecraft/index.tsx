@@ -50,6 +50,21 @@ export const minecraftUi: GameUi = {
     ]
   },
 
+  /**
+   * Moderar en Minecraft es mandar una orden por la consola del servidor. Estos
+   * tres comandos estaban escritos a fuego en la pantalla común de jugadores,
+   * que es de todos los juegos: ahora los pone quien sabe de ellos.
+   */
+  playerActions({ state }) {
+    const id = state.manifest.id
+    const command = (text: string): Promise<void> => window.qubiq.server.command(id, text)
+    return [
+      { id: 'kick', label: 'Expulsar', run: (player) => command(`kick ${player} Expulsado`) },
+      { id: 'ban', label: 'Banear', danger: true, run: (player) => command(`ban ${player} Baneado`) },
+      { id: 'op', label: 'Dar OP', run: (player) => command(`op ${player}`) }
+    ]
+  },
+
   detailRows(manifest) {
     const { data } = minecraftOf(manifest)
     return [
