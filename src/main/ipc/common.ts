@@ -39,6 +39,10 @@ export function registerCommonIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.reinstallInstance, async (_e, id: string) => service.install(id))
   ipcMain.handle(IPC.checkForUpdate, async (_e, id: string) => service.checkForUpdate(id))
   ipcMain.handle(IPC.updateServer, async (_e, id: string) => service.updateServer(id))
+  ipcMain.handle(IPC.listVersions, async (_e, id: string) => service.listVersions(id))
+  ipcMain.handle(IPC.changeVersion, async (_e, id: string, versionId: string) =>
+    service.changeVersion(id, versionId)
+  )
 
   // --- Ejecución ------------------------------------------------------------
 

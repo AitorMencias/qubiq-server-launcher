@@ -313,6 +313,35 @@ export interface UpdateCheck {
   latest: string | null
 }
 
+/**
+ * Una versión que se puede instalar en un servidor que ya existe.
+ *
+ * Unifica dos cosas que por dentro se parecen poco: en Minecraft es una versión
+ * del juego (`26.2`), y en los juegos de Steam es una **rama** publicada por el
+ * estudio (`public`, `experimental`, `default_preal`). Lo que tienen en común es
+ * lo único que le importa a quien elige: cómo se llama, si es más nueva o más
+ * vieja que la instalada, y si está terminada.
+ */
+export interface InstallableVersion {
+  /** Con lo que se pide instalarla: versión de Minecraft o nombre de la rama. */
+  id: string
+  /** Cómo se enseña: «26.2», «Estable», «Anterior a Ashlands». */
+  label: string
+  /** Lo que dice el estudio de esa rama, cuando lo dice. */
+  description?: string
+  /** No terminada: build alpha de Paper, rama experimental de Steam. */
+  experimental?: boolean
+  /** La que la app propone si no hay motivo para otra cosa. */
+  recommended?: boolean
+  /** La que está instalada ahora mismo. */
+  installed?: boolean
+  /**
+   * Respecto a la instalada. `unknown` cuando no se puede saber de verdad, que
+   * vale más que adivinarlo: bajar de versión puede costar la partida.
+   */
+  relation: 'newer' | 'same' | 'older' | 'unknown'
+}
+
 export type PortProtocol = 'tcp' | 'udp' | 'tcp+udp'
 
 /**

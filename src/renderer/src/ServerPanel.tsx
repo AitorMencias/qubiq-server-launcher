@@ -8,6 +8,7 @@ import { PlayersPanel } from './PlayersPanel'
 import { ConsolePanel } from './ConsolePanel'
 import { BackupPanel } from './BackupPanel'
 import { ConfirmDelete } from './ConfirmDelete'
+import { VersionCard } from './VersionCard'
 import { D20Loader } from './D20Loader'
 import { GameIcon } from './GameIcon'
 
@@ -155,6 +156,10 @@ export function ServerPanel({
                 <p>{error}</p>
               </div>
             )}
+
+            {/* Lo primero de la pestaña: es lo único de aquí que caduca solo y
+                que puede dejar a los jugadores fuera si se queda atrás. */}
+            <VersionCard state={state} mode={mode} onRefresh={onRefresh} />
 
             {/* Versión de Java, build y memoria no significan nada para quien
                 solo quiere jugar: la ficha técnica es cosa del modo avanzado. */}

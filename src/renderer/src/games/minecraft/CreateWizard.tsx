@@ -67,8 +67,8 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
       .then((list) => {
         if (cancelled) return
         setVersions(list)
-        // Por defecto, la más reciente estable de esa distribución.
-        setVersion(list[0]?.minecraftVersion ?? '')
+        // Por defecto, la recomendada: la más reciente que no esté en pruebas.
+        setVersion((list.find((v) => v.recommended) ?? list[0])?.minecraftVersion ?? '')
       })
       .catch((err: Error) => {
         if (!cancelled) setError(`No se pudo cargar el catálogo: ${err.message}`)
@@ -84,6 +84,11 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
 
   const overMemory = memory !== null && memoryMb > memory.warningThresholdMb
 
+  // Paper publica una versión nueva de Minecraft con builds alpha antes del
+  // primer estable. Se puede instalar, pero el usuario tiene que saberlo.
+  const selected = versions.find((v) => v.minecraftVersion === version)
+  const experimental = selected?.experimental === true
+
   async function create(): Promise<void> {
     setBusy(true)
     setError(null)
@@ -94,7 +99,12 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         expectedPlayers,
         port,
         agreements: eula ? ['minecraft-eula'] : [],
-        options: { distribution, minecraftVersion: version, memoryMb }
+        options: {
+          distribution,
+          minecraftVersion: version,
+          memoryMb,
+          ...(experimental ? { allowExperimental: true } : {})
+        }
       })
       onCreated(manifest.id)
     } catch (err) {
@@ -184,11 +194,24 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             {versions.map((v) => (
               <option key={v.minecraftVersion} value={v.minecraftVersion}>
                 {v.minecraftVersion}
-                {v.recommended ? '  (la más reciente)' : ''}
+                {v.experimental ? '  (en pruebas)' : ''}
+                {v.recommended ? '  (la más reciente estable)' : ''}
               </option>
             ))}
           </select>
         </div>
+
+        {experimental && (
+          <div className="alert warn">
+            <strong>La {version} todavía está en pruebas</strong>
+            <p>
+              Para la {version} aún no hay un servidor terminado: solo compilaciones de prueba
+              (alpha). Sirven para jugar ya con lo nuevo, pero pueden fallar, ir peor de
+              rendimiento o dar problemas con los plugins. Si prefieres ir a lo seguro, elige la
+              última estable de la lista.
+            </p>
+          </div>
+        )}
 
         <div className="field">
           <label>¿Cuánta gente vais a ser? {expectedPlayers} jugadores</label>

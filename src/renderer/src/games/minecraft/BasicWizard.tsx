@@ -123,22 +123,35 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
   const [pvp, setPvp] = useState<'true' | 'false'>('true')
   const [connection, setConnection] = useState<ExposureMode>('local')
 
-  const [version, setVersion] = useState<string | null>(null)
+  /** La última versión con servidor terminado para la distribución elegida. */
+  const [stableVersion, setStableVersion] = useState<string | null>(null)
+  /** Una más nueva que todavía solo tiene compilaciones de prueba, si la hay. */
+  const [testingVersion, setTestingVersion] = useState<string | null>(null)
+  /** El usuario pidió expresamente la de pruebas desde el resumen. */
+  const [useTesting, setUseTesting] = useState(false)
   const [memoryMb, setMemoryMb] = useState<number | null>(null)
   const [eula, setEula] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const hardcore = gameMode === 'hardcore'
+  const version = useTesting && testingVersion ? testingVersion : stableVersion
 
   useEffect(() => {
     let cancelled = false
-    setVersion(null)
+    setStableVersion(null)
+    setTestingVersion(null)
+    setUseTesting(false)
     setError(null)
     window.qubiq.minecraft.catalog
-      .defaultVersion(distribution)
-      .then((value) => {
-        if (!cancelled) setVersion(value)
+      .versions(distribution)
+      .then((list) => {
+        if (cancelled) return
+        setStableVersion((list.find((v) => v.recommended) ?? list[0])?.minecraftVersion ?? null)
+        // Solo se ofrece la más nueva de las que están en pruebas: dar a elegir
+        // entre varias alphas en el asistente sencillo sería pedirle al usuario
+        // que decida algo que no puede valorar.
+        setTestingVersion(list.find((v) => v.experimental)?.minecraftVersion ?? null)
       })
       .catch((err: Error) => {
         if (!cancelled) setError(`No se pudo consultar la última versión: ${err.message}`)
@@ -232,6 +245,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
           distribution,
           minecraftVersion: version,
           memoryMb,
+          ...(useTesting && testingVersion ? { allowExperimental: true } : {}),
           // Hardcore NO es un valor de `gamemode` (§8): es supervivencia más la
           // clave `hardcore`, y el juego fuerza la dificultad a Difícil.
           properties: {
@@ -460,7 +474,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               />
               <SummaryRow
                 label="Versión de Minecraft"
-                value={version ?? 'consultando...'}
+                value={version ? `${version}${useTesting ? ' (en pruebas)' : ''}` : 'consultando...'}
                 autoNote="elegida por nosotros"
               />
               <SummaryRow
@@ -475,6 +489,34 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               Tus amigos tendrán que abrir Minecraft con la versión{' '}
               <strong>{version ?? '...'}</strong> para poder entrar.
             </div>
+
+            {/*
+              Cuando sale una versión de Minecraft, el servidor con plugins tarda
+              días en estar terminado. Antes la app simplemente no la ofrecía y no
+              había manera de jugarla; ahora se puede elegir, con el aviso delante.
+            */}
+            {testingVersion && (
+              <div className="alert warn" style={{ textAlign: 'left' }}>
+                <strong>
+                  {useTesting
+                    ? `Vas a usar la ${testingVersion}, que está en pruebas`
+                    : `Ya ha salido la ${testingVersion}`}
+                </strong>
+                <p>
+                  El servidor para la {testingVersion} todavía no está terminado: solo hay
+                  compilaciones de prueba. Funcionan, pero pueden fallar, ir peor de rendimiento o
+                  dar problemas con los plugins. Lo seguro es quedarse en la {stableVersion}.
+                </p>
+                <button
+                  style={{ marginTop: 10 }}
+                  onClick={() => setUseTesting(!useTesting)}
+                >
+                  {useTesting
+                    ? `Mejor la ${stableVersion}, que va segura`
+                    : `Usar la ${testingVersion} de todas formas`}
+                </button>
+              </div>
+            )}
 
             <div className="card" style={{ textAlign: 'left', marginBottom: 0 }}>
               <h3>Condiciones de Minecraft</h3>

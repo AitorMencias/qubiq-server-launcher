@@ -12,6 +12,12 @@ import * as forge from './forge'
  * distribución elegida no pueda instalar.
  */
 
+/**
+ * Cuántas versiones del principio se comprueban contra Paper. Más allá de las
+ * primeras siempre hay build estable, y cada comprobación es una petición.
+ */
+const EXPERIMENTAL_LOOKAHEAD = 5
+
 export interface CatalogOptions {
   force?: boolean
   /** Incluir snapshots y versiones antiguas. Apagado por defecto (§3). */
@@ -51,17 +57,20 @@ export async function versionsFor(
   })
 
   // Paper publica la versión nueva de Minecraft con builds experimentales días
-  // antes del primer estable. El instalador los rechaza sin el modo inestable,
-  // así que ofrecerla haría fallar al asistente. Solo se miran las primeras:
-  // las antiguas ya tienen build estable, y cada consulta queda en caché.
-  if (distribution === 'paper' && !includeUnstable) {
-    for (let checked = 0; checked < 5 && result[0]; checked++) {
-      if (await paper.hasStableLatestBuild(result[0].minecraftVersion)) break
-      result.shift()
+  // antes del primer estable. Antes se ocultaban, pero eso dejaba sin instalar
+  // la versión recién salida durante días; ahora se ofrecen marcadas para que
+  // la interfaz avise y el usuario decida. Solo se miran las primeras: las
+  // antiguas ya tienen build estable, y cada consulta queda en caché.
+  if (distribution === 'paper') {
+    for (let i = 0; i < EXPERIMENTAL_LOOKAHEAD && i < result.length; i++) {
+      if (await paper.hasStableLatestBuild(result[i]!.minecraftVersion)) break
+      result[i]!.experimental = true
     }
   }
 
-  if (result[0]) result[0].recommended = true
+  // La recomendada es la primera que se puede instalar sin avisos.
+  const recommended = result.find((v) => !v.experimental) ?? result[0]
+  if (recommended) recommended.recommended = true
   return result
 }
 
@@ -80,14 +89,17 @@ async function supportedIds(distribution: Distribution, force: boolean): Promise
   }
 }
 
-/** Versión que la app propone por defecto: la última estable de esa distribución. */
+/**
+ * Versión que la app propone por defecto: la última de esa distribución que no
+ * esté en pruebas. Nunca devuelve una experimental si hay alternativa.
+ */
 export async function defaultVersionFor(distribution: Distribution): Promise<string> {
   const versions = await versionsFor(distribution)
-  const first = versions[0]
-  if (!first) {
+  const pick = versions.find((v) => v.recommended) ?? versions[0]
+  if (!pick) {
     throw new Error(`No hay ninguna versión disponible para ${distribution}.`)
   }
-  return first.minecraftVersion
+  return pick.minecraftVersion
 }
 
 /** Java que necesita la combinación elegida (§4.7). */

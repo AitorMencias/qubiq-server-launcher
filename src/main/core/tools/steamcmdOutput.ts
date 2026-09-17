@@ -128,6 +128,25 @@ export function interpretRun(stdout: string, exitCode: number | null): SteamCmdO
     return { ok: false, alreadyUpToDate: false, selfUpdated: true }
   }
 
+  // Estado raro de Steam al reconfigurar (cambiar de rama sin nada que bajar).
+  // No sale por la vía de «ERROR! Failed to install», y volver a intentarlo lo
+  // arregla, así que se marca como pasajero en vez de dar el error genérico.
+  const state = /Error! App '\d+' state is 0x([0-9a-f]+) after update job/i.exec(stdout)
+  if (state) {
+    return {
+      ok: false,
+      alreadyUpToDate: false,
+      selfUpdated: false,
+      error: {
+        reason: `state 0x${state[1]}`,
+        retryable: true,
+        message:
+          'Steam dejó la instalación a medias al cambiar de versión. ' +
+          'Vuelve a intentarlo: suele arreglarse solo.'
+      }
+    }
+  }
+
   if (exitCode === 0) return { ok: true, alreadyUpToDate: false, selfUpdated: false }
 
   return {
@@ -156,6 +175,76 @@ export function buildIdFromAppInfo(stdout: string, appId: number, branch = 'publ
   const app = vdfGet(root, String(appId))
   const value = vdfGet(findKey(app, 'branches'), branch, 'buildid')
   return typeof value === 'string' ? value : null
+}
+
+/** La rama por defecto de cualquier aplicación de Steam: la que juega todo el mundo. */
+export const DEFAULT_BRANCH = 'public'
+
+/** Una rama publicada por el estudio, tal como la declara Steam. */
+export interface SteamBranch {
+  name: string
+  buildId: string
+  /** El texto del estudio («Previous stable»), si lo pone. Solo en las que no son `public`. */
+  description?: string
+  /** Hace falta una clave para usarla, así que la app no la puede ofrecer. */
+  needsPassword: boolean
+  /** Cuándo se publicó, en segundos Unix. Sirve para ordenarlas. */
+  timeUpdated: number
+}
+
+/**
+ * Todas las ramas de una aplicación, según `app_info_print`.
+ *
+ * Es de donde sale «volver a una versión anterior»: Valheim publica media
+ * docena de ramas antiguas con su descripción («Last stable build before
+ * Ashlands»), y Satisfactory tiene `experimental` además de `public`.
+ * Comprobado contra la salida real grabada en `fixtures/steam`.
+ */
+export function branchesFromAppInfo(stdout: string, appId: number): SteamBranch[] {
+  const app = vdfGet(parseVdf(stdout), String(appId))
+  const branches = findKey(app, 'branches')
+  if (!branches || typeof branches === 'string') return []
+
+  const result: SteamBranch[] = []
+  for (const [name, node] of Object.entries(branches)) {
+    if (!node || typeof node === 'string') continue
+    const buildId = vdfGet(node, 'buildid')
+    if (typeof buildId !== 'string') continue
+    const description = vdfGet(node, 'description')
+    result.push({
+      name,
+      buildId,
+      // Steam mete tabuladores dentro de alguna descripción (Valheim lo hace).
+      ...(typeof description === 'string' && description.trim()
+        ? { description: description.trim() }
+        : {}),
+      needsPassword: vdfGet(node, 'pwdrequired') === '1',
+      timeUpdated: Number(vdfGet(node, 'timeupdated') ?? 0)
+    })
+  }
+
+  // La pública primero, y el resto de más reciente a más antigua: es el orden
+  // en el que se busca («la de siempre» o «la de justo antes»).
+  result.sort((a, b) => {
+    if (a.name === DEFAULT_BRANCH) return -1
+    if (b.name === DEFAULT_BRANCH) return 1
+    return b.timeUpdated - a.timeUpdated
+  })
+  return result
+}
+
+/**
+ * Rama instalada, según el `appmanifest_<appId>.acf`.
+ *
+ * Steam solo escribe `UserConfig.BetaKey` cuando se instaló con `-beta`; si no
+ * está, es la pública. Hace falta saberlo para dos cosas: enseñar en qué rama
+ * va el servidor, y validar los ficheros cuando se cambia de rama.
+ */
+export function branchFromManifest(acfText: string): string {
+  // Se busca la clave esté donde esté y con las mayúsculas que sean: vive en
+  // `UserConfig` o en `MountedConfig` según cómo se instalara.
+  const value = findKey(parseVdf(acfText), 'betakey')
+  return typeof value === 'string' && value.trim() ? value.trim() : DEFAULT_BRANCH
 }
 
 function findKey(node: VdfValue | undefined, key: string): VdfValue | undefined {

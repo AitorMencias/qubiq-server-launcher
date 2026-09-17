@@ -324,6 +324,18 @@ export async function commonSmoke(): Promise<void> {
       check('la copia usa las rutas del juego', backup.sizeBytes > 0, `${backup.sizeBytes} bytes`)
       check('y anota su juego y versión', backup.game === ('falso' as InstanceManifest['game']) && backup.version === '1.0')
 
+      // El nombre solo llega al segundo. Pedir una copia y cambiar de versión
+      // justo después caía en el mismo segundo y la segunda se comía a la
+      // primera, que es justo la que alguien había pedido a mano.
+      const seguida = await service.createBackup(manifest.id, 'Y otra en el mismo segundo')
+      check('dos copias seguidas no comparten nombre', seguida.fileName !== backup.fileName, seguida.fileName)
+      const guardadas = (await listBackups(manifest.id)).map((b) => b.fileName)
+      check(
+        'y las dos siguen en la lista',
+        guardadas.includes(backup.fileName) && guardadas.includes(seguida.fileName),
+        guardadas.join(', ')
+      )
+
       await service.remove(manifest.id)
       check('se borra igual que cualquier otro', !(await exists(instanceDir(manifest.id))))
     } finally {

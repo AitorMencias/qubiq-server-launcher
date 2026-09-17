@@ -53,6 +53,23 @@ function timestamp(date = new Date()): string {
   )
 }
 
+/**
+ * Un nombre libre a partir de la marca de tiempo.
+ *
+ * El nombre solo llega al segundo, y hay momentos en que se hacen dos copias
+ * seguidas: pedir una a mano y reinstalar (o cambiar de versión) justo después
+ * caía en el mismo segundo, y la segunda **sobrescribía** a la primera sin
+ * decir nada. Se perdía justo la copia que alguien había pedido a propósito.
+ */
+async function freeName(dir: string, date = new Date()): Promise<string> {
+  const base = timestamp(date)
+  if (!(await exists(join(dir, `${base}.zip`)))) return `${base}.zip`
+  for (let n = 2; n < 100; n++) {
+    if (!(await exists(join(dir, `${base}-${n}.zip`)))) return `${base}-${n}.zip`
+  }
+  throw new Error('Demasiadas copias en el mismo segundo.')
+}
+
 function sidecarFor(zipPath: string): string {
   return zipPath.replace(/\.zip$/, '.json')
 }
@@ -94,7 +111,7 @@ export async function createBackup(options: CreateBackupOptions): Promise<Backup
   const dir = backupsDir(id)
   await ensureDir(dir)
 
-  const name = `${timestamp()}.zip`
+  const name = await freeName(dir)
   const zipPath = join(dir, name)
 
   onProgress?.('Comprimiendo la partida')

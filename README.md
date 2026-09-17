@@ -94,12 +94,12 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 376 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Minecraft: lógica pura, mundos, plugins oficiales y contrato con las APIs externas |
+| `npm run smoke` | 415 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Minecraft: lógica pura, mundos, plugins oficiales y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge` |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
 | `npm run e2e:satisfactory` | **Con todos los servidores de Satisfactory parados** (solo puede haber uno a la vez). Satisfactory de verdad: instalar, reclamar el servidor sin abrir el juego, arrancar, detectar «listo» por su API, puertos, partidas, ajustes en caliente, copia con el servidor en marcha, parada limpia, restauración y **comprobar que no se ha tocado `%LOCALAPPDATA%\FactoryGame`**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\satisfactory` con un enlace; `-- --descargar` baja los 15,5 GB de cero |
 | `npm run e2e:valheim` | Valheim de verdad: instalar, arrancar generando el mundo, puertos UDP, moderación, copia en caliente esperando a que el servidor guarde, parada con Ctrl+Break, parar mientras arranca, mundos, restauración y **comprobar que no se ha tocado la carpeta de Valheim del usuario**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\valheim` con un enlace; `-- --descargar` baja los 2 GB de cero. No publica el servidor: arranca con `-public 0` y sin crossplay |
-| `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%LOCALAPPDATA%\qubiq-dev\e2e-steam`); `-- --limpio` empieza de cero |
+| `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones, viaje de ida y vuelta a una rama anterior y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%LOCALAPPDATA%\qubiq-dev\e2e-steam`); `-- --limpio` empieza de cero |
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
 para otro; sin esta prueba la app se rompería en silencio.
@@ -241,6 +241,25 @@ instances/
 **No compares versiones de Minecraft como strings.** Conviven el versionado por año (`26.2`) y el
 histórico (`1.21.8`), y `26.2` es *más nueva* que `1.21.11`. El orden autoritativo es el índice del
 manifiesto de Mojang. Usa `compareVersions` y el tipo `VersionId`.
+
+**La versión más nueva del catálogo no es la recomendada.** Paper publica builds alpha de una
+versión de Minecraft recién salida durante días antes del primer estable. Esas versiones se ofrecen
+marcadas con `DistributionVersion.experimental`, y la recomendada es la primera que *no* lo está
+(§19.17 de ANALISIS.md). Coge siempre la que trae `recommended`, nunca `versions[0]`, y si el
+usuario elige una en pruebas hay que mandar `allowExperimental` al crear o la instalación se niega.
+
+**En un juego de Steam, «versión» es una rama.** No se puede instalar una build suelta: se elige
+`public`, `experimental` o una de las antiguas que mantenga el estudio, y Steam pone la última de
+esa rama. Dos trampas comprobadas (§19.18): pasar `-beta public` a algo que **ya** está en la
+pública hace que SteamCMD acabe en `state is 0x6` y código 8, así que la bandera solo se pone
+cuando cambia algo de verdad; y al cambiar de rama hay que añadir `validate`, o Steam da por buenos
+los ficheros que ya están y el servidor queda mezclado. La rama instalada se lee del
+`appmanifest_<appId>.acf` (`UserConfig.BetaKey`), no del manifiesto de la app.
+
+**Cambiar de versión es reinstalar, y se hace desde el núcleo.** `service.changeVersion` guarda una
+copia **antes** de apuntar la versión nueva —si no, la copia quedaría etiquetada con una versión
+que ese servidor nunca tuvo— y llama a `install` con `skipBackup`. Un juego entra en esto
+implementando `listVersions` y `prepareVersionChange`; sin ellos, su tarjeta solo informa.
 
 **Para parar un juego que no lee stdin, Ctrl+Break, nunca Ctrl+C.** El servidor hereda de la app la
 orden de ignorar Ctrl+C y Windows la respeta: el evento se genera sin error y no llega nunca. Ctrl+Break

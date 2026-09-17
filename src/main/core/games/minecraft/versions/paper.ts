@@ -37,11 +37,32 @@ export async function listVersions(force = false): Promise<string[]> {
   return Object.values(data.versions).flat()
 }
 
-/** ¿El último build de esa versión se puede instalar sin el modo inestable? */
-export async function hasStableLatestBuild(minecraftVersion: string): Promise<boolean> {
+/** Un build que se puede instalar sin avisar de nada. */
+function isStable(channel: string): boolean {
+  return channel === 'STABLE' || channel === 'RECOMMENDED'
+}
+
+/**
+ * Canal del último build de esa versión, o null si Paper no contesta o no
+ * publica ninguno todavía.
+ *
+ * No lanza: quien llama lo usa para decidir si avisa de que la versión está en
+ * pruebas, y un fallo de red no debe tumbar el catálogo entero.
+ */
+export async function latestChannel(minecraftVersion: string): Promise<string | null> {
   const url = `${PROJECT_URL}/versions/${encodeURIComponent(minecraftVersion)}/builds/latest`
-  const { data } = await fetchJson<BuildResponse>(url, { ttlMs: 60 * 60 * 1000 })
-  return data.channel === 'STABLE' || data.channel === 'RECOMMENDED'
+  try {
+    const { data } = await fetchJson<BuildResponse>(url, { ttlMs: 60 * 60 * 1000 })
+    return data.channel
+  } catch {
+    return null
+  }
+}
+
+/** ¿El último build de esa versión se puede instalar sin avisar? */
+export async function hasStableLatestBuild(minecraftVersion: string): Promise<boolean> {
+  const channel = await latestChannel(minecraftVersion)
+  return channel !== null && isStable(channel)
 }
 
 export interface PaperBuild {
@@ -55,7 +76,10 @@ export interface PaperBuild {
 
 /**
  * Último build de una versión.
- * Solo se ofrece el canal STABLE salvo que se pida lo contrario (§4.2).
+ *
+ * Solo se ofrece el canal STABLE salvo que se pida lo contrario (§4.2). Paper
+ * publica builds alpha de una versión nueva de Minecraft días antes del primer
+ * estable, y quien los quiera tiene que haberlo elegido a propósito.
  */
 export async function latestBuild(
   minecraftVersion: string,
@@ -64,10 +88,10 @@ export async function latestBuild(
   const url = `${PROJECT_URL}/versions/${encodeURIComponent(minecraftVersion)}/builds/latest`
   const { data } = await fetchJson<BuildResponse>(url, { ttlMs: 60 * 60 * 1000 })
 
-  if (!allowExperimental && data.channel !== 'STABLE' && data.channel !== 'RECOMMENDED') {
+  if (!allowExperimental && !isStable(data.channel)) {
     throw new Error(
       `El último build de Paper para ${minecraftVersion} es experimental (${data.channel}). ` +
-        `Elige otra versión o activa el modo avanzado.`
+        `Elige otra versión o marca la casilla de versión en pruebas al crear el servidor.`
     )
   }
 

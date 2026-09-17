@@ -6,7 +6,7 @@ import type {
   LogLevel,
   ManifestChanges
 } from '@shared/types'
-import type { UpdateCheck } from '@shared/games'
+import type { InstallableVersion, UpdateCheck } from '@shared/games'
 
 /**
  * Contrato de un juego (Hoja de ruta multijuego, fase 0).
@@ -156,10 +156,30 @@ export interface GameAdapter<
 
   /**
    * Compara lo instalado con lo publicado. Sin esto el juego no avisa de
-   * actualizaciones (Minecraft: la versión la elige el usuario). Actualizar es
-   * volver a llamar a `install` con el servidor parado.
+   * actualizaciones. Actualizar es volver a llamar a `install` con el servidor
+   * parado.
    */
   checkUpdate?(manifest: M): Promise<UpdateCheck>
+
+  /**
+   * Versiones a las que se puede llevar este servidor, de más nueva a más
+   * vieja. En Minecraft son versiones del juego; en los juegos de Steam, las
+   * ramas que publica el estudio.
+   *
+   * Va aparte de `checkUpdate` porque responden a preguntas distintas: aquella
+   * dice si conviene actualizar, y esta enseña todo el abanico, incluido volver
+   * atrás.
+   */
+  listVersions?(manifest: M): Promise<InstallableVersion[]>
+
+  /**
+   * Qué hay que cambiar en el manifiesto para pasar a esa versión. Valida el
+   * identificador: cambiarla es reinstalar, y hacerlo con una versión que no
+   * existe dejaría el servidor sin ejecutable.
+   *
+   * No toca el disco: de instalar se encarga `install` justo después.
+   */
+  prepareVersionChange?(manifest: M, versionId: string): Promise<Partial<M['data']>>
 
   // --- Ejecución -------------------------------------------------------------
 

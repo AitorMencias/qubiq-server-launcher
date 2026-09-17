@@ -15,6 +15,8 @@ import * as fabric from '../../src/main/core/games/minecraft/versions/fabric'
 import * as forge from '../../src/main/core/games/minecraft/versions/forge'
 import * as catalog from '../../src/main/core/games/minecraft/versions/catalog'
 import { compareVersions } from '../../src/shared/games/minecraft/types'
+import type { MinecraftManifest } from '../../src/shared/types'
+import { minecraftAdapter } from '../../src/main/core/games/minecraft/adapter'
 import {
   suggestedMemoryMb,
   defaultJvmArgs,
@@ -426,11 +428,42 @@ export async function minecraftSmoke(): Promise<void> {
     check('canal estable', build.channel === 'STABLE' || build.channel === 'RECOMMENDED', build.channel)
     check('URL de descarga', build.url.startsWith('https://'), build.fileName)
 
-    // Una versión recién salida solo con builds experimentales no se ofrece:
-    // el instalador la rechazaría y el asistente fallaría (pasó con 26.3).
+    // Una versión recién salida solo con builds experimentales SÍ se ofrece,
+    // pero marcada, y nunca es la recomendada: el asistente avisa antes de
+    // instalarla y el instalador la acepta solo si el usuario dijo que sí.
     const offered = await catalog.versionsFor('paper')
-    const first = offered[0]!.minecraftVersion
-    check('la versión recomendada tiene build estable', await paper.hasStableLatestBuild(first), first)
+    const recommended = offered.find((v) => v.recommended)!
+    check(
+      'la versión recomendada tiene build estable',
+      await paper.hasStableLatestBuild(recommended.minecraftVersion),
+      recommended.minecraftVersion
+    )
+    check(
+      'la recomendada no está marcada en pruebas',
+      recommended.experimental !== true,
+      recommended.minecraftVersion
+    )
+
+    const testing = offered.filter((v) => v.experimental)
+    check(
+      'las versiones sin build estable van marcadas y antes de la recomendada',
+      testing.every((v) => offered.indexOf(v) < offered.indexOf(recommended)),
+      testing.length > 0 ? testing.map((v) => v.minecraftVersion).join(', ') : 'ninguna ahora mismo'
+    )
+
+    // El instalador solo debe aceptar el build alpha si se le pide.
+    if (testing[0]) {
+      const version = testing[0].minecraftVersion
+      const experimental = await paper.latestBuild(version, true)
+      check('se puede resolver el build en pruebas', experimental.url.startsWith('https://'), `${version}: ${experimental.channel}`)
+      let rejected = false
+      try {
+        await paper.latestBuild(version)
+      } catch {
+        rejected = true
+      }
+      check('sin permiso explícito, el build en pruebas se rechaza', rejected, version)
+    }
   })
 
   await section('Fabric', async () => {
@@ -456,11 +489,97 @@ export async function minecraftSmoke(): Promise<void> {
     )
   })
 
+  // Cambiar de versión un servidor que ya existe (§19.18). Solo hace falta la
+  // distribución y la versión que tiene puesta, así que el manifiesto va a mano.
+  await section('Cambiar de versión (Minecraft)', async () => {
+    const manifestEn = (minecraftVersion: string): MinecraftManifest =>
+      ({
+        schemaVersion: 2,
+        id: 'falso',
+        name: 'Falso',
+        game: 'minecraft',
+        port: 25565,
+        autoRestart: false,
+        backup: { enabled: false, intervalHours: 24, keep: 3 },
+        createdAt: new Date().toISOString(),
+        agreements: ['minecraft-eula'],
+        data: {
+          distribution: 'paper',
+          minecraftVersion,
+          javaMajor: 21,
+          memoryMb: 2048,
+          jvmArgs: []
+        }
+      }) as MinecraftManifest
+
+    const offered = await catalog.versionsFor('paper')
+    const estable = offered.find((v) => v.recommended)!.minecraftVersion
+    const antigua = offered.find((v) => !v.recommended && !v.experimental)!.minecraftVersion
+    const pruebas = offered.find((v) => v.experimental)?.minecraftVersion
+
+    const lista = await minecraftAdapter.listVersions!(manifestEn(estable))
+    check('ofrece todas las versiones de la distribución', lista.length === offered.length)
+    check('marca la instalada', lista.filter((v) => v.installed).length === 1, estable)
+    check(
+      'la instalada es «same» y las de después «older»',
+      lista.find((v) => v.id === estable)?.relation === 'same' &&
+        lista.find((v) => v.id === antigua)?.relation === 'older'
+    )
+
+    // Estando en la estable, si hay una en pruebas sale como posterior, pero
+    // NO como actualización pendiente: ir a ella es una decisión, no ponerse al día.
+    if (pruebas) {
+      check('la versión en pruebas sale como posterior', lista.find((v) => v.id === pruebas)?.relation === 'newer')
+      check('y marcada como en pruebas', lista.find((v) => v.id === pruebas)?.experimental === true)
+      const desdePruebas = await minecraftAdapter.checkUpdate!(manifestEn(pruebas))
+      check(
+        'quien va en una en pruebas no tiene nada que actualizar',
+        desdePruebas.available === false,
+        `${pruebas} -> ${desdePruebas.latest}`
+      )
+    }
+
+    const alDia = await minecraftAdapter.checkUpdate!(manifestEn(estable))
+    check('en la recomendada, no hay actualización', alDia.available === false, estable)
+
+    const atrasado = await minecraftAdapter.checkUpdate!(manifestEn(antigua))
+    check('en una anterior, sí la hay', atrasado.available === true, `${antigua} -> ${atrasado.latest}`)
+
+    // Cambiar de versión recalcula el Java: es el error que dejaría el servidor
+    // sin arrancar después de un salto grande.
+    const cambio = await minecraftAdapter.prepareVersionChange!(manifestEn(estable), antigua)
+    check('al cambiar, apunta la versión pedida', cambio.minecraftVersion === antigua)
+    check('recalcula el Java que pide esa versión', cambio.javaMajor === (await catalog.javaMajorFor(antigua)), `Java ${cambio.javaMajor}`)
+    check('y olvida el build de la anterior', cambio.build === undefined)
+
+    if (pruebas) {
+      const aPruebas = await minecraftAdapter.prepareVersionChange!(manifestEn(estable), pruebas)
+      check('cambiar a una en pruebas deja el permiso puesto', aPruebas.allowExperimental === true)
+      const aEstable = await minecraftAdapter.prepareVersionChange!(manifestEn(pruebas), estable)
+      check('y volver a la estable lo quita', aEstable.allowExperimental === false)
+    }
+
+    let rechazo = ''
+    try {
+      await minecraftAdapter.prepareVersionChange!(manifestEn(estable), '0.0.1-inventada')
+    } catch (err) {
+      rechazo = err instanceof Error ? err.message : String(err)
+    }
+    check('una versión inventada se rechaza antes de tocar nada', rechazo.includes('0.0.1-inventada'), rechazo)
+  })
+
   await section('Catálogo unificado', async () => {
     for (const dist of ['vanilla', 'paper', 'fabric', 'forge'] as const) {
       const list = await catalog.versionsFor(dist)
       check(`${dist}: ofrece versiones estables`, list.length > 0, `${list.length}, la más nueva ${list[0]?.minecraftVersion}`)
-      check(`${dist}: marca una recomendada`, list[0]?.recommended === true)
+      // Ya no tiene por qué ser la primera: delante puede haber versiones que
+      // la distribución solo publica en pruebas.
+      const marked = list.filter((v) => v.recommended)
+      check(
+        `${dist}: marca una sola recomendada`,
+        marked.length === 1,
+        marked[0]?.minecraftVersion
+      )
     }
   })
 }

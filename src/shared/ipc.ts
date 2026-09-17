@@ -20,6 +20,8 @@ export const IPC = {
   deleteInstance: 'instances:delete',
   reinstallInstance: 'instances:reinstall',
   checkForUpdate: 'instances:checkUpdate',
+  listVersions: 'instances:listVersions',
+  changeVersion: 'instances:changeVersion',
   updateServer: 'instances:updateServer',
 
   // Ejecución

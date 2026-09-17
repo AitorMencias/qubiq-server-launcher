@@ -16,6 +16,7 @@ import { setDataRoot, setResourcesRoot, serverDir } from '../../src/main/core/pa
 import { service } from '../../src/main/core/service'
 import * as catalog from '../../src/main/core/games/minecraft/versions/catalog'
 import type { Distribution } from '../../src/shared/games/minecraft/types'
+import { minecraftOf } from '../../src/shared/games/minecraft/types'
 
 const DISTRIBUTION: Distribution = (process.argv[2] as Distribution) ?? 'paper'
 const PORT = 25599
@@ -545,6 +546,72 @@ async function main(): Promise<void> {
       'pero el lobby no se pone en modo extremo',
       lobbyProps['hardcore'] === 'false',
       lobbyProps['hardcore']
+    )
+  }
+
+  // --- Cambio de versión -----------------------------------------------------
+
+  // El caso que pide esto de verdad: el servidor ya existe y hay que llevarlo a
+  // otra versión sin volver a crearlo, hacia delante o hacia atrás (§19.18).
+  console.log('\n== Cambiar de versión')
+  const disponibles = await service.listVersions(manifest.id)
+  check('ofrece versiones a las que cambiar', disponibles.length > 1, `${disponibles.length}`)
+  check('y marca la que tiene puesta', disponibles.find((v) => v.installed)?.id === version, version)
+
+  // Se baja a una anterior, que es lo delicado: además del jar cambia el Java
+  // que pide la versión, y equivocarlo deja el servidor sin arrancar.
+  const anterior = disponibles.find((v) => v.relation === 'older' && !v.experimental)
+  if (!anterior) {
+    console.log('  (no hay ninguna versión anterior disponible: nada que probar)')
+  } else {
+    // Por nombre, no por cantidad: la retención va borrando las viejas, así que
+    // contar no dice si se ha guardado una nueva.
+    const copiasAntes = new Set((await service.listBackups(manifest.id)).map((b) => b.fileName))
+    const t0 = Date.now()
+    await service.changeVersion(manifest.id, anterior.id)
+    const despues = minecraftOf((await service.get(manifest.id)).manifest).data
+
+    check(
+      `baja a la ${anterior.id}`,
+      despues.minecraftVersion === anterior.id,
+      `${((Date.now() - t0) / 1000).toFixed(0)} s`
+    )
+    check(
+      'con el Java que pide esa versión',
+      despues.javaMajor === (await catalog.javaMajorFor(anterior.id)),
+      `Java ${despues.javaMajor}`
+    )
+    check('y con un build suyo, no el de antes', Boolean(despues.build), despues.build)
+    check('el jar del servidor sigue en su sitio', await exists(join(dir, 'server.jar')))
+
+    // Bajar de versión puede costar el mundo, así que la copia previa no es un
+    // detalle: es la única vuelta atrás que hay.
+    const nuevas = (await service.listBackups(manifest.id)).filter(
+      (b) => !copiasAntes.has(b.fileName)
+    )
+    check('guardó una copia antes de tocar nada', nuevas.length === 1, nuevas[0]?.fileName)
+    check(
+      'y la copia lleva la versión de la que se venía',
+      nuevas[0]?.version === version,
+      `${nuevas[0]?.version}`
+    )
+
+    // Y arranca de verdad: es lo único que prueba que el Java y el jar se
+    // corresponden.
+    ready = false
+    await service.start(manifest.id)
+    const arranca = await waitFor(() => ready, 5 * 60_000, 'el arranque con la versión nueva')
+      .then(() => true)
+      .catch(() => false)
+    check('arranca con la versión nueva', arranca, arranca ? undefined : errors.at(-1))
+    await service.stop(manifest.id)
+
+    // Y se vuelve a la de antes, que es el otro sentido del viaje.
+    await service.changeVersion(manifest.id, version)
+    check(
+      'y se puede volver a la de antes',
+      minecraftOf((await service.get(manifest.id)).manifest).data.minecraftVersion === version,
+      version
     )
   }
 

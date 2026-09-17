@@ -6,7 +6,9 @@
  * 2. Instalación anónima del servidor de Valheim (~2 GB) con progreso en vivo.
  * 3. Segunda ejecución: solo comprueba, no descarga.
  * 4. Comprobación de actualizaciones contra Steam.
- * 5. Arranque y parada con Ctrl+Break: el mundo se guarda y el proceso sale solo.
+ * 5. Cambio de rama: bajar a una anterior y volver, que es como se cambia de
+ *    versión un servidor de Steam.
+ * 6. Arranque y parada con Ctrl+Break: el mundo se guarda y el proceso sale solo.
  *
  * Lo descargado se guarda entre ejecuciones en %LOCALAPPDATA%\qubiq-dev\e2e-steam
  * (no en %TEMP%, que Windows puede vaciar) para no bajar gigas cada vez. `--limpio` lo borra antes y lo prueba todo desde cero.
@@ -23,6 +25,8 @@ import {
   appUpdate,
   checkAppUpdate,
   ensureSteamCmd,
+  installedBranch,
+  listBranches,
   steamCmdPath
 } from '../../src/main/core/tools/steamcmd'
 import { ServerSupervisor } from '../../src/main/core/runtime/supervisor'
@@ -117,7 +121,77 @@ async function main(): Promise<void> {
     `instalado ${update.installed}, publicado ${update.latest}`
   )
 
-  // --- 5. Arranque y Ctrl+Break --------------------------------------------------------
+  // --- 5. Cambio de rama -------------------------------------------------------------
+
+  // Es como se cambia de versión un servidor de Steam: no se elige una build,
+  // se elige una rama y Steam instala la última de esa rama. Valheim mantiene
+  // varias antiguas («Previous stable», «before Ashlands»), así que se puede
+  // comprobar el viaje de ida y vuelta de verdad.
+  console.log('\n== Cambio de rama')
+  const branches = await listBranches(VALHEIM_APP)
+  console.log(`  ramas: ${branches.map((b) => b.name).join(', ')}`)
+  check('Steam publica más de una rama', branches.length > 1, `${branches.length}`)
+  check('la pública va primero', branches[0]?.name === 'public')
+  check('parte de la rama pública', (await installedBranch(installDir, VALHEIM_APP)) === 'public')
+
+  const anterior = branches.find((b) => b.name !== 'public')
+  if (!anterior) {
+    console.log('  (ahora mismo solo hay rama pública: no hay a dónde cambiar)')
+  } else {
+    const t3 = Date.now()
+    const bajada = await appUpdate({
+      appId: VALHEIM_APP,
+      installDir,
+      branch: anterior.name,
+      onProgress: (progress, label) =>
+        console.log(`  ... ${label} ${Math.floor(progress.fraction * 100)} %`)
+    })
+    check(
+      `baja a «${anterior.name}»`,
+      bajada.branch === anterior.name,
+      `${((Date.now() - t3) / 1000).toFixed(0)} s`
+    )
+    check(
+      'y queda anotado en el appmanifest',
+      (await installedBranch(installDir, VALHEIM_APP)) === anterior.name
+    )
+    check(
+      'con el build que publica esa rama',
+      bajada.buildId === anterior.buildId,
+      `${bajada.buildId} (esperado ${anterior.buildId})`
+    )
+
+    // En SU rama está al día: decirle que hay actualización lo sacaría de la
+    // versión que eligió a propósito.
+    const enSuRama = await checkAppUpdate(VALHEIM_APP, installDir, anterior.name)
+    check('en su rama no hay nada pendiente', !enSuRama.available, `instalado ${enSuRama.installed}`)
+    const contraPublica = await checkAppUpdate(VALHEIM_APP, installDir, 'public')
+    check(
+      'pero contra la pública sí se ve la diferencia',
+      contraPublica.available,
+      `${contraPublica.installed} vs ${contraPublica.latest}`
+    )
+
+    const vuelta = await appUpdate({
+      appId: VALHEIM_APP,
+      installDir,
+      onProgress: (progress, label) =>
+        console.log(`  ... ${label} ${Math.floor(progress.fraction * 100)} %`)
+    })
+    check('vuelve a la pública', vuelta.branch === 'public')
+    check(
+      'y el appmanifest se queda sin rama',
+      (await installedBranch(installDir, VALHEIM_APP)) === 'public'
+    )
+    check(
+      'con el build de la pública',
+      vuelta.buildId === branches[0]?.buildId,
+      `${vuelta.buildId} (esperado ${branches[0]?.buildId})`
+    )
+    check('el ejecutable sigue ahí', await exists(join(installDir, 'valheim_server.exe')))
+  }
+
+  // --- 6. Arranque y Ctrl+Break --------------------------------------------------------
 
   console.log('\n== Arranque y parada con Ctrl+Break')
   const saves = join(root, `saves-${Date.now()}`)

@@ -113,6 +113,7 @@ La pantalla de conexión y sus guías dan por hecho **un puerto TCP**. Cinco de 
 | | |
 |---|---|
 | Instalación | SteamCMD, app **896660**, `login anonymous` |
+| Ramas | `public` y **seis antiguas con descripción del estudio**: `default_old` («Previous stable»), `default_pre1_0`, `default_preal` (antes de Ashlands), `default_prebw` (Bog Witch), `default_precta` (Call to Arms), `default_preml` (Mistlands). Ninguna pide contraseña |
 | Sistema | Windows y Linux nativos |
 | Puertos | UDP 2456–2458 (el de juego y el siguiente). Con `-crossplay`, ninguno |
 | Configuración | Solo argumentos: `-name -port -world -password -public -crossplay -saveinterval -preset -modifier -backups -savedir` |
@@ -133,6 +134,7 @@ editar listas; no se puede expulsar a alguien en caliente desde fuera del juego 
 | | |
 |---|---|
 | Instalación | SteamCMD, app **1690800**, `login anonymous` |
+| Ramas | `public` y `experimental` (en septiembre de 2026, con la misma build). Ninguna pide contraseña |
 | Sistema | Windows y Linux nativos |
 | Puertos | **7777 TCP y UDP** (juego y API) + **8888 TCP** (mensajería fiable) |
 | Requisitos | 8 GB de RAM; 16 GB para partidas grandes o más de 4 jugadores |
@@ -239,6 +241,16 @@ trae los módulos de Space Age activados y hay informes de fallos con la lista d
 jugador tiene el juego de todas formas.
 
 ---
+
+### Las ramas de Steam, en general
+
+Un juego de Steam no deja instalar una build suelta: se elige una **rama** y Steam pone la última
+de esa rama. Salen de `app_info_print`, bajo `branches`, con `buildid`, `description` (solo las que
+no son `public`), `timeupdated` y, si la piden, `pwdrequired`. Es lo que la app usa para cambiar de
+versión hacia delante y hacia atrás (ANALISIS.md §19.18).
+
+Project Zomboid, que aún no está implementado, tiene también `legacy41` («Build 41.78.21») y
+`42.19` («Build 42.19.2»): cuando entre, su pantalla de versión funcionará sin tocar nada.
 
 ## 4. Resumen de viabilidad y orden recomendado
 

@@ -16,7 +16,13 @@ import type {
   ProgressUpdate,
   ServerStatus
 } from '@shared/types'
-import { gameInfo, requiredAgreements, type PortProtocol, type UpdateCheck } from '@shared/games'
+import {
+  gameInfo,
+  requiredAgreements,
+  type InstallableVersion,
+  type PortProtocol,
+  type UpdateCheck
+} from '@shared/games'
 import { ServerSupervisor } from './runtime/supervisor'
 import * as instances from './instances/manager'
 import * as backups from './backup/manager'
@@ -144,7 +150,12 @@ class LauncherService extends EventEmitter implements GameHost {
     return manifest
   }
 
-  async install(id: string): Promise<void> {
+  /**
+   * `skipBackup` lo usa quien ya ha guardado una copia por su cuenta: cambiar
+   * de versión la hace antes de apuntar la versión nueva, para que quede
+   * etiquetada con la que tenía y no con la que va a instalarse.
+   */
+  async install(id: string, options: { skipBackup?: boolean } = {}): Promise<void> {
     const manifest = await this.requireManifest(id)
     if (this.installing.has(id)) throw new Error('Ya hay una instalación en curso.')
     const game = gameOf(manifest)
@@ -161,7 +172,9 @@ class LauncherService extends EventEmitter implements GameHost {
       // Reinstalar sobre una partida existente es una operación de riesgo: se
       // guarda una copia antes de tocar nada (§12). Si aún no hay partida,
       // falla en silencio porque no hay nada que perder.
-      await this.createBackup(id, 'Copia previa a reinstalar', true).catch(() => undefined)
+      if (!options.skipBackup) {
+        await this.createBackup(id, 'Copia previa a reinstalar', true).catch(() => undefined)
+      }
 
       const changes = await game.install(manifest, progress)
       if (changes && Object.keys(changes).length > 0) {
@@ -195,6 +208,44 @@ class LauncherService extends EventEmitter implements GameHost {
   async updateServer(id: string): Promise<void> {
     this.assertStopped(id, 'actualizarlo')
     await this.install(id)
+  }
+
+  /** Versiones a las que se puede llevar el servidor. Vacío si el juego no elige. */
+  async listVersions(id: string): Promise<InstallableVersion[]> {
+    const manifest = await this.requireManifest(id)
+    const game = gameOf(manifest)
+    return game.listVersions ? game.listVersions(manifest) : []
+  }
+
+  /**
+   * Lleva el servidor a otra versión: la apunta en el manifiesto y reinstala.
+   *
+   * Sirve igual para subir que para bajar. Bajar es lo delicado —una partida
+   * guardada por una versión posterior puede no volver a abrirse—, así que el
+   * aviso lo da la interfaz antes de llegar aquí y la copia de seguridad la
+   * hace `install`, que ya guarda una antes de tocar nada (§12).
+   */
+  async changeVersion(id: string, versionId: string): Promise<void> {
+    this.assertStopped(id, 'cambiarle la versión')
+    const manifest = await this.requireManifest(id)
+    const game = gameOf(manifest)
+    if (!game.prepareVersionChange) {
+      throw new Error(`Los servidores de ${gameInfo(manifest.game).name} no cambian de versión.`)
+    }
+
+    // Se valida ANTES de escribir el manifiesto: si la versión no existe, el
+    // servidor se queda como estaba en vez de apuntando a una que no se puede
+    // instalar.
+    const changes = await game.prepareVersionChange(manifest, versionId)
+
+    // Y la copia, antes todavía: la que se guarda es la partida de AHORA, y
+    // así queda anotada con la versión de ahora. Si se hiciera después de
+    // apuntar la nueva, la copia diría que es de una versión que nunca tuvo, y
+    // eso es lo que se lee al restaurarla cuando algo ha salido mal.
+    await this.createBackup(id, 'Copia previa a cambiar de versión', true).catch(() => undefined)
+
+    await instances.updateInstance(id, { data: changes }, game)
+    await this.install(id, { skipBackup: true })
   }
 
   async update(id: string, changes: ManifestChanges): Promise<InstanceManifest> {

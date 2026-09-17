@@ -29,6 +29,11 @@ export interface SatisfactoryData {
    * terminó pero el servidor aún no se había reclamado, se reintenta al arrancar.
    */
   claimed: boolean
+  /**
+   * Rama de Steam en la que va el servidor. Si falta, la pública: es lo que
+   * había antes de poder elegir, y es lo que Steam instala por defecto.
+   */
+  branch?: string
   /** Build de Steam instalada, para saber si hay actualización. */
   buildId?: string
   /** Versión del juego, tal como la publica el propio servidor. */

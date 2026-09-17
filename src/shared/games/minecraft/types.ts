@@ -36,6 +36,14 @@ export interface MinecraftData {
   minecraftVersion: string
   /** Build de Paper, versión de loader de Fabric o versión de Forge. */
   build?: string
+  /**
+   * El usuario aceptó instalar builds en pruebas (alpha/beta) de la
+   * distribución. Solo lo usa Paper, que publica builds experimentales de una
+   * versión nueva de Minecraft días antes del primer estable. Queda guardado
+   * porque las reinstalaciones y las actualizaciones de build vuelven a pasar
+   * por aquí, y no se le puede volver a preguntar en ese momento.
+   */
+  allowExperimental?: boolean
   javaMajor: number
   memoryMb: number
   jvmArgs: string[]
@@ -46,6 +54,8 @@ export interface MinecraftCreateOptions {
   distribution: Distribution
   minecraftVersion: string
   build?: string
+  /** Se eligió una versión que solo tiene builds en pruebas (ver `MinecraftData`). */
+  allowExperimental?: boolean
   memoryMb: number
   /**
    * Ajustes de `server.properties` elegidos en el asistente (modo de juego,
@@ -92,7 +102,13 @@ export interface DistributionVersion {
   /** Build/loader recomendado; la interfaz básica no lo muestra. */
   build?: string
   channel: VersionChannel
+  /** La que la app propone: la más reciente que no está en pruebas. */
   recommended: boolean
+  /**
+   * La distribución todavía no publica un build estable para esta versión,
+   * solo alpha/beta. Se puede instalar, pero avisando (§4.2).
+   */
+  experimental?: boolean
 }
 
 /**

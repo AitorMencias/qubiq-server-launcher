@@ -14,7 +14,14 @@ import {
 } from '@shared/games/valheim/types'
 import type { GameAdapter, LaunchSpec, ParsedEvent } from '../types'
 import { serverDir } from '../../paths'
-import { appUpdate, checkAppUpdate, ensureSteamCmd, installedBuildId } from '../../tools/steamcmd'
+import {
+  appUpdate,
+  checkAppUpdate,
+  DEFAULT_BRANCH,
+  ensureSteamCmd,
+  installedBuildId
+} from '../../tools/steamcmd'
+import { requireBranch, steamVersions } from '../steamVersions'
 import { isUdpPortInUse } from '../../net/network'
 import { queryInfo } from '../../net/a2s'
 import { steamRegistration } from '../../net/steamServers'
@@ -201,6 +208,7 @@ export const valheimAdapter: GameAdapter<ValheimManifest, ValheimCreateRequest> 
     const result = await appUpdate({
       appId: VALHEIM_APP_ID,
       installDir: serverDir(manifest.id),
+      branch: manifest.data.branch ?? DEFAULT_BRANCH,
       onProgress: (progress, label) => {
         const gb = (bytes: number): string => (bytes / 1024 ** 3).toFixed(1)
         const detail =
@@ -214,12 +222,30 @@ export const valheimAdapter: GameAdapter<ValheimManifest, ValheimCreateRequest> 
     // duplicaría la espera sin dar nada a cambio (a diferencia de Satisfactory,
     // donde el primer arranque es lo que deja el servidor reclamado).
     onProgress('done', 1, 'Servidor listo')
-    return { buildId: result.buildId ?? undefined }
+    return { buildId: result.buildId ?? undefined, branch: result.branch }
   },
 
   async checkUpdate(manifest) {
-    const check = await checkAppUpdate(VALHEIM_APP_ID, serverDir(manifest.id))
+    await ensureSteamCmd()
+    const check = await checkAppUpdate(
+      VALHEIM_APP_ID,
+      serverDir(manifest.id),
+      manifest.data.branch ?? DEFAULT_BRANCH
+    )
     return { available: check.available, installed: check.installed, latest: check.latest }
+  },
+
+  listVersions(manifest) {
+    return steamVersions(VALHEIM_APP_ID, serverDir(manifest.id), manifest.data.buildId)
+  },
+
+  async prepareVersionChange(manifest, versionId) {
+    return {
+      branch: await requireBranch(VALHEIM_APP_ID, versionId),
+      // La versión de verdad se lee del servidor al arrancarlo; la guardada es
+      // la de antes de cambiar.
+      gameVersion: undefined
+    }
   },
 
   async launch(manifest) {

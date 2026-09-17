@@ -270,6 +270,11 @@ export interface ValheimData {
   saveIntervalSeconds: number
   /** Copias que mantiene el propio juego dentro de la carpeta de mundos. */
   backups: number
+  /**
+   * Rama de Steam en la que va el servidor. Si falta, la pública: es lo que
+   * había antes de poder elegir, y es lo que Steam instala por defecto.
+   */
+  branch?: string
   /** Build de Steam instalada, para saber si hay actualización. */
   buildId?: string
   /** Versión del juego tal como la escribe el servidor al arrancar. */

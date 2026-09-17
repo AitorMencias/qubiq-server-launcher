@@ -10,7 +10,14 @@ import {
 } from '@shared/games/satisfactory/types'
 import type { GameAdapter, LaunchSpec, ParsedEvent } from '../types'
 import { serverDir } from '../../paths'
-import { appUpdate, checkAppUpdate, ensureSteamCmd, installedBuildId } from '../../tools/steamcmd'
+import {
+  appUpdate,
+  checkAppUpdate,
+  DEFAULT_BRANCH,
+  ensureSteamCmd,
+  installedBuildId
+} from '../../tools/steamcmd'
+import { requireBranch, steamVersions } from '../steamVersions'
 import { isPortFree } from '../../net/network'
 import * as api from './api'
 
@@ -236,6 +243,7 @@ export const satisfactoryAdapter: GameAdapter<SatisfactoryManifest, Satisfactory
     const result = await appUpdate({
       appId: SATISFACTORY_APP_ID,
       installDir: serverDir(manifest.id),
+      branch: manifest.data.branch ?? DEFAULT_BRANCH,
       onProgress: (progress, label) => {
         const gb = (bytes: number): string => (bytes / 1024 ** 3).toFixed(1)
         const detail =
@@ -245,7 +253,7 @@ export const satisfactoryAdapter: GameAdapter<SatisfactoryManifest, Satisfactory
     })
 
     if (manifest.data.claimed) {
-      return { buildId: result.buildId ?? undefined }
+      return { buildId: result.buildId ?? undefined, branch: result.branch }
     }
 
     // Primer arranque: reclamar el servidor y dejar la partida creada.
@@ -269,7 +277,7 @@ export const satisfactoryAdapter: GameAdapter<SatisfactoryManifest, Satisfactory
     })
 
     onProgress('claim', 1, 'Servidor listo')
-    return { ...changes, claimed: true, buildId: result.buildId ?? undefined }
+    return { ...changes, claimed: true, buildId: result.buildId ?? undefined, branch: result.branch }
   },
 
   applyChanges(current, next, changes) {
@@ -283,8 +291,26 @@ export const satisfactoryAdapter: GameAdapter<SatisfactoryManifest, Satisfactory
   },
 
   async checkUpdate(manifest) {
-    const check = await checkAppUpdate(SATISFACTORY_APP_ID, serverDir(manifest.id))
+    await ensureSteamCmd()
+    const check = await checkAppUpdate(
+      SATISFACTORY_APP_ID,
+      serverDir(manifest.id),
+      manifest.data.branch ?? DEFAULT_BRANCH
+    )
     return { available: check.available, installed: check.installed, latest: check.latest }
+  },
+
+  listVersions(manifest) {
+    return steamVersions(SATISFACTORY_APP_ID, serverDir(manifest.id), manifest.data.buildId)
+  },
+
+  async prepareVersionChange(manifest, versionId) {
+    return {
+      branch: await requireBranch(SATISFACTORY_APP_ID, versionId),
+      // La versión del juego se sabe preguntándosela al servidor, y la que hay
+      // guardada es la de antes: se borra para no enseñar una que ya no es.
+      gameVersion: undefined
+    }
   },
 
   async launch(manifest) {

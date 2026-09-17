@@ -66,8 +66,14 @@ export const paperInstaller: Installer = {
 
   async install(ctx: InstallContext): Promise<InstallResult> {
     await ensureDir(ctx.serverDir)
-    ctx.onProgress('resolve', null, 'Buscando el último build estable de Paper')
-    const build = await paper.latestBuild(ctx.minecraftVersion)
+    ctx.onProgress(
+      'resolve',
+      null,
+      ctx.allowExperimental
+        ? 'Buscando el último build de Paper, incluidos los de pruebas'
+        : 'Buscando el último build estable de Paper'
+    )
+    const build = await paper.latestBuild(ctx.minecraftVersion, ctx.allowExperimental ?? false)
 
     ctx.onProgress('download', 0, 'Descargando Paper')
     await download({

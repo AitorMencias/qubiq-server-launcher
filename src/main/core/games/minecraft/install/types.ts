@@ -8,6 +8,8 @@ export interface InstallContext {
   minecraftVersion: string
   /** Build de Paper / versión de Forge / loader de Fabric. */
   build?: string
+  /** El usuario aceptó builds en pruebas (alpha/beta) de la distribución. */
+  allowExperimental?: boolean
   javaPath: string
   memoryMb: number
   onProgress: (phase: string, progress: number | null, detail?: string) => void

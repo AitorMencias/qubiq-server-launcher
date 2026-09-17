@@ -165,8 +165,10 @@ interface InstanceManifest {
 > - Pendiente de grabar con servidor real: WebRCON (Rust) y A2S de Valheim. Los dos exigen publicar
 >   el servidor en la lista de Steam con la IP del usuario, y eso se decide antes de hacerlo. Se
 >   graban, como tarde, en sus fases (6 y 3).
-> - Queda para cada juego: la interfaz de actualizaciones y de la comprobación con Steam. El núcleo
->   y el IPC ya existen; sin un juego que los use no tienen pantalla que enseñar.
+> - ~~Queda para cada juego: la interfaz de actualizaciones y de la comprobación con Steam.~~
+>   **Hecho** (ANALISIS.md §19.18): Configuración → Servidor tiene la tarjeta «Versión», común a
+>   todos los juegos, con aviso de versión nueva en los dos modos y elección de versión o rama en
+>   avanzado. Incluye volver a una anterior, con copia previa y confirmación.
 
 **Objetivo:** construir una sola vez lo que necesitan cinco de los seis juegos. Empieza por los
 dos prototipos de riesgo, porque su resultado puede reordenar las fases siguientes.

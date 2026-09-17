@@ -8,11 +8,14 @@ import { join } from 'node:path'
 
 import { check, section } from './harness'
 import {
+  branchesFromAppInfo,
+  branchFromManifest,
   buildIdFromAppInfo,
   buildIdFromManifest,
   interpretRun,
   parseProgressLine
 } from '../../src/main/core/tools/steamcmdOutput'
+import { toInstallableVersions } from '../../src/main/core/games/steamVersions'
 import { isValveSigner } from '../../src/main/core/tools/steamcmd'
 import { parseVdf, vdfGet } from '../../src/main/core/formats/vdf'
 import { RconClient, RconError, decodePackets, encodePacket } from '../../src/main/core/net/rcon'
@@ -108,6 +111,84 @@ export async function steamSmoke(): Promise<void> {
       buildIdFromAppInfo(appInfo, 896660) === '25253791'
     )
     check('rama inexistente: null', buildIdFromAppInfo(appInfo, 896660, 'no-existe') === null)
+
+    // --- Ramas: de aquí sale «cambiar de versión» en los juegos de Steam ---
+    const branches = branchesFromAppInfo(appInfo, 896660)
+    check('lista todas las ramas publicadas', branches.length === 7, `${branches.length} ramas`)
+    check('la pública va primero', branches[0]?.name === 'public', branches[0]?.name)
+    check(
+      'y el resto de más reciente a más antigua',
+      branches.slice(1).every((b, i) => i === 0 || b.timeUpdated <= branches[i]!.timeUpdated),
+      branches.slice(1).map((b) => b.name).join(', ')
+    )
+    check(
+      'conserva la descripción del estudio',
+      branches.find((b) => b.name === 'default_preal')?.description ===
+        'Last stable build before Ashlands'
+    )
+    // Valheim mete un tabulador al principio de una descripción.
+    check(
+      'y le quita los espacios que Steam deja dentro',
+      branches.find((b) => b.name === 'default_prebw')?.description ===
+        'Last stable build before Bog Witch'
+    )
+    check(
+      'ninguna de estas pide contraseña',
+      branches.every((b) => !b.needsPassword)
+    )
+
+    check('sin BetaKey en el .acf, la rama es la pública', branchFromManifest(acf) === 'public')
+    check(
+      'con BetaKey, la que diga',
+      branchFromManifest(
+        '"AppState" { "appid" "896660" "UserConfig" { "BetaKey" "default_preal" } }'
+      ) === 'default_preal'
+    )
+
+    // Instalado en la pública, con el build que publica esa rama.
+    const alDia = toInstallableVersions(branches, 'public', '25253791')
+    check('marca la rama instalada', alDia.find((v) => v.installed)?.id === 'public')
+    check('la pública es la recomendada', alDia[0]?.recommended === true)
+    check(
+      'las ramas antiguas salen como anteriores',
+      alDia.filter((v) => v.id !== 'public').every((v) => v.relation === 'older'),
+      alDia.filter((v) => v.relation === 'older').length + ' anteriores'
+    )
+    check(
+      'la etiqueta de la pública se dice en cristiano',
+      alDia[0]?.label === 'La de siempre',
+      alDia[0]?.label
+    )
+    check(
+      'y la de una antigua es la del estudio',
+      alDia.find((v) => v.id === 'default_old')?.label === 'Previous stable'
+    )
+
+    // Instalado en una rama anterior: la pública pasa a ser «más nueva», que es
+    // lo que permite volver a ella desde una versión de antes.
+    const atrasado = toInstallableVersions(branches, 'default_preal', '20221240')
+    check('marca la rama antigua como la instalada', atrasado.find((v) => v.installed)?.id === 'default_preal')
+    check('y la pública como posterior', atrasado[0]?.relation === 'newer')
+
+    // Sin build conocido no se puede comparar, y decirlo vale más que acertar
+    // por casualidad: bajar de versión puede costar la partida.
+    const sinBuild = toInstallableVersions(branches, 'public', undefined)
+    check('sin build instalado, la relación es desconocida', sinBuild.every((v) => v.relation === 'unknown'))
+
+    // Estado raro al reconfigurar una rama sin nada que descargar. Salida real
+    // del intento de pasar «-beta public» a algo que ya estaba en la pública.
+    const reconfigurando = interpretRun(
+      "Update state (0x3) reconfiguring, progress: 0.00 (0 / 0)\n" +
+        "Error! App '896660' state is 0x6 after update job.",
+      8
+    )
+    check('reconoce el estado 0x6 de Steam', !reconfigurando.ok && reconfigurando.error?.reason === 'state 0x6')
+    check('y lo trata como pasajero', reconfigurando.error?.retryable === true)
+    check(
+      'con un mensaje que dice qué hacer',
+      reconfigurando.error?.message.includes('Vuelve a intentarlo') === true,
+      reconfigurando.error?.message
+    )
 
     // Sujetos reales: el del zip (certificado antiguo) y el de la autoactualización.
     check(

@@ -1,6 +1,6 @@
 {
   "name": "qubiq-server-launcher",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Crea y gestiona tu servidor de Minecraft en tres clics",
   "main": "./out/main/index.js",
   "private": true,

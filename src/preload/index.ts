@@ -8,7 +8,7 @@ import {
   type MemoryInfo,
   type SystemMemory
 } from '../shared/ipc'
-import type { PortProtocol, UpdateCheck } from '../shared/games'
+import type { InstallableVersion, PortProtocol, UpdateCheck } from '../shared/games'
 import type { OfficialPluginStatus } from '../shared/games/minecraft/officialPlugins'
 import type {
   AppSettings,
@@ -221,6 +221,10 @@ const api = {
     checkUpdate: (id: string): Promise<UpdateCheck | null> =>
       ipcRenderer.invoke(IPC.checkForUpdate, id),
     updateServer: (id: string): Promise<void> => ipcRenderer.invoke(IPC.updateServer, id),
+    listVersions: (id: string): Promise<InstallableVersion[]> =>
+      ipcRenderer.invoke(IPC.listVersions, id),
+    changeVersion: (id: string, versionId: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.changeVersion, id, versionId),
     openFolder: (id: string): Promise<void> => ipcRenderer.invoke(IPC.openInstanceFolder, id)
   },
 

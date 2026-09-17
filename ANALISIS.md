@@ -134,8 +134,10 @@ Build:     https://fill.papermc.io/v3/projects/paper/versions/<ver>/builds/lates
 > código que la use ya no funciona. Hay que usar **v3 en `fill.papermc.io`**.
 
 La respuesta v3 entrega directamente `downloads["server:default"]` con `url`, `size`, `name` y
-`checksums.sha256`. El canal (`STABLE` / `EXPERIMENTAL`) viene en el campo `channel`: la app debe
-ofrecer solo `STABLE` salvo en modo avanzado.
+`checksums.sha256`. El canal (`STABLE` / `RECOMMENDED` / `ALPHA` / `BETA`) viene en el campo
+`channel`. Cuando sale una versión de Minecraft, Paper publica builds `ALPHA` para ella durante
+días antes del primer estable: esas versiones se ofrecen **marcadas como en pruebas**, nunca como
+recomendadas, y solo se instalan si el usuario lo aceptó en el asistente (§19.17).
 
 Mismo host para los proyectos hermanos: `velocity` (proxy), `folia` (multihilo), `waterfall` (obsoleto).
 
@@ -1641,8 +1643,9 @@ Zomboid y Rust (5,5 GB), observando todo lo que escribe.
 
 **Fallo encontrado por el camino (Minecraft).** Paper publicó 26.3 con builds solo experimentales, y el
 catálogo la proponía por defecto: el instalador la rechaza, así que crear un servidor de plugins con
-el asistente habría fallado. Ahora, sin el modo inestable, se saltan las versiones de Paper cuyo
-último build no es estable, y el smoke lo comprueba.
+el asistente habría fallado. Se resolvió saltándose las versiones de Paper cuyo último build no es
+estable. (Esconderlas dejaba sin instalar la versión recién salida: desde §19.17 se ofrecen
+marcadas y con aviso, en vez de ocultarse.)
 
 **Cómo se ha comprobado:** smoke 213/0; `e2e:steam` completo desde cero; `e2e paper` y `e2e:restart`
 en verde; guías de conexión renderizadas con la versión anterior y la nueva dando el mismo texto; y
@@ -1867,7 +1870,132 @@ el fichero se veía perfecto: editándolo desde Git Bash se había colado un **r
 la prueba fallaba sin explicación. Ahora el smoke revisa los 123 ficheros de código y falla si
 aparece cualquier carácter de control invisible.
 
-### 19.17 Siguiente
+### 19.17 Versiones de Paper en pruebas
+
+Cuando Mojang saca una versión, Paper tarda días en tener un servidor terminado para ella: hasta
+entonces solo publica builds `ALPHA`. En la fase 1 esto se resolvió **escondiendo** esas versiones
+del catálogo, porque el instalador las rechazaba y el asistente reventaba al crear (§19.14). El
+efecto colateral es peor que el fallo: durante esos días la app simplemente no sabía instalar la
+versión que todo el mundo acaba de actualizar en su Minecraft.
+
+Ahora se ofrecen, pero con el aviso delante:
+
+| Pieza | Qué hace |
+|---|---|
+| `DistributionVersion.experimental` | Marca las versiones cuyo último build no es estable. El catálogo comprueba las **5 primeras** contra Paper y para en la primera estable; las antiguas siempre lo son y cada consulta queda en caché |
+| `recommended` | Ya no es la primera de la lista, sino **la primera que no está en pruebas**. `defaultVersionFor` devuelve esa, así que el valor por defecto de los dos asistentes sigue siendo la última estable |
+| `MinecraftData.allowExperimental` | Se guarda en el manifiesto cuando el usuario acepta. Hace falta porque reinstalar y actualizar el build vuelven a pasar por el instalador, y ahí ya no se le puede preguntar |
+| `paper.latestBuild(version, allow)` | Sigue negándose por defecto. El mensaje ya no manda al «modo avanzado», que no era donde estaba la solución |
+| `paper.latestChannel` | No lanza: un fallo de red marca la versión como en pruebas en vez de tumbar el catálogo entero |
+
+En el asistente **avanzado** la versión en pruebas sale en la lista con su etiqueta y, al elegirla,
+aparece un aviso explicando que puede fallar, ir peor y dar problemas con los plugins. En el
+**sencillo**, que no tiene selector de versión a propósito, el resumen enseña un aviso solo cuando
+existe una versión más nueva en pruebas, con un botón para cambiarse y otro para volver a la
+estable. Se ofrece únicamente la más nueva: dar a elegir entre varias alphas sería pedirle al
+usuario que decida algo que no puede valorar.
+
+**Un aviso que no se veía como tal.** La clase `alert warn` se usa en nueve sitios (Satisfactory,
+Valheim, la guía de conexión) y **no tiene regla CSS**: esas cajas salen con el borde neutro de
+`.alert`, no en ámbar. Escribir la regla que falta arreglaba los nueve de golpe, pero también
+cambiaba pantallas que este trabajo no toca, así que el aviso nuevo usa la misma clase y se ve
+igual que los demás. Queda anotado por si algún día se decide darles color.
+
+**Cómo se ha comprobado:** `typecheck` limpio; smoke 380/0, con comprobaciones nuevas de que la
+recomendada tiene build estable, de que las que no lo tienen van marcadas y por delante de ella, y
+de que el build alpha se resuelve con permiso y se rechaza sin él; `e2e paper` y `e2e:restart` en
+verde; una prueba aparte, con datos en carpeta temporal, que crea un servidor de Paper 26.3 (solo
+alpha ahora mismo): sin el permiso la instalación se niega con el mensaje correcto, y con él baja
+el jar de 64,1 MB, guarda el build 8 y deja `allowExperimental` en el manifiesto; y el recorrido de
+Playwright, con un guion nuevo (`ui/minecraft-en-pruebas.mjs`, capturas 36-38) que recorre los dos
+asistentes. La comparación píxel a píxel del recorrido completo solo señala `20-resumen`, que es
+justo donde aparece el aviso.
+
+### 19.18 Cambiar de versión, en cualquier juego
+
+Hasta ahora un servidor nacía con una versión y se quedaba con ella: el núcleo tenía
+`checkForUpdate` y `updateServer` desde la fase 1, pero **ninguna pantalla los usaba** (la propia
+hoja de ruta lo dejaba escrito). Y Minecraft ni siquiera tenía `checkUpdate`, porque su versión la
+elige el usuario. El caso que faltaba es de ida y vuelta: subir a la que acaba de salir, y poder
+volver si no convence.
+
+#### Qué es «una versión» en cada juego
+
+No se parecen en nada por dentro, y forzar que se parecieran habría estropeado los dos:
+
+| | Minecraft | Juegos de Steam |
+|---|---|---|
+| Qué se elige | Una versión del juego (`26.2`) | Una **rama** publicada por el estudio |
+| Quién manda | El catálogo cruzado de Mojang y la distribución | `app_info_print`, que lista las ramas con su descripción |
+| Hacia atrás | Cualquier versión anterior que la distribución publique | Las ramas antiguas que el estudio mantenga |
+| Lo que no se puede | — | Volver a una build suelta: exige `download_depot` con los identificadores de cada depósito, que Valve no sirve de forma anónima |
+
+Lo que tienen en común es lo único que le importa a quien elige, y eso es lo que hay en
+`InstallableVersion`: cómo se llama, si es anterior o posterior a la instalada, y si está
+terminada. El adaptador aporta `listVersions` y `prepareVersionChange`, y el núcleo hace siempre lo
+mismo: copia de seguridad, apuntar la versión en el manifiesto y reinstalar.
+
+**Las ramas reales, consultadas contra Steam:** Satisfactory tiene `public` y `experimental`
+(ahora mismo con la misma build). Valheim tiene `public` y **seis** ramas antiguas con descripción
+del estudio: «Previous stable», «Last stable build before 1.0», «…before Ashlands», «…before Bog
+Witch», «…before Call to Arms», «…before Mistlands». Ninguna pide contraseña; las que la pidan se
+descartan, porque la app no la tiene.
+
+#### Tres cosas que solo se supieron probándolo
+
+**`-beta public` no es inofensivo.** La primera versión pasaba siempre `-beta <rama>`. Sobre una
+instalación que ya estaba en la pública, SteamCMD lanza un trabajo de *reconfiguring* que, sin nada
+que descargar, acaba en `Error! App '896660' state is 0x6 after update job` y código 8. Rompió el
+`e2e:valheim` y dejó la instalación compartida a medias. Ahora la bandera solo se pasa cuando de
+verdad cambia algo —a una rama distinta de la pública, o de vuelta a ella desde otra—, y el estado
+0x6 se reconoce como pasajero con un mensaje que dice qué hacer.
+
+**Al cambiar de rama hay que validar.** Steam da por buenos los ficheros que ya están, así que al
+bajar a una anterior el servidor se queda mezclado. `appUpdate` compara la rama pedida con la del
+`appmanifest` (`UserConfig.BetaKey`) y añade `validate` solo cuando cambia.
+
+**Dos copias en el mismo segundo se pisaban.** El nombre de una copia es su marca de tiempo al
+segundo, y cambiar de versión justo después de pedir una a mano caía en el mismo segundo: la
+segunda **sobrescribía** a la primera, que era la que alguien había pedido a propósito. Ahora se
+busca un nombre libre (`…-2`, `…-3`). Es anterior a este trabajo, pero salió aquí porque es donde
+la copia previa es la única vuelta atrás.
+
+Y una cuarta de redacción: la copia previa se hacía dentro de `install`, o sea **después** de
+apuntar la versión nueva, así que quedaba etiquetada con una versión que ese servidor nunca tuvo.
+Justo lo que se lee al restaurarla cuando algo ha salido mal. `changeVersion` la hace antes y le
+pasa `skipBackup` a `install`.
+
+#### En pantalla
+
+En **los dos modos**: en qué versión va y, si ha salido una más nueva, un botón para ponerse al
+día. No es un lujo del modo avanzado: un servidor de Steam desactualizado deja de aceptar a sus
+jugadores, y esconder el arreglo dejaría tirado a quien menos sabe buscarlo.
+
+En **avanzado**, además, la lista entera con lo que es cada una («26.1.2 — anterior», «Previous
+stable (default_old)»). Subir a la recomendada no pregunta nada. Bajar, meterse en una en pruebas o
+no poder saber cuál es más nueva pasan por una confirmación que nombra la partida concreta que hay
+en juego («Lo que tienes guardado —su mundo, con todo lo construido— se creó con una versión
+posterior») y recuerda que la copia se hace sola.
+
+El coste: abrir «Servidor» en un juego de Steam llama a SteamCMD dos veces (las ramas y la build
+publicada), y eso son unos segundos con el dado girando. Se deja así a propósito: cachear la
+respuesta haría que «Volver a comprobar» mintiera.
+
+**Cómo se ha comprobado:** `typecheck` limpio; smoke 415/0, con las ramas reales grabadas
+(las siete de Valheim, su orden, las descripciones del estudio y el `BetaKey`), el estado 0x6, las
+dos copias en el mismo segundo y el cambio de versión de Minecraft (Java recalculado, permiso de
+versión en pruebas puesto y quitado, versión inventada rechazada); `e2e:steam` con el viaje de ida
+y vuelta a `default_old` contra Steam de verdad; `e2e paper` bajando a la 26.1.2, arrancando con
+ella y volviendo, con la copia previa etiquetada con la versión de la que se venía; `e2e:valheim`,
+`e2e:satisfactory` y `e2e:restart` en verde; y el recorrido de Playwright con un guion nuevo
+(`ui/version-servidor.mjs`, capturas 39-42). La comparación píxel a píxel solo señala las pestañas
+«Servidor», que es donde va la tarjeta.
+
+**Lo que no se ha probado:** cambiar de rama desde la interfaz con un servidor de Steam de verdad
+(en el recorrido los servidores de prueba no tienen instalación). El camino sí está probado por
+`e2e:steam`, que es el mismo `appUpdate`.
+
+### 19.19 Siguiente
 
 **Ahora (uso privado):**
 

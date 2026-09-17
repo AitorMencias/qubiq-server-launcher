@@ -2,6 +2,8 @@ import { join } from 'node:path'
 import { access, writeFile } from 'node:fs/promises'
 import type { MinecraftCreateRequest, MinecraftManifest } from '@shared/types'
 import type { MinecraftData } from '@shared/games/minecraft/types'
+import { DISTRIBUTION_LABELS } from '@shared/games/minecraft/types'
+import type { InstallableVersion } from '@shared/games'
 import type { GameAdapter } from '../types'
 import { serverDir } from '../../paths'
 import { installerFor, type InstallContext } from './install'
@@ -55,6 +57,7 @@ async function installContext(
     serverDir: serverDir(manifest.id),
     minecraftVersion: manifest.data.minecraftVersion,
     build: manifest.data.build,
+    allowExperimental: manifest.data.allowExperimental,
     javaPath: runtime.javaPath,
     memoryMb: manifest.data.memoryMb,
     onProgress
@@ -78,6 +81,9 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
       distribution: options.distribution,
       minecraftVersion: options.minecraftVersion,
       build: options.build,
+      // Solo se guarda cuando el asistente avisó y el usuario lo aceptó: así
+      // una reinstalación futura no vuelve a fallar por el canal del build.
+      ...(options.allowExperimental ? { allowExperimental: true } : {}),
       javaMajor,
       memoryMb,
       jvmArgs: defaultJvmArgs(memoryMb)
@@ -121,6 +127,73 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
 
     if (result.build && result.build !== manifest.data.build) return { build: result.build }
     return undefined
+  },
+
+  /**
+   * Minecraft no se actualiza solo: la versión la elige el usuario y cambiarla
+   * obliga a todos sus amigos a cambiar la suya. Lo que sí se puede decir es si
+   * ha salido una más nueva que la que tiene puesta.
+   */
+  async checkUpdate(manifest) {
+    const list = await catalog.versionsFor(manifest.data.distribution)
+    const installed = manifest.data.minecraftVersion
+    const installedIndex = list.findIndex((v) => v.minecraftVersion === installed)
+    const recommendedIndex = list.findIndex((v) => v.recommended)
+    const recommended = list[recommendedIndex]
+
+    return {
+      installed,
+      latest: recommended?.minecraftVersion ?? null,
+      // Solo si de verdad va por detrás. El catálogo viene de más nueva a más
+      // vieja, así que un índice menor es una versión posterior: quien está en
+      // una versión en pruebas va por delante y no tiene nada que actualizar.
+      available:
+        installedIndex >= 0 && recommendedIndex >= 0 && recommendedIndex < installedIndex
+    }
+  },
+
+  async listVersions(manifest) {
+    const list = await catalog.versionsFor(manifest.data.distribution)
+    const installed = manifest.data.minecraftVersion
+    const index = list.findIndex((v) => v.minecraftVersion === installed)
+
+    const versions: InstallableVersion[] = list.map((v, i) => ({
+      id: v.minecraftVersion,
+      label: v.minecraftVersion,
+      ...(v.experimental ? { experimental: true } : {}),
+      ...(v.recommended ? { recommended: true } : {}),
+      ...(v.minecraftVersion === installed ? { installed: true } : {}),
+      // El orden del catálogo es el del manifiesto de Mojang (§4.6), que es la
+      // única referencia fiable: comparar los números del nombre no vale.
+      relation: index < 0 ? 'unknown' : i < index ? 'newer' : i > index ? 'older' : 'same'
+    }))
+
+    // La instalada puede haber desaparecido del catálogo (una snapshot, o una
+    // versión que la distribución dejó de publicar). Se enseña igual: esconder
+    // la que está puesta haría pensar que el servidor no tiene ninguna.
+    if (index < 0) {
+      versions.unshift({ id: installed, label: installed, installed: true, relation: 'same' })
+    }
+    return versions
+  },
+
+  async prepareVersionChange(manifest, versionId) {
+    const list = await catalog.versionsFor(manifest.data.distribution)
+    const target = list.find((v) => v.minecraftVersion === versionId)
+    if (!target) {
+      const tipo = DISTRIBUTION_LABELS[manifest.data.distribution].name
+      throw new Error(`«${tipo}» no publica servidor para la versión ${versionId}.`)
+    }
+
+    return {
+      minecraftVersion: target.minecraftVersion,
+      // Cada versión pide su Java (§4.7), y el salto de 1.20 a 26.x cambia de
+      // 17 a 25: sin recalcularlo aquí el servidor arrancaría con el que no es.
+      javaMajor: await catalog.javaMajorFor(target.minecraftVersion),
+      allowExperimental: target.experimental === true,
+      // El build guardado es el de la versión anterior; lo resuelve `install`.
+      build: undefined
+    }
   },
 
   applyChanges(current, next, changes) {
