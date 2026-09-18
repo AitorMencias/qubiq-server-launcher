@@ -2135,7 +2135,95 @@ Fabric real.
 
 ---
 
-### 19.21 Siguiente
+### 19.21 NeoForge y servidores a medida
+
+Dos peticiones del usuario juntas: poder crear servidores de **NeoForge** y poder **traer un
+servidor que ya tiene** (un server pack de CurseForge, un modpack montado a mano) eligiendo con qué
+archivo arranca, normalmente `run.bat`.
+
+#### NeoForge
+
+Casi gratis una vez hecho Forge, como se preveía en §15.1: mismo instalador con `--installServer`
+y mismo `win_args.txt`. Lo común se sacó a `install/argfile.ts` sin cambiar el comportamiento de
+Forge. Lo que sí es distinto es el catálogo (`versions/neoforge.ts`):
+
+- **Su versión no lleva la de Minecraft delante**, se deduce, y cambió con el versionado por año
+  de Mojang: `21.1.77` es de 1.21.1 y `21.0.167` de 1.21; `26.1.2.109` es de 26.1.2 y `26.2.0.88`
+  de 26.2 (el tercer número a 0 no se escribe). Comprobado cruzando las 1.714 versiones publicadas
+  con el manifiesto de Mojang.
+- Publica **betas de cada versión nueva** antes de la primera estable (26.3 salió solo en beta), y
+  algunas versiones se quedaron solo con betas (1.20.3, 1.21.2, 1.21.6...). Se ofrecen marcadas
+  como en pruebas, igual que las alpha de Paper (§19.17), y hace falta `allowExperimental`.
+- Trae experimentos del 1 de abril (`0.25w14craftmine.3-beta`) que no son de ninguna versión: se
+  descartan solos al deducir la de Minecraft.
+- El NeoForge de 1.20.1 se publicó con el nombre `forge`: no se ofrece (para esa versión está Forge),
+  pero sí se reconoce al traer un servidor.
+
+#### Servidores a medida
+
+Decisiones del usuario: la carpeta **se mueve** a QubiQ (no se copia ni se usa donde está), y la
+memoria la gestiona la app en `user_jvm_args.txt` cuando el script lo usa.
+
+No es un tipo de servidor más: el manifiesto de Minecraft gana un campo opcional `custom`
+(archivo de inicio, quién pone la memoria y, mientras no se ha terminado de traer, de dónde viene).
+La distribución y la versión siguen ahí, reconocidas en la carpeta o corregidas por el usuario,
+porque deciden el Java y si sale la pestaña de Mods o la de Plugins. Sin cambio de esquema: un
+manifiesto sin `custom` es un servidor instalado por la app, como siempre.
+
+| Decisión | Por qué |
+|---|---|
+| **Reconocer antes de traer** (`custom/inspect.ts`) | NeoForge y Forge por su carpeta en `libraries/`, un pack sin instalar por su instalador en la raíz, Fabric y Paper por el nombre del jar o `version_history.json`, y si no, la versión que dejó escrita el servidor en `logs/latest.log`. El usuario lo ve y lo puede corregir |
+| **Carpetas que nunca se mueven** | Moverla es llevarse todo lo de dentro. Se rechazan la carpeta del usuario, las de sistema, las personales (Escritorio, Documentos, Descargas…), un disco entero, lo que ya es de QubiQ y una carpeta que no parezca un servidor (sin `server.properties`, `eula.txt` ni un inicio con mods o loader reconocible). El núcleo lo vuelve a mirar en `prepareCreate` |
+| **Mover sin un solo momento sin servidor** (`custom/move.ts`) | En el mismo disco es un renombrado atómico. Entre discos se copia a `server.importando`, se comprueba que están todos los ficheros y bytes y solo entonces se pone en su sitio y se borra la original. Si falla algo, la original sigue intacta. Nunca encima de una carpeta con contenido |
+| **El traslado va en `install`, no al crear** | Así tiene progreso y, si falla, el servidor queda en la lista pendiente de traer y se puede reintentar sin tocar nada del usuario. Si el traslado terminó y falló algo de después (bajar Java), el reintento no vuelve a mover |
+| **Arrancar con cmd pero con el Java de la app** | El `run.bat` llama a `java` a secas. Se pone delante en el `PATH` el que toca a su versión de Minecraft, y `JAVA_HOME`. La `e2e` comprueba que el proceso que corre es ese |
+| **Una copia sin `pause`** | El run.bat de Forge y NeoForge termina en `pause`. Sin consola, cmd se queda esperando una tecla y la app lo daría por arrancado para siempre. Se arranca `qubiq-run.bat`, junto al original (para que `%~dp0` siga valiendo), que no se toca |
+| **Matar el árbol** (`LaunchSpec.killTree`) | El proceso que ve la app es cmd. `child.kill()` dejaría a Java vivo, con el puerto y el mundo abiertos. Solo al forzar el cierre: la parada normal sigue siendo `stop` por la entrada estándar, que cmd le pasa a Java |
+| **Aviso si el script se reinicia solo** | Un `goto` hacia atrás vuelve a lanzar el servidor tras el `stop`, y Parar tiene que forzarlo al minuto. Se detecta y se avisa al elegirlo |
+| **Memoria** | Si el script usa `user_jvm_args.txt` y no fija `-Xmx` él mismo, la app cambia solo las líneas de memoria y deja el resto (el recolector que eligió quien montó el pack). Si la fija el script, la app lo dice en vez de enseñar un control que no llega a ningún sitio. Un `.jar` la lleva en la línea de órdenes, como siempre |
+| **Sin versiones** | Un servidor a medida no avisa de versiones nuevas ni deja cambiarla: la decide su modpack. Nueva capacidad `versions` (la tarjeta de versión solo informa) |
+
+#### Trampas que costaron tiempo
+
+- **`NoDefaultCurrentDirectoryInExePath`**. Con esa variable (la ponen equipos endurecidos, y la
+  ponía el entorno de estas pruebas) cmd no busca en la carpeta actual y `run.bat` «no se reconoce
+  como un comando interno o externo». Parecía un problema de comillas: hasta `shell: true` de Node
+  fallaba igual. Se llama a `.\run.bat`. Las comillas van con `/d /s /c ""..." nogui"` y
+  `windowsVerbatimArguments`, que es lo que hace Node por dentro.
+- **`nogui`**. El run.bat de Forge y NeoForge no lo lleva, pero pasa sus argumentos (`%*`). Sin él,
+  Minecraft abre su propia ventana además de la consola de la app.
+- **La prueba de humo escribía en `C:\datos`**. Una sección de Satisfactory fijaba esa raíz para
+  comprobar rutas y no la devolvía, así que todo lo de después escribía de verdad en `C:\datos`
+  (desde v0.5.0). Se vio porque la prueba de mover carpetas encontró allí la de la vez anterior.
+  Ahora la devuelve, y la sección de servidores a medida se niega a empezar si la raíz no es la
+  temporal. Quedan en `C:\datos` restos de ejecuciones antiguas (`cache/` y
+  `instances/config-plugins`), que no son del usuario.
+
+#### Cómo se probó
+
+- `npm run e2e -- neoforge` con NeoForge 26.2 de verdad: instalar, arrancar, parar, mundos, copias,
+  mods y cambio de versión a 26.1.2 y vuelta. La comprobación de «el jar sigue en su sitio» daba por
+  hecho `server.jar`; ahora en Forge y NeoForge mira el argfile de la versión nueva.
+- `npm run e2e:custom` (nueva): server pack real de NeoForge 1.21.1 montado con su instalador fuera
+  de QubiQ, traído, arrancado con su run.bat y parado; y un script con bucle, parado a la fuerza.
+- Smoke: numeración y catálogo de NeoForge, análisis de scripts, copia sin pausas, memoria en
+  `user_jvm_args.txt`, reconocer carpetas de cada tipo, carpetas prohibidas, mover y copiar.
+- Recorrido de interfaz (`a-medida.mjs`): el paso de tipo con NeoForge y «Uno que ya tengo», el
+  asistente de traer en los dos modos, el aviso del bucle, y después Ajustes (archivo de inicio) y
+  Servidor (versión y detalles).
+- Que Minecraft no empeora: `e2e paper`, `e2e forge` (26.2, con el instalador ya refactorizado) y
+  `e2e:restart`, todo correcto. Una primera pasada de Forge falló en el ping (el servidor no contestó
+  en los 4 s); coincidió con el recorrido de interfaz y una compilación en marcha, y ni se repitió en
+  la segunda pasada ni pasa con el código anterior: es carga del equipo, no el cambio.
+
+**Lo que no se ha probado**: traer entre dos discos de verdad (el camino de copia se prueba
+directamente, sin renombrado de por medio), un server pack de CurseForge descargado de la web con
+su propio instalador de arranque (ServerStarter y parecidos), un `.jar` como inicio con un servidor
+real, y NeoForge con mods de verdad.
+
+---
+
+### 19.22 Siguiente
 
 **Ahora (uso privado):**
 

@@ -35,7 +35,9 @@ import type {
   CreateWorldRequest,
   Distribution,
   DistributionVersion,
+  ImportInspection,
   PropertyDefinition,
+  StartFileInfo,
   WorldInfo
 } from '../shared/games/minecraft/types'
 import type {
@@ -152,6 +154,22 @@ const minecraft = {
       ipcRenderer.invoke(MINECRAFT_IPC.activateWorld, id, name),
     remove: (id: string, name: string): Promise<WorldInfo[]> =>
       ipcRenderer.invoke(MINECRAFT_IPC.deleteWorld, id, name)
+  },
+
+  /** Servidores a medida: traer una carpeta que ya existe y elegir cómo arranca. */
+  custom: {
+    /** Abre el selector de carpetas de Windows. Null si se cancela. */
+    pickFolder: (): Promise<string | null> => ipcRenderer.invoke(MINECRAFT_IPC.pickImportFolder),
+    inspect: (folder: string): Promise<ImportInspection> =>
+      ipcRenderer.invoke(MINECRAFT_IPC.inspectImport, folder),
+    /** Elegir a mano el archivo de inicio, dentro de la carpeta o del servidor ya traído. */
+    pickStartFile: (
+      target: { folder: string } | { instanceId: string }
+    ): Promise<StartFileInfo | null> => ipcRenderer.invoke(MINECRAFT_IPC.pickStartFile, target),
+    startFiles: (id: string): Promise<StartFileInfo[]> =>
+      ipcRenderer.invoke(MINECRAFT_IPC.listStartFiles, id),
+    setStartFile: (id: string, path: string): Promise<InstanceManifest> =>
+      ipcRenderer.invoke(MINECRAFT_IPC.setStartFile, id, path)
   }
 }
 

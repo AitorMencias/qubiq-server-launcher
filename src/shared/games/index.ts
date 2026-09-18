@@ -46,6 +46,12 @@ export interface GameCapabilities {
   settings: boolean
   /** Reinstalar el servidor desde la app. */
   reinstall: boolean
+  /**
+   * La app sabe qué versión es la última y puede cambiarla. No en un servidor
+   * a medida de Minecraft: lo montó el usuario y su versión la decide su
+   * modpack, no un catálogo.
+   */
+  versions: boolean
   /** Consola con entrada de comandos. */
   commands: boolean
   /**
@@ -477,13 +483,18 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
   switch (manifest.game) {
     case 'minecraft': {
       const kind = contentKindFor(manifest.data.distribution)
+      const custom = manifest.data.custom
       return {
         worlds: true,
         content: kind !== null,
         officialPlugins: kind === 'plugins',
-        memory: true,
+        // En uno a medida, solo si la memoria no la fija su propio script.
+        memory: custom ? custom.memory !== 'script' : true,
         settings: true,
-        reinstall: true,
+        // Reinstalar uno a medida solo sirve para terminar de traerlo si se
+        // quedó a medias; una vez traído no hay nada que la app sepa instalar.
+        reinstall: custom ? custom.importFrom !== undefined : true,
+        versions: !custom,
         commands: true,
         playerIds: true,
         playerNames: true,
@@ -503,6 +514,7 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
         memory: false,
         settings: true,
         reinstall: true,
+        versions: true,
         commands: false,
         playerIds: false,
         playerNames: false,
@@ -523,6 +535,7 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
         memory: false,
         settings: true,
         reinstall: true,
+        versions: true,
         commands: true,
         playerIds: true,
         playerNames: true,
@@ -545,6 +558,7 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
         memory: false,
         settings: true,
         reinstall: true,
+        versions: true,
         commands: false,
         // El registro dice QUIÉN entra, pero con su identificador de Steam, no
         // con el nombre de su personaje. Se puede listar y moderar; lo que hay
@@ -581,8 +595,11 @@ export function versionLabel(manifest: InstanceManifest): string {
 /** Una línea corta para la lista de servidores: «Plugins (Bukkit/Spigot) · 26.2». */
 export function summaryLabel(manifest: InstanceManifest): string {
   switch (manifest.game) {
-    case 'minecraft':
-      return `${DISTRIBUTION_LABELS[manifest.data.distribution].name} · ${manifest.data.minecraftVersion}`
+    case 'minecraft': {
+      const { data } = manifest
+      const base = `${DISTRIBUTION_LABELS[data.distribution].name} · ${data.minecraftVersion}`
+      return data.custom ? `${base} · a medida` : base
+    }
     case 'satisfactory':
       return `Satisfactory · ${manifest.data.sessionName}`
     case 'valheim':

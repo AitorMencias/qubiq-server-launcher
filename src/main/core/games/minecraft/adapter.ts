@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { access, writeFile } from 'node:fs/promises'
+import { access, readdir, readFile, writeFile } from 'node:fs/promises'
 import type { MinecraftCreateRequest, MinecraftManifest } from '@shared/types'
 import type { MinecraftData } from '@shared/games/minecraft/types'
 import { DISTRIBUTION_LABELS } from '@shared/games/minecraft/types'
@@ -14,6 +14,9 @@ import { PropertiesFile, initialProperties } from './config/properties'
 import * as worlds from './worlds/manager'
 import { parseLine, diagnoseExit } from './logParser'
 import { serverListPing, checkFromInternet } from './ping'
+import { describeStartFile, inspectFolder } from './custom/inspect'
+import { moveServerFolder } from './custom/move'
+import { customLaunch } from './custom/launch'
 
 /**
  * Minecraft como juego del núcleo.
@@ -44,6 +47,69 @@ async function exists(path: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+const EULA_ACCEPTED = [
+  '# Aceptado desde QubiQ Server Launcher por decision explicita del usuario.',
+  '# https://aka.ms/MinecraftEULA',
+  'eula=true',
+  ''
+].join('\r\n')
+
+/**
+ * Prepara un servidor a medida: lo trae de su carpeta (si aún no se ha
+ * traído), pone su Java, el EULA aceptado y el puerto elegido. No descarga ni
+ * instala nada del servidor: eso ya lo trae la carpeta.
+ */
+async function installCustom(
+  manifest: MinecraftManifest,
+  onProgress: InstallContext['onProgress']
+): Promise<Partial<MinecraftData>> {
+  const custom = manifest.data.custom!
+  const dir = serverDir(manifest.id)
+
+  if (custom.importFrom) {
+    // Si la carpeta de QubiQ ya tiene el servidor, el traslado terminó en un
+    // intento anterior (y falló algo de después, como bajar Java): no se
+    // vuelve a mover nada. El traslado deja la carpeta vacía o completa,
+    // nunca a medias.
+    const alreadyMoved = (await readdir(dir).catch(() => [])).length > 0
+    if (!alreadyMoved) {
+      const result = await moveServerFolder(custom.importFrom, dir, (fraction, detail) =>
+        onProgress('move', fraction, detail)
+      )
+      if (result.leftovers) {
+        onProgress(
+          'move',
+          1,
+          `El servidor ya está en QubiQ, pero no se pudo borrar todo lo de ${custom.importFrom}. ` +
+            'Ya no hace falta: bórralo cuando quieras.'
+        )
+      }
+    }
+  }
+
+  onProgress('java', null, `Comprobando Java ${manifest.data.javaMajor}`)
+  await java.ensureJava(manifest.data.javaMajor, (phase, value, detail) => {
+    onProgress(phase === 'download' ? 'java-download' : 'java-extract', value, detail)
+  })
+
+  // El EULA lo aceptó el usuario al añadirlo; un server pack no suele traerlo.
+  const eulaPath = join(dir, 'eula.txt')
+  const eula = await readFile(eulaPath, 'utf8').catch(() => '')
+  if (!/^\s*eula\s*=\s*true\s*$/im.test(eula)) await writeFile(eulaPath, EULA_ACCEPTED, 'utf8')
+
+  // El puerto vive en dos sitios (§8): manda el que se eligió al añadirlo.
+  const propsPath = join(dir, 'server.properties')
+  const props = await PropertiesFile.load(propsPath)
+  if (props.get('server-port') !== String(manifest.port)) {
+    props.set('server-port', String(manifest.port))
+    await props.save(propsPath)
+  }
+
+  // Quién pone la memoria se vuelve a mirar: el script puede haber cambiado.
+  const start = await describeStartFile(dir, custom.startFile)
+  return { custom: { startFile: start.path, memory: start.memory } }
 }
 
 /** Contexto de instalación y arranque, con el Java que toque ya asegurado. */
@@ -77,6 +143,24 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
     const javaMajor = await catalog.javaMajorFor(options.minecraftVersion)
     const memoryMb = options.memoryMb > 0 ? options.memoryMb : suggestedMemoryMb()
 
+    if (options.import) {
+      // Se vuelve a mirar aquí aunque el asistente ya lo hiciera: la carpeta se
+      // va a MOVER, y la comprobación que lo permite no puede depender de que
+      // la interfaz la haya hecho bien.
+      const inspection = await inspectFolder(options.import.folder)
+      if (inspection.problems.length > 0) throw new Error(inspection.problems.join(' '))
+      const start = await describeStartFile(options.import.folder, options.import.startFile)
+      return {
+        distribution: options.distribution,
+        minecraftVersion: options.minecraftVersion,
+        ...(inspection.build ? { build: inspection.build } : {}),
+        javaMajor,
+        memoryMb,
+        jvmArgs: defaultJvmArgs(memoryMb),
+        custom: { startFile: start.path, memory: start.memory, importFrom: options.import.folder }
+      }
+    }
+
     return {
       distribution: options.distribution,
       minecraftVersion: options.minecraftVersion,
@@ -91,6 +175,10 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
   },
 
   async writeInitialFiles(manifest, request) {
+    // Un servidor a medida trae sus ficheros, y todavía no ha llegado: lo que
+    // haga falta se escribe al traerlo (`installCustom`).
+    if (manifest.data.custom) return
+
     const dir = serverDir(manifest.id)
 
     // server.properties inicial: valores por defecto más lo elegido al crear.
@@ -115,6 +203,8 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
   },
 
   async install(manifest, onProgress) {
+    if (manifest.data.custom) return installCustom(manifest, onProgress)
+
     // 1. Java. El usuario nunca lo instala a mano (§4.7).
     onProgress('java', null, `Comprobando Java ${manifest.data.javaMajor}`)
     await java.ensureJava(manifest.data.javaMajor, (phase, value, detail) => {
@@ -135,6 +225,10 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
    * ha salido una más nueva que la que tiene puesta.
    */
   async checkUpdate(manifest) {
+    // Uno a medida lo montó el usuario: su versión la decide su modpack.
+    if (manifest.data.custom) {
+      return { installed: manifest.data.minecraftVersion, latest: null, available: false }
+    }
     const list = await catalog.versionsFor(manifest.data.distribution)
     const installed = manifest.data.minecraftVersion
     const installedIndex = list.findIndex((v) => v.minecraftVersion === installed)
@@ -153,6 +247,7 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
   },
 
   async listVersions(manifest) {
+    if (manifest.data.custom) return []
     const list = await catalog.versionsFor(manifest.data.distribution)
     const installed = manifest.data.minecraftVersion
     const index = list.findIndex((v) => v.minecraftVersion === installed)
@@ -178,6 +273,12 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
   },
 
   async prepareVersionChange(manifest, versionId) {
+    if (manifest.data.custom) {
+      throw new Error(
+        'Un servidor a medida no cambia de versión desde la app: lo que hay en su carpeta lo ' +
+          'decide su modpack o su instalador.'
+      )
+    }
     const list = await catalog.versionsFor(manifest.data.distribution)
     const target = list.find((v) => v.minecraftVersion === versionId)
     if (!target) {
@@ -208,6 +309,18 @@ export const minecraftAdapter: GameAdapter<MinecraftManifest, MinecraftCreateReq
   },
 
   async launch(manifest) {
+    const custom = manifest.data.custom
+    if (custom) {
+      if (custom.importFrom && (await readdir(serverDir(manifest.id)).catch(() => [])).length === 0) {
+        throw new Error(
+          'Este servidor no se terminó de traer, y su carpeta sigue donde estaba. Bórralo y ' +
+            'vuelve a añadirlo (en modo avanzado también se puede reintentar con «Reinstalar servidor»).'
+        )
+      }
+      const runtime = await java.ensureJava(manifest.data.javaMajor)
+      return customLaunch(serverDir(manifest.id), custom, runtime.javaPath, manifest.data.memoryMb)
+    }
+
     const ctx = await installContext(manifest)
     // El plan de arranque se recalcula siempre desde el disco: en Forge el
     // argfile puede haber cambiado tras una reinstalación (§6).

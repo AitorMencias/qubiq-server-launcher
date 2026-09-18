@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { InstanceState, UiMode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/games/minecraft/types'
 import { minecraftOf } from '@shared/games/minecraft/types'
+import { StartFileCard } from './StartFileCard'
 
 /** Claves que se gestionan dentro de otro control y no se pintan sueltas. */
 const COMPOSITE_KEYS = new Set(['hardcore'])
@@ -186,6 +187,10 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
         </div>
       )}
 
+      {manifest.data.custom && (
+        <StartFileCard manifest={manifest} running={running} onChanged={onSaved} />
+      )}
+
       <div className="card">
         <div className="row between" style={{ marginBottom: 14 }}>
           <div>
@@ -284,7 +289,18 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
 
         {/* La memoria es el ejemplo perfecto de decisión que el modo básico no
             debe delegar en el usuario: se aplica la recomendada y punto. */}
-        {!basic && (
+        {/* En un servidor a medida cuyo script fija la memoria, un control
+            que no llega a ningún sitio sería engañar: se dice dónde cambiarla. */}
+        {!basic && manifest.data.custom?.memory === 'script' && (
+          <div className="alert info" style={{ marginTop: 16, marginBottom: 0 }}>
+            <strong>La memoria la decide su archivo de inicio</strong>
+            <p>
+              {manifest.data.custom.startFile} la fija él mismo, así que para cambiarla hay que
+              editar ese archivo.
+            </p>
+          </div>
+        )}
+        {!basic && manifest.data.custom?.memory !== 'script' && (
         <div className="field">
           <label>Memoria asignada: {(memoryMb / 1024).toFixed(1)} GB</label>
           <input

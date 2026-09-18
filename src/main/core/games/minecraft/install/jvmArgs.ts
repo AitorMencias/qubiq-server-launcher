@@ -84,7 +84,8 @@ const MEMORY_PROFILE: Record<string, { baseMb: number; perPlayerMb: number }> = 
   vanilla: { baseMb: 1536, perPlayerMb: 150 },
   paper: { baseMb: 1536, perPlayerMb: 150 },
   fabric: { baseMb: 3072, perPlayerMb: 200 },
-  forge: { baseMb: 4096, perPlayerMb: 200 }
+  forge: { baseMb: 4096, perPlayerMb: 200 },
+  neoforge: { baseMb: 4096, perPlayerMb: 200 }
 }
 
 export function recommendedMemoryMb(expectedPlayers: number, distribution: string): number {

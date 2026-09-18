@@ -14,7 +14,7 @@ import {
 import { capabilitiesFor, gameInfo, serverPorts } from '../../src/shared/games'
 import { RELIABLE_PORT } from '../../src/shared/games/satisfactory/types'
 import type { SatisfactoryManifest } from '../../src/shared/types'
-import { setDataRoot } from '../../src/main/core/paths'
+import { dataRoot, setDataRoot } from '../../src/main/core/paths'
 
 /**
  * Prueba de humo de Satisfactory (fase 2).
@@ -245,7 +245,19 @@ export async function satisfactorySmoke(): Promise<void> {
   // --- Arranque: lo que protege los datos del usuario -------------------------
 
   await section('Satisfactory: argumentos de arranque', async () => {
+    // Una raíz fija para comprobar las rutas de los argumentos, que se devuelve
+    // al terminar: antes se quedaba puesta y las secciones de después escribían
+    // de verdad en C:\datos en vez de en el temporal de la prueba.
+    const previousRoot = dataRoot()
     setDataRoot('C:\\datos')
+    try {
+      satisfactoryLaunchChecks()
+    } finally {
+      setDataRoot(previousRoot)
+    }
+  })
+
+  function satisfactoryLaunchChecks(): void {
     const manifest = manifestoDePrueba(7777)
     const args = launchArgs(manifest)
 
@@ -271,7 +283,7 @@ export async function satisfactorySmoke(): Promise<void> {
 
     const stop = satisfactoryAdapter.stop(manifest)
     check('se para por la API, no matando el proceso', stop.kind === 'api')
-  })
+  }
 
   await section('Satisfactory: no arranca si el puerto es de otro', async () => {
     // Toda la gestión va por `127.0.0.1:<puerto>` y la API no dice de quién es:

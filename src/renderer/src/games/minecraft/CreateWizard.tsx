@@ -3,6 +3,7 @@ import type { Distribution, DistributionVersion } from '@shared/games/minecraft/
 import { DISTRIBUTIONS, DISTRIBUTION_LABELS } from '@shared/games/minecraft/types'
 import type { MemoryInfo } from '@shared/ipc'
 import { D20Loader } from '../../D20Loader'
+import { ImportWizard } from './ImportWizard'
 
 /**
  * Asistente de creación (§3, recorrido 1): tres pasos y a jugar.
@@ -33,6 +34,8 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
   const [port, setPort] = useState(25565)
   const [eula, setEula] = useState(false)
   const [busy, setBusy] = useState(false)
+  /** Ha elegido traer un servidor que ya tiene en vez de crear uno. */
+  const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadingVersions, setLoadingVersions] = useState(true)
 
@@ -113,6 +116,19 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
     }
   }
 
+  if (importing) {
+    return (
+      <ImportWizard
+        mode="advanced"
+        initialName={name}
+        onBack={() => setImporting(false)}
+        onCancel={onCancel}
+        onCreated={onCreated}
+        progress={progress}
+      />
+    )
+  }
+
   if (busy) {
     return (
       <div className="panel">
@@ -174,6 +190,13 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
               <div className="sub">{DISTRIBUTION_LABELS[d].hint}</div>
             </button>
           ))}
+          {/* No es un tipo más: abre otro recorrido, el de traer una carpeta. */}
+          <button className="choice" onClick={() => setImporting(true)}>
+            <div className="title">Uno que ya tengo (a medida)</div>
+            <div className="sub">
+              Un server pack o un servidor que ya tenías montado. Arranca con su propio run.bat.
+            </div>
+          </button>
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import * as mojang from './mojang'
 import * as paper from './paper'
 import * as fabric from './fabric'
 import * as forge from './forge'
+import * as neoforge from './neoforge'
 
 /**
  * Catálogo unificado (§5). Cruza el manifiesto de Mojang —que es quien manda en
@@ -68,6 +69,16 @@ export async function versionsFor(
     }
   }
 
+  // NeoForge publica betas de cada versión nueva antes de la primera estable,
+  // y algunas versiones se quedaron solo con betas. El catálogo trae todas de
+  // una vez, así que aquí no hace falta limitarse a las primeras.
+  if (distribution === 'neoforge') {
+    const stable = await neoforge.stableMinecraftVersions(force)
+    for (const version of result) {
+      if (!stable.has(version.minecraftVersion)) version.experimental = true
+    }
+  }
+
   // La recomendada es la primera que se puede instalar sin avisos.
   const recommended = result.find((v) => !v.experimental) ?? result[0]
   if (recommended) recommended.recommended = true
@@ -86,6 +97,8 @@ async function supportedIds(distribution: Distribution, force: boolean): Promise
       return fabric.listVersions(force)
     case 'forge':
       return forge.listVersions(force)
+    case 'neoforge':
+      return neoforge.listVersions(force)
   }
 }
 

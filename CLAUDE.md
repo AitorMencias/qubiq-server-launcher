@@ -59,6 +59,7 @@ sus datos compartidos (nombre, condiciones, capacidades, puertos) en `src/shared
 | `npm run typecheck` | Siempre. Los scripts de `scripts/` no entran: se comprueban aparte si se tocan |
 | `npm run smoke` | Siempre. Sale con 2 (no 1) si solo falla por no llegar a un servicio externo |
 | `npm run e2e -- paper` y `npm run e2e:restart` | Al tocar núcleo, supervisor o Minecraft. **Minecraft no puede empeorar** |
+| `npm run e2e:custom` | Al tocar servidores a medida (`games/minecraft/custom/`), arranque con cmd o cierre forzado del supervisor |
 | `npm run e2e:steam` | Al tocar SteamCMD, parada o puertos. Caché en `%LOCALAPPDATA%\qubiq-dev\e2e-steam` |
 | Recorrido de interfaz | Al tocar la interfaz: ver `%LOCALAPPDATA%\qubiq-dev\LEEME.md` (Playwright, capturas y comparación píxel a píxel) |
 

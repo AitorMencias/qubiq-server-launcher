@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { createInterface } from 'node:readline'
 import type { Diagnosis, LogLine, ServerStatus } from '@shared/types'
@@ -50,6 +51,10 @@ export interface StartOptions {
   args: string[]
   cwd: string
   env?: Record<string, string>
+  /** Ver `LaunchSpec.verbatimArguments`. */
+  verbatimArguments?: boolean
+  /** Ver `LaunchSpec.killTree`. */
+  killTree?: boolean
   /** Cómo se para sin perder partida. */
   stop: StopStrategy
   /** Cómo se interpreta cada línea del registro. */
@@ -135,6 +140,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
       cwd: options.cwd,
       env: options.env ? { ...process.env, ...options.env } : process.env,
       windowsHide: true,
+      windowsVerbatimArguments: options.verbatimArguments ?? false,
       // stdin abierto es imprescindible: es el canal de comandos y de parada.
       stdio: ['pipe', 'pipe', 'pipe']
     })
@@ -260,7 +266,8 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
           `El servidor no respondió al cierre en ${Math.round(graceMs / 1000)} segundos. ` +
             'Se fuerza el cierre; puede que los últimos cambios de la partida no se hayan guardado.'
         )
-        child.kill()
+        if (this.options?.killTree && child.pid) killTree(child.pid, () => child.kill())
+        else child.kill()
 
         // Matar NO es instantáneo: Windows tarda un momento en soltar los
         // ficheros que tenía abiertos el proceso. Quien llama a `stop()` suele
@@ -442,4 +449,20 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
   private pushLog(level: LogLine['level'], text: string): void {
     this.emit('log', { ts: Date.now(), level, text })
   }
+}
+
+/**
+ * Mata un proceso y todos sus hijos. `child.kill()` solo llega al primero, y
+ * cuando ese es cmd con un .bat, el servidor de verdad es su hijo y seguiría
+ * vivo con el puerto y el mundo abiertos. Si taskkill no está, se hace lo que
+ * se pueda con `fallback`.
+ */
+function killTree(pid: number, fallback: () => void): void {
+  const windowsDir = process.env['SystemRoot'] || process.env['windir']
+  const taskkill = windowsDir ? join(windowsDir, 'System32', 'taskkill.exe') : 'taskkill.exe'
+  const killer = spawn(taskkill, ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
+  killer.on('error', fallback)
+  killer.on('close', (code) => {
+    if (code !== 0) fallback()
+  })
 }

@@ -33,6 +33,7 @@ import { parseLine, diagnose } from '../../src/main/core/games/minecraft/logPars
 import { validateWorldName } from '../../src/main/core/games/minecraft/worlds/manager'
 import { PluginConfigFile } from '../../src/main/core/games/minecraft/content/pluginConfig'
 import { minecraftConfigSmoke } from './minecraftConfig'
+import { minecraftCustomSmoke } from './minecraftCustom'
 import {
   OFFICIAL_PLUGINS,
   officialPluginsFor,
@@ -370,6 +371,7 @@ export async function minecraftSmoke(): Promise<void> {
   // --- Configuración de plugins y mods (§19.20) ------------------------------
 
   await minecraftConfigSmoke()
+  await minecraftCustomSmoke()
 
   // --- Red de Minecraft (§10) ------------------------------------------------
 

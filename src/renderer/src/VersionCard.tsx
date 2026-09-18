@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState, UiMode } from '@shared/types'
 import type { InstallableVersion, UpdateCheck } from '@shared/games'
-import { versionLabel } from '@shared/games'
+import { capabilitiesFor, versionLabel } from '@shared/games'
 import { ConfirmVersionChange } from './ConfirmVersionChange'
 import { D20Loader } from './D20Loader'
 
@@ -38,8 +38,10 @@ export function VersionCard({ state, mode, onRefresh }: Props): React.JSX.Elemen
   const [working, setWorking] = useState(false)
 
   const stopped = status === 'stopped' || status === 'crashed'
+  const managed = capabilitiesFor(manifest).versions
 
   const load = useCallback(async (): Promise<void> => {
+    if (!managed) return
     setChecking(true)
     setError(null)
     try {
@@ -57,11 +59,29 @@ export function VersionCard({ state, mode, onRefresh }: Props): React.JSX.Elemen
     } finally {
       setChecking(false)
     }
-  }, [id, advanced])
+  }, [id, advanced, managed])
 
   useEffect(() => {
     void load()
   }, [load])
+
+  // Un servidor que montó el usuario (uno a medida) no tiene «última versión»
+  // que comparar: la suya la decide su modpack. Se dice cuál es y ya está.
+  if (!managed) {
+    return (
+      <div className="card">
+        <h3>Versión</h3>
+        <p className="hint">
+          Tus amigos tienen que jugar con la misma versión que el servidor. Este servidor lo has
+          traído tú, así que la app no lo actualiza: su versión la deciden sus ficheros.
+        </p>
+        <div className="row between">
+          <span style={{ color: 'var(--muted)' }}>Ahora mismo</span>
+          <span>{versionLabel(manifest)}</span>
+        </div>
+      </div>
+    )
+  }
 
   const installed = versions.find((v) => v.installed)
   const target = versions.find((v) => v.id === chosen)

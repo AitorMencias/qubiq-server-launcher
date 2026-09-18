@@ -2,12 +2,14 @@ import type { Distribution } from '@shared/games/minecraft/types'
 import type { Installer } from './types'
 import { vanillaInstaller, paperInstaller, fabricInstaller } from './simple'
 import { forgeInstaller } from './forge'
+import { neoforgeInstaller } from './neoforge'
 
 const REGISTRY: Record<Distribution, Installer> = {
   vanilla: vanillaInstaller,
   paper: paperInstaller,
   fabric: fabricInstaller,
-  forge: forgeInstaller
+  forge: forgeInstaller,
+  neoforge: neoforgeInstaller
 }
 
 export function installerFor(distribution: Distribution): Installer {

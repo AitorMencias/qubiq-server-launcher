@@ -3,6 +3,7 @@ import type { ExposureMode } from '@shared/types'
 import type { Distribution } from '@shared/games/minecraft/types'
 import { DISTRIBUTIONS, DISTRIBUTION_LABELS } from '@shared/games/minecraft/types'
 import { D20Loader } from '../../D20Loader'
+import { ImportWizard } from './ImportWizard'
 import { Choices, StepDots, StepFrame, SummaryRow, labelOf, type Option } from '../../WizardParts'
 
 /**
@@ -132,6 +133,8 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
   const [memoryMb, setMemoryMb] = useState<number | null>(null)
   const [eula, setEula] = useState(false)
   const [busy, setBusy] = useState(false)
+  /** Ha elegido traer un servidor que ya tiene en vez de crear uno. */
+  const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const hardcore = gameMode === 'hardcore'
@@ -264,6 +267,19 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
     }
   }
 
+  if (importing) {
+    return (
+      <ImportWizard
+        mode="basic"
+        initialName={name}
+        onBack={() => setImporting(false)}
+        onCancel={onCancel}
+        onCreated={onCreated}
+        progress={progress}
+      />
+    )
+  }
+
   if (busy) {
     return (
       <div className="panel">
@@ -340,6 +356,13 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
                   <div className="sub">{DISTRIBUTION_LABELS[d].hint}</div>
                 </button>
               ))}
+              {/* No es un tipo más: abre otro recorrido, el de traer una carpeta. */}
+              <button className="choice" onClick={() => setImporting(true)}>
+                <div className="title">Uno que ya tengo (a medida)</div>
+                <div className="sub">
+                  Un server pack o un servidor que ya tenías montado. Arranca con su propio run.bat.
+                </div>
+              </button>
             </div>
           </StepFrame>
         )}

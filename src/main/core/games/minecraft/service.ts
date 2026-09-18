@@ -6,6 +6,7 @@ import type {
   ContentConfigSaveResult,
   ContentInfo,
   CreateWorldRequest,
+  StartFileInfo,
   WorldInfo
 } from '@shared/games/minecraft/types'
 import type { ConfigChange } from '@shared/editableConfig'
@@ -17,6 +18,7 @@ import * as content from './content/manager'
 import * as contentConfig from './content/config'
 import * as official from './content/official'
 import * as worlds from './worlds/manager'
+import { describeStartFile, startFilesIn } from './custom/inspect'
 
 /**
  * Operaciones exclusivas de Minecraft: `server.properties`, plugins y mods,
@@ -251,6 +253,29 @@ export function createMinecraftService(host: GameHost) {
 
       await worlds.deleteWorld(id, name)
       return worlds.listWorlds(id)
+    },
+
+    // --- Servidores a medida -------------------------------------------------
+
+    /** Archivos con los que se puede arrancar, para cambiar el elegido. */
+    async startFiles(id: string): Promise<StartFileInfo[]> {
+      await requireManifest(id)
+      return startFilesIn(serverDir(id))
+    },
+
+    /**
+     * Cambia el archivo de inicio de un servidor a medida. Se vuelve a mirar
+     * quién pone la memoria, porque depende del script elegido.
+     */
+    async setStartFile(id: string, path: string): Promise<InstanceManifest> {
+      const manifest = await requireManifest(id)
+      const custom = manifest.data.custom
+      if (!custom) throw new Error('Solo los servidores a medida eligen su archivo de inicio.')
+      host.assertStopped(id, 'cambiarle el archivo de inicio')
+      const start = await describeStartFile(serverDir(id), path)
+      return host.updateInstance(id, {
+        data: { custom: { ...custom, startFile: start.path, memory: start.memory } }
+      })
     }
   }
 }

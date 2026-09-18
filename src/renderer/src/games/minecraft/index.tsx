@@ -68,11 +68,22 @@ export const minecraftUi: GameUi = {
   detailRows(manifest) {
     const { data } = minecraftOf(manifest)
     return [
-      { label: 'Tipo', value: DISTRIBUTION_LABELS[data.distribution].name },
+      {
+        label: 'Tipo',
+        value: `${DISTRIBUTION_LABELS[data.distribution].name}${data.custom ? ' · a medida' : ''}`
+      },
       { label: 'Versión de Minecraft', value: data.minecraftVersion },
       ...(data.build ? [{ label: 'Build', value: data.build }] : []),
+      ...(data.custom ? [{ label: 'Arranca con', value: data.custom.startFile }] : []),
       { label: 'Java', value: String(data.javaMajor) },
-      { label: 'Memoria', value: `${(data.memoryMb / 1024).toFixed(1)} GB` }
+      {
+        label: 'Memoria',
+        // Si la fija su script, el número del manifiesto no es el que usa.
+        value:
+          data.custom?.memory === 'script'
+            ? 'La que fije su archivo de inicio'
+            : `${(data.memoryMb / 1024).toFixed(1)} GB`
+      }
     ]
   },
 

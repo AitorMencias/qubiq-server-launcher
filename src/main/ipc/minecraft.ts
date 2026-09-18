@@ -1,8 +1,15 @@
-import { ipcMain, shell } from 'electron'
-import type { CreateWorldRequest, Distribution } from '@shared/games/minecraft/types'
+import { relative } from 'node:path'
+import { BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions } from 'electron'
+import type {
+  CreateWorldRequest,
+  Distribution,
+  StartFileInfo
+} from '@shared/games/minecraft/types'
 import { MINECRAFT_IPC, type MemoryInfo } from '@shared/ipc'
 import type { ConfigChange } from '@shared/editableConfig'
 import { service } from '../core/service'
+import { serverDir } from '../core/paths'
+import { describeStartFile, inspectFolder } from '../core/games/minecraft/custom/inspect'
 import * as catalog from '../core/games/minecraft/versions/catalog'
 import { PROPERTY_CATALOG } from '../core/games/minecraft/config/properties'
 import {
@@ -114,5 +121,52 @@ export function registerMinecraftIpc(): void {
   )
   ipcMain.handle(MINECRAFT_IPC.deleteWorld, async (_e, id: string, name: string) =>
     mc.deleteWorld(id, name)
+  )
+
+  // --- Servidores a medida --------------------------------------------------
+
+  ipcMain.handle(MINECRAFT_IPC.pickImportFolder, async (e): Promise<string | null> => {
+    const window = BrowserWindow.fromWebContents(e.sender)
+    const options: OpenDialogOptions = {
+      title: 'Carpeta del servidor que quieres traer',
+      buttonLabel: 'Elegir esta carpeta',
+      properties: ['openDirectory']
+    }
+    const result = window
+      ? await dialog.showOpenDialog(window, options)
+      : await dialog.showOpenDialog(options)
+    return result.canceled ? null : (result.filePaths[0] ?? null)
+  })
+
+  ipcMain.handle(MINECRAFT_IPC.inspectImport, async (_e, folder: string) => inspectFolder(folder))
+
+  /**
+   * Elegir a mano el archivo de inicio. `target` es la carpeta que se va a
+   * traer o el servidor ya traído. Lo elegido tiene que estar dentro de ella.
+   */
+  ipcMain.handle(
+    MINECRAFT_IPC.pickStartFile,
+    async (e, target: { folder: string } | { instanceId: string }): Promise<StartFileInfo | null> => {
+      const folder = 'folder' in target ? target.folder : serverDir(target.instanceId)
+      const window = BrowserWindow.fromWebContents(e.sender)
+      const options: OpenDialogOptions = {
+        title: 'Archivo con el que arranca el servidor',
+        defaultPath: folder,
+        buttonLabel: 'Arrancar con este',
+        filters: [{ name: 'Archivo de inicio (.bat, .cmd, .jar)', extensions: ['bat', 'cmd', 'jar'] }],
+        properties: ['openFile']
+      }
+      const result = window
+        ? await dialog.showOpenDialog(window, options)
+        : await dialog.showOpenDialog(options)
+      const chosen = result.canceled ? null : result.filePaths[0]
+      if (!chosen) return null
+      return describeStartFile(folder, relative(folder, chosen))
+    }
+  )
+
+  ipcMain.handle(MINECRAFT_IPC.listStartFiles, async (_e, id: string) => mc.startFiles(id))
+  ipcMain.handle(MINECRAFT_IPC.setStartFile, async (_e, id: string, path: string) =>
+    mc.setStartFile(id, path)
   )
 }

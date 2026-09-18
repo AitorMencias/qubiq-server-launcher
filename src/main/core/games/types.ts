@@ -27,6 +27,17 @@ export interface LaunchSpec {
   cwd: string
   /** Variables de entorno añadidas a las de la app (Valheim necesita `SteamAppId`). */
   env?: Record<string, string>
+  /**
+   * Los argumentos ya van entrecomillados como los quiere el programa y no hay
+   * que tocarlos. Solo para cmd, que tiene sus propias reglas de comillas.
+   */
+  verbatimArguments?: boolean
+  /**
+   * Al cerrar a la fuerza, matar también a los hijos. Hace falta cuando lo que
+   * se lanza es un intermediario (cmd con un .bat) y el servidor es su hijo:
+   * matar solo al intermediario dejaría el servidor vivo y sin control.
+   */
+  killTree?: boolean
 }
 
 /**

@@ -582,7 +582,20 @@ async function main(): Promise<void> {
       `Java ${despues.javaMajor}`
     )
     check('y con un build suyo, no el de antes', Boolean(despues.build), despues.build)
-    check('el jar del servidor sigue en su sitio', await exists(join(dir, 'server.jar')))
+    // Forge y NeoForge no dejan server.jar: arrancan con el argfile que genera
+    // su instalador, en una carpeta por versión.
+    const argfile: Partial<Record<Distribution, string>> = {
+      forge: join(dir, 'libraries', 'net', 'minecraftforge', 'forge', `${anterior.id}-${despues.build}`, 'win_args.txt'),
+      neoforge: join(dir, 'libraries', 'net', 'neoforged', 'neoforge', `${despues.build}`, 'win_args.txt')
+    }
+    const launcher = argfile[DISTRIBUTION]
+    if (launcher) {
+      check('está el argfile de la versión nueva', await exists(launcher), despues.build)
+    } else if (DISTRIBUTION === 'fabric') {
+      check('el lanzador de Fabric sigue en su sitio', await exists(join(dir, 'fabric-server-launch.jar')))
+    } else {
+      check('el jar del servidor sigue en su sitio', await exists(join(dir, 'server.jar')))
+    }
 
     // Bajar de versión puede costar el mundo, así que la copia previa no es un
     // detalle: es la única vuelta atrás que hay.

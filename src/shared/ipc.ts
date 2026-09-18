@@ -82,7 +82,14 @@ export const MINECRAFT_IPC = {
   listWorlds: 'minecraft:worlds:list',
   createWorld: 'minecraft:worlds:create',
   activateWorld: 'minecraft:worlds:activate',
-  deleteWorld: 'minecraft:worlds:delete'
+  deleteWorld: 'minecraft:worlds:delete',
+
+  // Servidores a medida: traer una carpeta y elegir con qué se arranca
+  pickImportFolder: 'minecraft:import:pickFolder',
+  inspectImport: 'minecraft:import:inspect',
+  pickStartFile: 'minecraft:import:pickStartFile',
+  listStartFiles: 'minecraft:custom:startFiles',
+  setStartFile: 'minecraft:custom:setStartFile'
 } as const
 
 /** Canales exclusivos de Satisfactory. */

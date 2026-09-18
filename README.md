@@ -26,6 +26,8 @@ MVP funcional. Tres juegos, con todas sus distribuciones instalándose, arrancan
 | Minecraft · Plugins (Paper) | ✅ | ✅ | API v3, verificación SHA-256 |
 | Minecraft · Mods (Fabric) | ✅ | ✅ | Descarga dependencias en el primer arranque |
 | Minecraft · Mods (Forge) | ✅ | ✅ | Instalador en dos fases + argfile |
+| Minecraft · Mods (NeoForge) | ✅ | ✅ | Igual que Forge; su versión dice la de Minecraft (`21.1.x` → 1.21.1) |
+| Minecraft · A medida | — (se trae) | ✅ | Una carpeta que ya tenías (server pack, modpack), que arranca con su run.bat |
 | Satisfactory | ✅ | ✅ | SteamCMD (15,5 GB); la app reclama el servidor y crea la partida sola |
 | Valheim | ✅ | ✅ | SteamCMD (2 GB); crossplay con código, sin abrir puertos |
 
@@ -39,11 +41,16 @@ Funciones disponibles:
   jugadores, modo de juego, dificultad, tipo de mundo, peleas entre jugadores y conexión, que acaba en
   un resumen editable y deja el servidor ya configurado; en avanzado, formulario completo. Java
   automático y EULA explícito en ambos
+- **Servidores a medida** — traer un servidor de Minecraft que ya tienes (un server pack de
+  CurseForge o Modrinth, uno montado a mano): se elige la carpeta, la app reconoce qué es y de qué
+  versión, y se elige el archivo de inicio (run.bat, otro .bat o un .jar). La carpeta **se mueve** a
+  QubiQ. Arranca con su propio script pero con el Java que toca, y la memoria va a su
+  `user_jvm_args.txt` si lo usa. El archivo de inicio se puede cambiar después en Ajustes
 - **Lanzar** — arranque supervisado, consola en vivo, parada limpia
 - **Configurar** — editor visual de `server.properties` con lenguaje llano y modo avanzado
 - **Mundos** — varios mundos por servidor: crear, cambiar de uno a otro y borrar
 - **Plugins y mods** — webs donde descargarlos, guía paso a paso, botón para abrir la carpeta y
-  lista de lo instalado con activar/desactivar (solo en Paper, Fabric y Forge)
+  lista de lo instalado con activar/desactivar (solo en Paper, Fabric, Forge y NeoForge)
 - **Plugins oficiales** — los nuestros viajan dentro de la app: se instalan con un botón y se
   configuran con un formulario, sin tocar ficheros YAML
 - **Configurar cualquier plugin o mod** — cada uno instalado tiene un botón que abre una ventana con
@@ -97,8 +104,9 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 530 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON y .properties, lectura de jars y el recorrido de buscar, leer y guardar) y contrato con las APIs externas |
-| `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge` |
+| `npm run smoke` | 635 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON y .properties, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
+| `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge`, `neoforge` |
+| `npm run e2e:custom` | Servidor a medida de verdad: monta un server pack de NeoForge 1.21.1 con su instalador oficial en una carpeta aparte, lo trae (comprueba que se **mueve**), arranca con su run.bat usando el Java de la app, pone la memoria en `user_jvm_args.txt`, para limpio sin quedarse en el `pause` y, con un script que se reinicia solo, comprueba que forzar el cierre mata también a Java |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
 | `npm run e2e:satisfactory` | **Con todos los servidores de Satisfactory parados** (solo puede haber uno a la vez). Satisfactory de verdad: instalar, reclamar el servidor sin abrir el juego, arrancar, detectar «listo» por su API, puertos, partidas, ajustes en caliente, copia con el servidor en marcha, parada limpia, restauración y **comprobar que no se ha tocado `%LOCALAPPDATA%\FactoryGame`**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\satisfactory` con un enlace; `-- --descargar` baja los 15,5 GB de cero |
 | `npm run e2e:valheim` | Valheim de verdad: instalar, arrancar generando el mundo, puertos UDP, moderación, copia en caliente esperando a que el servidor guarde, parada con Ctrl+Break, parar mientras arranca, mundos, restauración y **comprobar que no se ha tocado la carpeta de Valheim del usuario**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\valheim` con un enlace; `-- --descargar` baja los 2 GB de cero. No publica el servidor: arranca con `-public 0` y sin crossplay |
@@ -186,9 +194,10 @@ src/
 │       │   ├── minecraft/   Todo lo de Minecraft:
 │       │       ├── adapter.ts   Implementación del contrato
 │       │       ├── service.ts   Mundos, plugins/mods y server.properties
-│       │       ├── versions/    Mojang, Paper, Fabric, Forge + catálogo unificado
+│       │       ├── versions/    Mojang, Paper, Fabric, Forge, NeoForge + catálogo unificado
 │       │       ├── java/        Descarga y gestión de JDK (Adoptium)
 │       │       ├── install/     Una estrategia por distribución + flags de JVM
+│       │       ├── custom/      Servidores a medida: reconocer, mover la carpeta y arrancar su script
 │       │       ├── config/      Catálogo de opciones humanas de server.properties
 │       │       ├── content/     Plugins y mods: carpeta, listado, los oficiales y su configuración
 │       │       ├── worlds/      Varios mundos por servidor (level-name)
@@ -559,7 +568,27 @@ Si el parser solo entiende uno, la app se queda ciega en las otras: no detecta e
 entradas de jugadores. Hay tests de regresión en `npm run smoke`.
 
 **Forge no genera un jar ejecutable** desde 1.17. Hay que leer el argfile que produce su instalador
-y poner la memoria en `user_jvm_args.txt`, no en la línea de comandos.
+y poner la memoria en `user_jvm_args.txt`, no en la línea de comandos. NeoForge igual (lo común
+está en `install/argfile.ts`), pero su versión **no lleva la de Minecraft delante**: se deduce
+(`21.1.77` → 1.21.1, `21.0.x` → 1.21, `26.2.0.88` → 26.2, `26.1.2.109` → 26.1.2). Su catálogo trae
+betas y experimentos de abril (`0.25w14craftmine`); ver `versions/neoforge.ts`.
+
+**Un servidor a medida se arranca con cmd, y cmd tiene tres trampas** (`custom/launch.ts`):
+- el run.bat de Forge y NeoForge termina en `pause`: sin consola, cmd se queda esperando una tecla
+  y la app lo daría por arrancado. Se arranca una copia sin pausas (`qubiq-<nombre>.bat`) junto al
+  original, que no se toca;
+- el proceso que ve la app es cmd, no Java: forzar el cierre tiene que matar el árbol entero
+  (`LaunchSpec.killTree`, con `taskkill /T`), o Java se queda vivo con el puerto y el mundo;
+- con `NoDefaultCurrentDirectoryInExePath` (equipos endurecidos, y el entorno de estas
+  herramientas) cmd no busca en la carpeta actual: hay que llamar a `.\run.bat`, no a `run.bat`.
+  Y las comillas van con `/d /s /c ""...""` y `verbatimArguments`, el mismo patrón que usa Node.
+
+**Traer un servidor a medida es MOVER la carpeta del usuario** (lo decidió él). En el mismo disco
+es un renombrado; entre discos se copia a `server.importando`, se comprueba y solo entonces se
+borra la original. Nunca se mueve encima de una carpeta con contenido, y `folderProblems` rechaza
+la carpeta del usuario, las de sistema, las personales (Escritorio, Documentos...), un disco entero
+y lo que ya es de QubiQ. El núcleo lo vuelve a comprobar en `prepareCreate` aunque la interfaz ya
+lo haya hecho.
 
 **`ELECTRON_RUN_AS_NODE`:** VS Code exporta esta variable a su terminal integrada. Si llega a
 `electron.exe`, arranca como Node normal y la app muere con

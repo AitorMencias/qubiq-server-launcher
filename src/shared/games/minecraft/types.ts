@@ -7,9 +7,9 @@
  */
 import type { InstanceManifest, MinecraftManifest } from '../../types'
 import type { ConfigFormat, EditableConfig } from '../../editableConfig'
-export type Distribution = 'vanilla' | 'paper' | 'fabric' | 'forge'
+export type Distribution = 'vanilla' | 'paper' | 'fabric' | 'forge' | 'neoforge'
 
-export const DISTRIBUTIONS: Distribution[] = ['vanilla', 'paper', 'fabric', 'forge']
+export const DISTRIBUTIONS: Distribution[] = ['vanilla', 'paper', 'fabric', 'forge', 'neoforge']
 
 /** Etiquetas orientadas al usuario, no al desarrollador (§8). */
 export const DISTRIBUTION_LABELS: Record<Distribution, { name: string; hint: string }> = {
@@ -28,6 +28,10 @@ export const DISTRIBUTION_LABELS: Record<Distribution, { name: string; hint: str
   forge: {
     name: 'Mods (Forge)',
     hint: 'El ecosistema de mods más grande. La instalación tarda más.'
+  },
+  neoforge: {
+    name: 'Mods (NeoForge)',
+    hint: 'La continuación de Forge. Lo usan la mayoría de modpacks nuevos.'
   }
 }
 
@@ -48,6 +52,44 @@ export interface MinecraftData {
   javaMajor: number
   memoryMb: number
   jvmArgs: string[]
+  /**
+   * Servidor a medida: traído de una carpeta que el usuario ya tenía (un server
+   * pack, un modpack montado a mano) y que arranca con su propio archivo de
+   * inicio. La app no lo instala ni le cambia la versión: solo pone Java, lo
+   * arranca y lo para. Sin esto, es un servidor instalado por la app.
+   */
+  custom?: CustomStart
+}
+
+/** Cómo arranca un servidor a medida (ver `MinecraftData.custom`). */
+export interface CustomStart {
+  /** Archivo de inicio, relativo a la carpeta del servidor y con `/`: `run.bat`. */
+  startFile: string
+  /** Quién decide la memoria del servidor. Ver `MemoryControl`. */
+  memory: MemoryControl
+  /**
+   * Carpeta de la que se trae, mientras no se haya terminado de mover. Si el
+   * traslado falla, queda aquí para poder reintentarlo; la carpeta de origen
+   * no se toca hasta que la copia está completa.
+   */
+  importFrom?: string
+}
+
+/**
+ * Quién pone la memoria en un servidor a medida:
+ *  - `app`: la pone la app en la línea de órdenes (el inicio es un .jar).
+ *  - `jvm-args`: el script lee `user_jvm_args.txt` (lo normal en Forge y
+ *    NeoForge), y la app cambia allí solo las líneas de memoria.
+ *  - `script`: la decide el script y la app no la puede cambiar sin tocarlo.
+ */
+export type MemoryControl = 'app' | 'jvm-args' | 'script'
+
+/** Lo que se pide para traer un servidor a medida. */
+export interface MinecraftImportOptions {
+  /** Carpeta del servidor. Se MUEVE a la de QubiQ: deja de estar donde estaba. */
+  folder: string
+  /** Archivo de inicio, relativo a esa carpeta. */
+  startFile: string
 }
 
 /** Lo que el asistente elige para un servidor de Minecraft nuevo. */
@@ -65,6 +107,53 @@ export interface MinecraftCreateOptions {
    * haya que ir después a Ajustes. Solo se aceptan claves del catálogo.
    */
   properties?: Record<string, string>
+  /**
+   * Traer un servidor que ya existe en vez de instalar uno. `distribution` y
+   * `minecraftVersion` son entonces lo que se ha reconocido en la carpeta (o
+   * lo que ha corregido el usuario): deciden el Java y qué pestañas salen.
+   */
+  import?: MinecraftImportOptions
+}
+
+/** Un archivo con el que se puede arrancar un servidor traído de fuera. */
+export interface StartFileInfo {
+  /** Relativo a la carpeta del servidor, con `/`. */
+  path: string
+  kind: 'script' | 'jar'
+  /** El script vuelve a arrancar el servidor cuando se cierra (un bucle con goto). */
+  restartLoop: boolean
+  /** El script fija la memoria él mismo (-Xmx): el control de la app no le llega. */
+  setsMemory: boolean
+  /** Quién decidiría la memoria si se arranca con este archivo. */
+  memory: MemoryControl
+}
+
+/** Lo que se reconoce en una carpeta antes de traerla (servidor a medida). */
+export interface ImportInspection {
+  folder: string
+  /** Lo que ocupa: si está en otro disco, es lo que hay que copiar. */
+  sizeBytes: number
+  fileCount: number
+  /**
+   * Está en el mismo disco que los datos de la app: moverla es instantáneo.
+   * Si no, se copia entera y después se borra la original.
+   */
+  sameDrive: boolean
+  distribution: Distribution | null
+  minecraftVersion: string | null
+  /** Versión del loader o build reconocido (NeoForge 21.1.77, Forge 47.4.0...). */
+  build: string | null
+  startFiles: StartFileInfo[]
+  /** El que se propone: run.bat si existe. */
+  suggestedStartFile: string | null
+  /** `server-port` de su server.properties, si lo tiene. */
+  port: number | null
+  maxPlayers: number | null
+  /** Cuántos mods o plugins trae. */
+  contentCount: number
+  hasWorld: boolean
+  /** Motivos por los que NO se puede traer. Vacío si se puede. */
+  problems: string[]
 }
 
 export type VersionChannel = 'release' | 'snapshot' | 'old'
@@ -144,7 +233,9 @@ export type ContentKind = 'plugins' | 'mods'
 
 export function contentKindFor(distribution: Distribution): ContentKind | null {
   if (distribution === 'paper') return 'plugins'
-  if (distribution === 'fabric' || distribution === 'forge') return 'mods'
+  if (distribution === 'fabric' || distribution === 'forge' || distribution === 'neoforge') {
+    return 'mods'
+  }
   return null // Vanilla no admite ni una cosa ni la otra.
 }
 
@@ -258,6 +349,19 @@ export const CONTENT_SOURCES: Record<Distribution, ContentSource[]> = {
       name: 'Modrinth',
       url: 'https://modrinth.com/mods',
       description: 'Buscador más limpio. Filtra por versión y por Forge.'
+    }
+  ],
+  neoforge: [
+    {
+      name: 'CurseForge',
+      url: 'https://www.curseforge.com/minecraft/mc-mods',
+      description: 'El catálogo más grande. Comprueba que el mod sea de NeoForge, no de Forge.',
+      primary: true
+    },
+    {
+      name: 'Modrinth',
+      url: 'https://modrinth.com/mods',
+      description: 'Buscador más limpio. Filtra por versión y por NeoForge.'
     }
   ]
 }
