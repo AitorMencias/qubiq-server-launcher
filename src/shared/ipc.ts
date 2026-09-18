@@ -118,6 +118,39 @@ export const VALHEIM_IPC = {
   removeFromList: 'valheim:moderation:remove'
 } as const
 
+/** Canales exclusivos de Factorio. */
+export const FACTORIO_IPC = {
+  // Cuenta de Steam: el juego no tiene servidor dedicado anónimo, así que
+  // descargarlo exige una cuenta que lo tenga. La contraseña no se guarda.
+  steamLogin: 'factorio:steam:login',
+  /** Instalaciones de Factorio que ya haya en el equipo, para no bajar 5 GB. */
+  findLocal: 'factorio:local:find',
+  inspectFolder: 'factorio:local:inspect',
+
+  // Partidas: cambiar la que se juega exige el servidor parado.
+  listSaves: 'factorio:saves:list',
+  restoreAutosave: 'factorio:saves:restore',
+  deleteSave: 'factorio:saves:delete',
+  saveNow: 'factorio:saves:now',
+
+  // Moderación: por RCON con el servidor en marcha, por fichero si está parado.
+  getList: 'factorio:moderation:get',
+  addToList: 'factorio:moderation:add',
+  removeFromList: 'factorio:moderation:remove',
+  kick: 'factorio:moderation:kick',
+  onlinePlayers: 'factorio:players:online',
+
+  // Mods del portal oficial. Buscar es libre; descargar exige el usuario y el
+  // token de factorio.com, que el propio juego ya tiene guardados.
+  searchMods: 'factorio:mods:search',
+  listMods: 'factorio:mods:list',
+  installMod: 'factorio:mods:install',
+  setModEnabled: 'factorio:mods:enable',
+  removeMod: 'factorio:mods:remove',
+  credentialsFromGame: 'factorio:portal:fromGame',
+  portalLogin: 'factorio:portal:login'
+} as const
+
 /** Eventos que el núcleo empuja hacia la interfaz. */
 export const EVENTS = {
   log: 'event:log',

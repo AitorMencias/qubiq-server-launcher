@@ -314,6 +314,18 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     this.pushLog('system', `> ${clean}`)
   }
 
+  /**
+   * Lo mismo para los juegos que no leen la entrada estándar (Factorio): el
+   * comando lo manda su adaptador, y aquí solo se enseña lo enviado y lo que
+   * contestó, para que la consola se vea igual venga por donde venga.
+   */
+  echoCommand(command: string, answer?: string): void {
+    this.pushLog('system', `> ${command}`)
+    for (const line of (answer ?? '').split(/\r?\n/)) {
+      if (line.trim().length > 0) this.pushLog('info', line)
+    }
+  }
+
   private handleLine(raw: string): void {
     if (raw.trim().length === 0) return
 

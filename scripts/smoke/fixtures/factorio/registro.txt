@@ -1,0 +1,37 @@
+# Registro real de un servidor de Factorio 2.1.19 (fase 4).
+#
+# Grabado arrancando el servidor de verdad y entrando con un cliente real: las
+# líneas de entrada, chat y salida son las que escribió el servidor, con el
+# nombre de la cuenta sustituido por «Jugador1» y las rutas con el nombre de
+# usuario por «USUARIO».
+#
+# Las líneas de jugador están transcritas de esa sesión, no copiadas del fichero
+# (el registro original se sobrescribió en una prueba posterior). El resto sale
+# directamente de los registros del laboratorio.
+
+0.002 2026-09-18 01:55:34; Factorio 2.1.19 (build 87445, win64, steam, space-age)
+0.002 Config path: C:\Users\USUARIO\AppData\Local\qubiq-dev\steam\factorio-proto\servidor\config\config.ini
+1.213 Info UDPSocket.cpp:38: Opening socket at (IP ADDR:({0.0.0.0:34197}))
+1.213 Hosting game at IP ADDR:({0.0.0.0:34197})
+1.213 Info ServerMultiplayerManager.cpp:809: updateTick(7871) changing state from(CreatingGame) to(InGame)
+1.213 Info RemoteCommandProcessor.cpp:119: Starting RCON interface at IP ADDR:({127.0.0.1:34198})
+1.023 Info ServerMultiplayerManager.cpp:372: OS does not support non-blocking saving. Forcing value to false.
+98.948 Refusing connection for address (IP ADDR:({127.0.0.1:60544})), username (Jugador1). PasswordMissing
+105.631 Info ServerMultiplayerManager.cpp:1038: UpdateTick(18) Serving map(C:\Users\USUARIO\AppData\Local\qubiq-dev\steam\factorio-proto\servidor\temp\mp-save-0.zip) for peer(1) size(792011) auxiliary(163) crc(2348541621)
+105.898 Info InputActionHandler.cpp:5063: UpdateTick (18) processed PlayerJoinGame peerID(1) playerIndex(0) mode(create)
+2026-09-18 00:31:44 [JOIN] Jugador1 joined the game
+2026-09-18 00:32:24 [CHAT] Jugador1: hola
+2026-09-18 00:32:37 [CHAT] Jugador1: he podido entrar en el servidor
+2026-09-18 00:33:55 [LEAVE] Jugador1 left the game
+2026-09-18 00:34:32 [CHAT] <server>: /players
+61.272 Info AppManager.cpp:335: Saving to _autosave1 (blocking).
+61.322 Info AppManagerStates.cpp:2131: Saving finished
+5.057 Quitting: remote-quit.
+5.057 Info MainLoop.cpp:433: Saving map as C:\Users\USUARIO\AppData\Local\qubiq-dev\steam\factorio-proto\servidor\saves\partida.zip
+5.082 Info MainLoop.cpp:444: Saving progress: 0.239234%
+5.084 Info MainLoop.cpp:444: Saving progress: 100.000000%
+5.098 Info ServerMultiplayerManager.cpp:120: Disconnecting multiplayer connection.
+5.299 Info UDPSocket.cpp:238: Closing socket
+5.395 Goodbye
+0.066 Error Util.cpp:81: Error al cargar el mod "base": __core__/lualib/util.lua:687: module __base__/graphics/entity/heat-pipe/heat-pipe-circuit-connection not found;  no such file __base__/graphics/entity/heat-pipe/heat-pipe-circuit-connection.lua
+11.610 Error RemoteCommandProcessor.cpp:298: RCON received an invalid message type 0

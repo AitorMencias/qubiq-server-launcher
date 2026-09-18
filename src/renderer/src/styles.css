@@ -1070,6 +1070,17 @@ select:focus {
   line-height: 1.5;
 }
 
+/*
+ * Lo mismo para la explicación que va dentro de una casilla (`label.row` con su
+ * texto y una `.help` debajo): fuera de un `.field` salía a tamaño normal, igual
+ * de llamativa que la propia opción.
+ */
+label.row .help {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 /* El grid de tipos vuelve a alinearse a la izquierda dentro del paso. */
 .step-frame .choice-grid {
   text-align: left;

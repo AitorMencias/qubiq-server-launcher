@@ -55,7 +55,19 @@ export type StopStrategy = (
        */
       retryEveryMs?: number
     }
-  | { kind: 'rcon'; host?: string; port: number; password: string; command: string }
+  | {
+      kind: 'rcon'
+      host?: string
+      port: number
+      password: string
+      command: string
+      /**
+       * false en los servidores que no devuelven el eco del paquete terminador
+       * de Source RCON (Factorio). Sin esto, la orden de parada se queda
+       * esperando un eco que no llega.
+       */
+      terminatorEcho?: boolean
+    }
   | { kind: 'webrcon'; host?: string; port: number; password: string; command: string }
   | { kind: 'api'; request: () => Promise<void> }
 ) & {
@@ -185,6 +197,16 @@ export interface GameAdapter<
 
   launch(manifest: M): Promise<LaunchSpec>
   stop(manifest: M): StopStrategy
+
+  /**
+   * Manda un comando al servidor en marcha, cuando no vale la entrada estándar.
+   *
+   * Sin esto, el núcleo escribe en el stdin del proceso, que es lo que entienden
+   * Minecraft y Project Zomboid. Factorio no puede: su ejecutable es de
+   * subsistema GUI y no tiene entrada estándar, así que lo manda por RCON y
+   * devuelve lo que conteste, para que salga en la consola.
+   */
+  sendCommand?(manifest: M, command: string): Promise<string>
   parseLine(raw: string): ParsedEvent
   diagnoseExit(code: number | null, recentLines: string[]): Diagnosis
 

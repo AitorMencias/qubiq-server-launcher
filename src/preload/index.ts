@@ -4,6 +4,7 @@ import {
   MINECRAFT_IPC,
   SATISFACTORY_IPC,
   VALHEIM_IPC,
+  FACTORIO_IPC,
   EVENTS,
   type MemoryInfo,
   type SystemMemory
@@ -42,6 +43,7 @@ import type {
   ValheimListKind,
   ValheimWorld
 } from '../shared/games/valheim/types'
+import type { FactorioListKind, FactorioSave } from '../shared/games/factorio/types'
 
 /** Ajustes del servidor de Satisfactory, con lo pendiente de un reinicio. */
 interface SatisfactoryOptions {
@@ -202,6 +204,123 @@ const valheim = {
   }
 }
 
+/** Una instalación de Factorio encontrada en el equipo. */
+interface LocalFactorio {
+  path: string
+  version: string | null
+  spaceAge: boolean
+  source: 'steam'
+}
+
+/** Credenciales del portal de mods de factorio.com. */
+interface PortalCredentials {
+  username: string
+  token: string
+}
+
+/** Un mod tal como lo enseña el buscador del portal. */
+interface ModSearchResult {
+  name: string
+  title: string
+  owner: string
+  summary: string
+  downloadsCount: number
+  latestVersion: string | null
+  factorioVersion: string | null
+}
+
+/** Un mod que está en la carpeta del servidor. */
+interface InstalledMod {
+  name: string
+  version: string | null
+  title: string | null
+  enabled: boolean
+  sizeBytes: number
+}
+
+/** Cuenta de Steam. La contraseña viaja una vez y no se guarda en ningún sitio. */
+interface SteamAccount {
+  user: string
+  password?: string
+  guardCode?: string
+}
+
+const factorio = {
+  /**
+   * Cuenta de Steam con la que descargar el juego.
+   *
+   * Se comprueba antes de empezar una descarga de 5 GB. Si falla, el error dice
+   * si es cosa de la contraseña o de Steam Guard, que es lo que decide si hay
+   * que volver a preguntar una u otro.
+   */
+  steam: {
+    login: (account: SteamAccount): Promise<void> =>
+      ipcRenderer.invoke(FACTORIO_IPC.steamLogin, account),
+    findLocal: (): Promise<LocalFactorio[]> => ipcRenderer.invoke(FACTORIO_IPC.findLocal),
+    inspectFolder: (path: string): Promise<LocalFactorio> =>
+      ipcRenderer.invoke(FACTORIO_IPC.inspectFolder, path)
+  },
+
+  /** Partidas del servidor, incluidos los autoguardados que hace el juego. */
+  saves: {
+    list: (id: string): Promise<FactorioSave[]> => ipcRenderer.invoke(FACTORIO_IPC.listSaves, id),
+    restoreAutosave: (id: string, name: string): Promise<void> =>
+      ipcRenderer.invoke(FACTORIO_IPC.restoreAutosave, id, name),
+    remove: (id: string, name: string): Promise<void> =>
+      ipcRenderer.invoke(FACTORIO_IPC.deleteSave, id, name),
+    saveNow: (id: string): Promise<void> => ipcRenderer.invoke(FACTORIO_IPC.saveNow, id)
+  },
+
+  /** Moderación: en caliente por RCON, y en frío escribiendo sus ficheros. */
+  moderation: {
+    get: (id: string, kind: FactorioListKind): Promise<string[]> =>
+      ipcRenderer.invoke(FACTORIO_IPC.getList, id, kind),
+    add: (id: string, kind: FactorioListKind, player: string): Promise<string[]> =>
+      ipcRenderer.invoke(FACTORIO_IPC.addToList, id, kind, player),
+    remove: (id: string, kind: FactorioListKind, player: string): Promise<string[]> =>
+      ipcRenderer.invoke(FACTORIO_IPC.removeFromList, id, kind, player),
+    kick: (id: string, player: string, reason?: string): Promise<void> =>
+      ipcRenderer.invoke(FACTORIO_IPC.kick, id, player, reason)
+  },
+
+  players: {
+    online: (id: string): Promise<string[]> => ipcRenderer.invoke(FACTORIO_IPC.onlinePlayers, id)
+  },
+
+  /**
+   * Mods del portal oficial.
+   *
+   * Buscar no pide nada; descargar exige usuario y token de factorio.com. El
+   * token **no se guarda en disco**: o se lee de la sesión del propio juego
+   * cuando el usuario lo pide, o se consigue entrando y vive en memoria
+   * mientras la ventana esté abierta.
+   */
+  mods: {
+    search: (query: string): Promise<ModSearchResult[]> =>
+      ipcRenderer.invoke(FACTORIO_IPC.searchMods, query),
+    list: (id: string): Promise<InstalledMod[]> => ipcRenderer.invoke(FACTORIO_IPC.listMods, id),
+    install: (
+      id: string,
+      name: string,
+      credentials: PortalCredentials,
+      gameVersion?: string
+    ): Promise<InstalledMod> =>
+      ipcRenderer.invoke(FACTORIO_IPC.installMod, id, name, credentials, gameVersion),
+    setEnabled: (id: string, name: string, enabled: boolean): Promise<void> =>
+      ipcRenderer.invoke(FACTORIO_IPC.setModEnabled, id, name, enabled),
+    remove: (id: string, name: string): Promise<void> =>
+      ipcRenderer.invoke(FACTORIO_IPC.removeMod, id, name)
+  },
+
+  portal: {
+    /** Lee el usuario y el token que el juego ya tiene guardados. */
+    credentialsFromGame: (): Promise<PortalCredentials | null> =>
+      ipcRenderer.invoke(FACTORIO_IPC.credentialsFromGame),
+    login: (username: string, password: string): Promise<PortalCredentials> =>
+      ipcRenderer.invoke(FACTORIO_IPC.portalLogin, username, password)
+  }
+}
+
 const api = {
   settings: {
     get: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.getSettings),
@@ -263,6 +382,7 @@ const api = {
   minecraft,
   satisfactory,
   valheim,
+  factorio,
 
   on: {
     log: (handler: (id: string, line: LogLine) => void) =>

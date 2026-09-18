@@ -94,11 +94,12 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 415 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Minecraft: lógica pura, mundos, plugins oficiales y contrato con las APIs externas |
+| `npm run smoke` | 449 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Minecraft: lógica pura, mundos, plugins oficiales y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge` |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
 | `npm run e2e:satisfactory` | **Con todos los servidores de Satisfactory parados** (solo puede haber uno a la vez). Satisfactory de verdad: instalar, reclamar el servidor sin abrir el juego, arrancar, detectar «listo» por su API, puertos, partidas, ajustes en caliente, copia con el servidor en marcha, parada limpia, restauración y **comprobar que no se ha tocado `%LOCALAPPDATA%\FactoryGame`**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\satisfactory` con un enlace; `-- --descargar` baja los 15,5 GB de cero |
 | `npm run e2e:valheim` | Valheim de verdad: instalar, arrancar generando el mundo, puertos UDP, moderación, copia en caliente esperando a que el servidor guarde, parada con Ctrl+Break, parar mientras arranca, mundos, restauración y **comprobar que no se ha tocado la carpeta de Valheim del usuario**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\valheim` con un enlace; `-- --descargar` baja los 2 GB de cero. No publica el servidor: arranca con `-public 0` y sin crossplay |
+| `npm run e2e:factorio` | Factorio de verdad: copiar el juego de una instalación del equipo y adelgazarlo (de 5,1 GB a ~246 MB), generar el mapa, arrancar, puerto UDP, moderación por RCON en caliente, copia con el servidor en marcha, parada con `/quit`, restauración y **comprobar que no se ha tocado `%APPDATA%\Factorio`**. `-- --rapido` usa la copia ya adelgazada del laboratorio; `-- --mods` prueba además buscar e instalar un mod real del portal, que necesita tu sesión de factorio.com. Son 34 comprobaciones. Termina con 2 si lo único que falla es que el portal no responde |
 | `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones, viaje de ida y vuelta a una rama anterior y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%LOCALAPPDATA%\qubiq-dev\e2e-steam`); `-- --limpio` empieza de cero |
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
@@ -331,10 +332,68 @@ reconoce»): Valheim tiene la primera y no la segunda, así que se lista a la ge
 identificador por delante y explicando qué es. **Vetar a alguien lo echa al momento**: el servidor
 relee sus listas al vuelo.
 
+**Los paneles de un juego se montan con las piezas de siempre, no con las tuyas.** Todo va dentro
+de `div.panel`, cada bloque en un `div.card` con su `h3`, cada campo en un `div.field` (etiqueta,
+control y `.help`) y cada casilla en un `label.row` con su texto y, si hace falta, una `.help`
+dentro. Ojo con dos trampas: `.help` **solo tiene estilo** dentro de `.field`, de un paso del
+asistente o de una casilla —suelta en una tarjeta sale a tamaño normal; ahí la nota va con
+`p.hint`—, y `.alert strong` es de bloque, así que un `<strong>` dentro del párrafo de un aviso lo
+parte en dos. Una clase que no existe en `styles.css` (`agree`, `list`, `tag`, `alert ok`…) no da
+error: simplemente descuadra la pantalla. Así salieron los primeros paneles de Factorio.
+
 **La pantalla de jugadores no sabe de ningún juego.** Los botones de moderar los pone cada juego en
 `GameUi.playerActions` —Minecraft manda `kick`/`ban`/`op` por la consola, Valheim escribe en sus
 listas de texto— y el armazón común solo los coloca. Si añades un juego que modere de otra forma,
 no hay que tocar `PlayersPanel`.
+
+**El servidor de Factorio es el juego, y por eso hace falta tenerlo.** No hay servidor dedicado para
+Windows: se lanza `factorio.exe --start-server`. La app lo copia de una instalación del equipo o lo
+descarga de Steam **con la cuenta del usuario**, que es el único caso en toda la app donde SteamCMD
+no entra de forma anónima. La contraseña se le pasa por la entrada estándar nada más arrancarlo
+—nunca en la línea de órdenes— y no se guarda: después valen las credenciales que Steam deja en
+caché, y a la app le basta el nombre de usuario.
+
+**A Factorio no se le habla por stdin: es un binario GUI.** `factorio.exe` es de subsistema 2
+(gráfico), así que no tiene entrada estándar y escribir en ella da EPIPE. Parar el servidor, moderar
+y mandar comandos va **todo por RCON**, que la app crea sola con contraseña aleatoria y ata a
+`127.0.0.1` con `--rcon-bind`. Con `--rcon-port` escucharía en `0.0.0.0`, o sea, en toda la red de
+casa.
+
+**Factorio no devuelve el eco del paquete terminador de RCON.** El truco estándar —mandar detrás del
+comando un paquete vacío y esperar su eco— funciona en Minecraft y en Zomboid, pero aquí el
+terminador se ignora y la respuesta se queda esperando para siempre. Para eso está
+`RconOptions.terminatorEcho: false`: recoge trozos hasta que deja de llegar nada. Si añades un juego
+con RCON, compruébalo antes de darlo por hecho.
+
+**Al servidor de Factorio se le quitan las imágenes y los sonidos.** La copia de cada servidor pasa
+de 5,1 GB a 246 MB borrando `.png` y `.ogg`, y los **checksums de prototipos no cambian**, así que
+los clientes entran igual (probado con un jugador real). Lo que no se puede borrar son los `.lua`
+que viven dentro de `graphics/`: sin ellos no carga ni el mod base. Ojo: Steam no sabe actualizar
+sobre una instalación recortada (falla con `state is 0x426`), y por eso la descarga va a una
+carpeta aparte que se borra al terminar.
+
+**Space Age se decide al crear el servidor y no se puede cambiar.** Es un `mod-list.json` con cuatro
+mods, y el mapa se genera con ellos dentro: apagarlos después no convierte la partida en una de
+Factorio base. Si tocas ese fichero desde otro sitio (los mods del portal lo hacen), conserva lo que
+ya hubiera en vez de reescribirlo entero.
+
+**La versión estable de Factorio (2.0.77) no termina de cerrarse.** Guarda la partida al 100 % con
+`/quit` y el proceso se queda vivo; la 2.1.19 cierra en 0,4 s. No es un fallo de la app: cerrar el
+proceso al agotar el plazo es seguro **porque la partida ya está en disco**, y así lo hace el
+supervisor.
+
+**El portal de mods de Factorio no sabe buscar.** Los parámetros `q`, `query` y `search` de su API
+se ignoran —contestan con los 23.000 mods en orden alfabético— y `namelist` da un 500. Por eso
+`searchMods` se trae el índice completo (13 MB, segundo y medio), lo cachea una hora y filtra en
+local. Y descargar sí pide credenciales: sin `username` y `token` redirige al login y contesta 403.
+La app usa la sesión que el propio juego guarda en `player-data.json`, **solo cuando el usuario lo
+pide**, y no escribe el token en ningún fichero.
+
+**Nombrar administrador en Factorio no siempre funciona en caliente.** `/promote` no hace nada con
+quien no ha entrado nunca al servidor. Por eso la moderación hace las dos cosas: manda la orden por
+RCON (así, vetar echa al momento a quien esté dentro) **y** escribe el fichero, que sobrevive a la
+parada y se aplica al siguiente arranque. Y cuidado al comparar nombres: el servidor los guarda en
+minúsculas.
 
 **La consulta de Steam de Valheim solo responde en el puerto de consulta.** Ni publicado contesta
 en el de juego. Y no te fíes de su campo `version`, que dice siempre «1.0.0.0»: la versión de

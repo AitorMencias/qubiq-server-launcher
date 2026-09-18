@@ -63,7 +63,28 @@ export interface RconOptions {
   port: number
   password: string
   timeoutMs?: number
+  /**
+   * Si el servidor devuelve el eco del «paquete terminador».
+   *
+   * El truco estándar de Source RCON es mandar detrás del comando un paquete
+   * vacío: cuando vuelve su eco, la respuesta está completa. Minecraft y
+   * Project Zomboid lo hacen; **Factorio no** (comprobado: contesta al comando
+   * y el terminador lo ignora, así que esperarlo acaba siempre en un plantón).
+   *
+   * Con `false` la respuesta se da por terminada cuando deja de llegar nada
+   * durante un momento, que es lo único que se puede hacer sin ese eco.
+   */
+  terminatorEcho?: boolean
 }
+
+/**
+ * Lo que se espera a que lleguen más trozos, cuando no hay terminador.
+ *
+ * Las respuestas largas vienen partidas en varios paquetes con el mismo
+ * identificador, y sin eco no hay forma de saber cuál es el último: se espera
+ * un poco desde el último trozo. Corto para no hacer esperar a la interfaz.
+ */
+const IDLE_MS = 200
 
 export class RconError extends Error {
   constructor(
@@ -83,7 +104,8 @@ export class RconClient {
 
   private constructor(
     private readonly socket: Socket,
-    private readonly timeoutMs: number
+    private readonly timeoutMs: number,
+    private readonly terminatorEcho: boolean
   ) {
     socket.on('data', (chunk) => {
       this.buffer = Buffer.concat([this.buffer, chunk])
@@ -113,7 +135,7 @@ export class RconClient {
       })
       socket.connect(options.port, options.host, async () => {
         clearTimeout(timer)
-        const client = new RconClient(socket, timeoutMs)
+        const client = new RconClient(socket, timeoutMs, options.terminatorEcho ?? true)
         try {
           await client.authenticate(options.password)
           resolve(client)
@@ -174,6 +196,8 @@ export class RconClient {
 
   /** Ejecuta una orden y devuelve la respuesta completa. */
   async exec(command: string): Promise<string> {
+    if (!this.terminatorEcho) return this.execWithoutTerminator(command)
+
     const id = this.nextId++
     const terminator = this.nextId++
     const chunks: Buffer[] = []
@@ -185,6 +209,60 @@ export class RconClient {
     this.socket.write(encodePacket(terminator, TYPE_RESPONSE, ''))
     await wait
     return Buffer.concat(chunks).toString('utf8')
+  }
+
+  /**
+   * Lo mismo para servidores que no devuelven el eco del terminador (Factorio).
+   *
+   * Sin ese eco no hay forma de saber que la respuesta ha terminado, así que se
+   * recogen trozos hasta que pasa un rato sin llegar nada. Una respuesta vacía
+   * es normal (hay comandos que no contestan), y por eso el plazo general sigue
+   * corriendo: si el servidor no dice nada en absoluto, eso sí es un plantón.
+   */
+  private execWithoutTerminator(command: string): Promise<string> {
+    const id = this.nextId++
+    const chunks: Buffer[] = []
+    return new Promise((resolve, reject) => {
+      if (this.closedError) {
+        reject(this.closedError)
+        return
+      }
+      let idle: NodeJS.Timeout | null = null
+      const finish = (): void => {
+        done()
+        resolve(Buffer.concat(chunks).toString('utf8'))
+      }
+      const waiter = (packet: RconPacket): void => {
+        if (this.closedError) {
+          // El servidor cerró la conexión. Si ya había contestado algo, eso
+          // vale: `/quit` responde y corta acto seguido.
+          if (chunks.length > 0) finish()
+          else {
+            done()
+            reject(this.closedError)
+          }
+          return
+        }
+        if (packet.id !== id) return
+        chunks.push(packet.body)
+        if (idle) clearTimeout(idle)
+        idle = setTimeout(finish, IDLE_MS)
+      }
+      const timer = setTimeout(() => {
+        if (chunks.length > 0) finish()
+        else {
+          done()
+          reject(new RconError('El servidor no respondió por RCON a tiempo.', 'timeout'))
+        }
+      }, this.timeoutMs)
+      const done = (): void => {
+        clearTimeout(timer)
+        if (idle) clearTimeout(idle)
+        this.waiters = this.waiters.filter((w) => w !== waiter)
+      }
+      this.waiters.push(waiter)
+      this.socket.write(encodePacket(id, TYPE_EXEC, command))
+    })
   }
 
   close(): void {

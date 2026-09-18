@@ -7,6 +7,12 @@ import {
   RELIABLE_PORT
 } from './satisfactory/types'
 import {
+  DEFAULT_GAME_PORT as FACTORIO_DEFAULT_PORT,
+  DEFAULT_MAX_PLAYERS as FACTORIO_MAX_PLAYERS,
+  MEMORY_MIN_GB as FACTORIO_MEMORY_MIN_GB,
+  MEMORY_RECOMMENDED_GB as FACTORIO_MEMORY_RECOMMENDED_GB
+} from './factorio/types'
+import {
   DEFAULT_GAME_PORT as VALHEIM_DEFAULT_PORT,
   MAX_PLAYERS as VALHEIM_MAX_PLAYERS,
   MEMORY_MIN_GB as VALHEIM_MEMORY_MIN_GB,
@@ -277,6 +283,55 @@ export const GAMES: Record<GameId, GameInfo> = {
       'En Valheim se modera por identificador de Steam, no por nombre: el juego no dice cómo se ' +
       'llama el personaje de nadie. Vetar a alguien lo echa al momento, y las listas completas ' +
       '(administradores, vetados e invitados) están en Configuración → Moderación.'
+  },
+
+  factorio: {
+    id: 'factorio',
+    name: 'Factorio',
+    card: {
+      tagline: 'Montar una fábrica enorme entre varios, y defenderla.',
+      players: `Hasta ${FACTORIO_MAX_PLAYERS} cómodamente`,
+      memoryGb: { min: FACTORIO_MEMORY_MIN_GB, recommended: FACTORIO_MEMORY_RECOMMENDED_GB },
+      // Medido en la fase 4: la descarga son 5 GB, pero el servidor se queda en
+      // 246 MB porque no necesita ni imágenes ni sonidos.
+      download: '5 GB → 250 MB',
+      downloadMeasured: true,
+      // Como en los demás juegos: primero lo bueno y el aviso al final.
+      highlights: [
+        { text: 'Arranca en un segundo', tone: 'good' },
+        { text: 'Con mods y con Space Age', tone: 'neutral' },
+        { text: 'Hace falta tener el juego', tone: 'warn' }
+      ]
+    },
+    // El juego se descarga de Steam con la cuenta del usuario (no hay servidor
+    // dedicado anónimo), así que lo que se acepta sigue siendo el acuerdo de Steam.
+    agreements: [
+      {
+        id: 'steam-subscriber',
+        label: 'el Acuerdo de Suscriptor de Steam',
+        url: 'https://store.steampowered.com/subscriber_agreement/'
+      }
+    ],
+    disclaimer: 'Herramienta no oficial. No está asociada a Wube Software ni a Factorio.',
+    joinHint: 'En Factorio: Multijugador → Conectar a la dirección.',
+    joinSteps: [
+      'Abre Factorio y entra en «Multijugador» desde el menú principal.',
+      'Pulsa «Conectar a la dirección» y pega ahí la dirección, con el puerto incluido.',
+      'Escribe la contraseña del servidor cuando te la pida.',
+      'Tenéis que tener todos la misma versión del juego y los mismos mods que el servidor.'
+    ],
+    joinWarning:
+      'Si te saltas la contraseña, Factorio corta la conexión sin decir por qué (en el servidor ' +
+      'queda como «PasswordMissing»). Y si tu juego no está en la misma versión que el servidor, ' +
+      'no te dejará entrar: mira la versión en la ficha del servidor.',
+    tunnelAddressExample: 'algo.gl.at.ply.gg',
+    save: { singular: 'partida', plural: 'partidas', feminine: true },
+    backupScope:
+      'Se guardan las partidas, los mods y las listas de moderación. El juego no hace falta: se ' +
+      'vuelve a descargar de Steam.',
+    moderationHint:
+      'En Factorio se modera por nombre de cuenta de Factorio, que es el que se ve en el chat. ' +
+      'Vetar a alguien lo echa al momento.'
   }
 }
 
@@ -376,6 +431,11 @@ export function serverPorts(manifest: InstanceManifest): ServerPort[] {
         { port: manifest.port, protocol: 'tcp+udp', label: 'Juego', tunnelType: 'UDP y TCP' },
         { port: RELIABLE_PORT, protocol: 'tcp', label: 'Mensajería del juego', tunnelType: 'TCP' }
       ]
+    case 'factorio':
+      // Uno solo, y por UDP. El de RCON no se lista a propósito: la app lo abre
+      // solo en 127.0.0.1 para poder parar y moderar el servidor, y abrirlo
+      // fuera del equipo sería dar la consola remota a quien pase por ahí.
+      return [{ port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' }]
     case 'valheim':
       // Todo por UDP, y el de consulta es siempre el siguiente al de juego.
       // Con crossplay no hace falta abrir ninguno, pero se siguen listando:
@@ -450,6 +510,29 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
         externalCheck: false,
         crossplay: false
       }
+    case 'factorio':
+      // Las partidas y la moderación las aporta el juego con sus pestañas. Lo
+      // que lo distingue de Valheim: aquí el registro SÍ dice el nombre de
+      // quien entra y de quien habla ([JOIN] / [CHAT] / [LEAVE], comprobado con
+      // un cliente real), y hay consola de comandos, aunque por dentro no sea
+      // una consola sino RCON: el ejecutable no lee la entrada estándar.
+      return {
+        worlds: false,
+        content: true,
+        officialPlugins: false,
+        memory: false,
+        settings: true,
+        reinstall: true,
+        commands: true,
+        playerIds: true,
+        playerNames: true,
+        moderation: true,
+        // No hay nadie fuera que sepa hablar el protocolo de Factorio salvo su
+        // propia lista pública, y salir en ella exige publicar la IP del
+        // usuario. Sin eso, un botón de «comprobar desde internet» mentiría.
+        externalCheck: false,
+        crossplay: false
+      }
     case 'valheim':
       // Los mundos y la moderación los aporta el juego con sus propias pestañas
       // (las listas son ficheros de texto, no comandos). El servidor no lee
@@ -488,6 +571,10 @@ export function versionLabel(manifest: InstanceManifest): string {
         : 'Satisfactory'
     case 'valheim':
       return manifest.data.gameVersion ? `Valheim ${manifest.data.gameVersion}` : 'Valheim'
+    case 'factorio':
+      // En Factorio la versión no es un detalle: el cliente tiene que ir en la
+      // misma, así que se enseña siempre que se sepa.
+      return manifest.data.gameVersion ? `Factorio ${manifest.data.gameVersion}` : 'Factorio'
   }
 }
 
@@ -500,6 +587,10 @@ export function summaryLabel(manifest: InstanceManifest): string {
       return `Satisfactory · ${manifest.data.sessionName}`
     case 'valheim':
       return `Valheim · ${manifest.data.worldName}`
+    case 'factorio':
+      return manifest.data.spaceAge
+        ? `Factorio · ${manifest.data.saveName} · Space Age`
+        : `Factorio · ${manifest.data.saveName}`
   }
 }
 
@@ -512,5 +603,7 @@ export function defaultPortFor(game: GameId): number {
       return DEFAULT_GAME_PORT
     case 'valheim':
       return VALHEIM_DEFAULT_PORT
+    case 'factorio':
+      return FACTORIO_DEFAULT_PORT
   }
 }

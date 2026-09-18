@@ -1,8 +1,8 @@
 # Hoja de ruta multijuego
 
 Plan para que QubiQ gestione, además de Minecraft, los seis juegos que pasaron la criba de
-[INVESTIGACION-JUEGOS.md](INVESTIGACION-JUEGOS.md): Satisfactory, Valheim, Project Zomboid,
-Enshrouded, Rust y Factorio. Los juegos propuestos sin investigar quedan para más adelante (ver «Futuro», al final).
+[INVESTIGACION-JUEGOS.md](INVESTIGACION-JUEGOS.md): Satisfactory, Valheim, Factorio,
+Project Zomboid, Enshrouded y Rust. Los juegos propuestos sin investigar quedan para más adelante (ver «Futuro», al final).
 
 ## Resumen
 
@@ -12,10 +12,10 @@ Enshrouded, Rust y Factorio. Los juegos propuestos sin investigar quedan para m�
 | **1** | Cimientos comunes de Steam: SteamCMD, parada limpia, RCON, A2S, UDP | (sin release propia) | 0 |
 | **2** | Satisfactory | 0.5.0 | 1 |
 | **3** | Valheim | 0.6.0 | 1 (parada con Ctrl+Break, ya validada) |
-| **4** | Project Zomboid | 0.7.0 | 1 |
-| **5** | Enshrouded | 0.8.0 | 3 |
-| **6** | Rust | 0.9.0 | 1 |
-| **7** | Factorio | 0.10.0 | 1 |
+| **4** | Factorio | 0.7.0 | 1 |
+| **5** | Project Zomboid | 0.8.0 | 1 |
+| **6** | Enshrouded | 0.9.0 | 3 |
+| **7** | Rust | 0.10.0 | 1 |
 
 **Por qué este orden:** primero lo que tienen en común todos los juegos, luego los juegos de menos
 a más riesgo, y cada juego nuevo aprovechando lo que dejó el anterior.
@@ -23,10 +23,14 @@ a más riesgo, y cada juego nuevo aprovechando lo que dejó el anterior.
   Steam de principio a fin sin trucos.
 - **Valheim:** estrena la parada por señal de consola (Ctrl+Break: Ctrl+C no llega, ver fase 1) y
   el crossplay como modo de exposición.
-- **Enshrouded:** reutiliza esa misma parada (Ctrl+Break).
+- **Factorio, adelantado:** es el juego que más interesa al autor, así que va justo después de
+  Valheim aunque traiga su problema propio (el inicio de sesión con cuenta para descargar el
+  servidor). La capa de la fase 1 ya está validada contra dos juegos, así que ese problema se
+  afronta solo, sin mezclarlo con el trabajo de base.
 - **Project Zomboid:** se parece mucho a Minecraft y aprovecha casi toda la gestión existente.
-- **Rust y Factorio, al final:** cada uno trae un problema propio (el borrado mensual obligatorio y
-  el inicio de sesión con cuenta) que no conviene mezclar con el trabajo de base.
+- **Enshrouded:** reutiliza la misma parada que Valheim (Ctrl+Break).
+- **Rust, al final:** su borrado mensual obligatorio es el problema más raro de todos y cierra la
+  hoja de ruta junto a la revisión general de la 0.10.0.
 
 **Una regla para todas las fases:** Minecraft no puede empeorar. `smoke`, `e2e` y `e2e:restart`
 tienen que seguir en verde al cerrar cada una, y los servidores que ya existen en
@@ -164,7 +168,7 @@ interface InstanceManifest {
 > - SteamCMD: progreso en vivo desde `console_log.txt` (la salida estándar llega al final).
 > - Pendiente de grabar con servidor real: WebRCON (Rust) y A2S de Valheim. Los dos exigen publicar
 >   el servidor en la lista de Steam con la IP del usuario, y eso se decide antes de hacerlo. Se
->   graban, como tarde, en sus fases (6 y 3).
+>   graban, como tarde, en sus fases (7 y 3).
 > - ~~Queda para cada juego: la interfaz de actualizaciones y de la comprobación con Steam.~~
 >   **Hecho** (ANALISIS.md §19.18): Configuración → Servidor tiene la tarjeta «Versión», común a
 >   todos los juegos, con aviso de versión nueva en los dos modos y elección de versión o rama en
@@ -316,7 +320,44 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
   las relee al vuelo, así que **vetar echa al jugador al momento**; los botones están en la
   pantalla principal, junto a quién está conectado.
 
-### Fase 4 — Project Zomboid (0.7.0)
+### Fase 4 — Factorio (0.7.0)
+
+> **Estado: hecha** (pendiente de publicar como 0.7.0). Detalle, hallazgos del juego real,
+> decisiones y verificación en [ANALISIS.md §19.19](ANALISIS.md). Cambios respecto a este plan:
+> - **En Windows no hay control por stdin.** `factorio.exe` es un binario de subsistema GUI y no
+>   tiene entrada estándar utilizable, así que **todo va por RCON**, que la app pone sola y ata a
+>   `127.0.0.1`. Ctrl+Break tampoco vale.
+> - **Factorio ignora el paquete terminador de RCON**, que el cliente de la app esperaba siempre:
+>   había que arreglar el cliente común para que funcione con los dos comportamientos.
+> - **El servidor se adelgaza:** sin imágenes ni sonidos, la copia pasa de 5,1 GB a 246 MB con los
+>   mismos checksums de prototipos. Cada servidor tiene la suya.
+> - **La descarga no se guarda:** va a una carpeta temporal, se copia adelgazada y se borra (0 GB
+>   fijos). Cambiar de versión vuelve a descargar, porque Steam no sabe actualizar sobre una
+>   instalación recortada.
+> - **La estable (2.0.77) no termina de cerrarse** tras guardar. Como la partida ya está en disco,
+>   agotar el plazo y cerrar el proceso es seguro.
+> - **Los mods del portal están hechos y probados** (buscar, instalar, activar y quitar). La API del
+>   portal no sabe buscar por texto, así que la app se trae el índice entero (13 MB), lo cachea y
+>   filtra en local.
+
+- **Obtener el servidor en Windows exige tener el juego.** La app ofrece, por este orden:
+  1. Copiar una instalación que ya exista en el equipo (no descarga nada).
+  2. Descargarlo de Steam con la cuenta del usuario, que es la que lo tiene comprado.
+
+  Nunca guarda la contraseña: se le pasa a SteamCMD por la entrada estándar, se usa una vez y
+  después valen las credenciales que Steam deja en su caché. Lo único que se guarda es el nombre de
+  usuario. Lo de iniciar sesión en factorio.com se quedó solo para el portal de mods.
+- **Asistente:** de dónde sale el juego, nombre, contraseña, Space Age sí/no, mapa (preset) y
+  conexión. En avanzado, además: jugadores, semilla, autoguardado, comandos y verificación de cuentas.
+- **Configuración:** `server-settings.json`, reescrito en cada arranque desde el manifiesto.
+  **Parada y moderación:** RCON, con los ficheros `server-adminlist.json` y `server-banlist.json`
+  como respaldo para quien no está conectado.
+- **Space Age:** se decide al crear y no se puede cambiar, porque el mapa se genera con esos mods.
+  Solo se ofrece si el juego que llega lo trae: con SteamCMD solo baja si la cuenta lo tiene.
+- **Verificación de cuentas:** encendida por defecto. Impide que alguien entre con el nombre de
+  otro, a cambio de que el servidor consulte a `auth.factorio.com` al arrancar, y se dice.
+
+### Fase 5 — Project Zomboid (0.8.0)
 
 - **Asistente:** nombre, contraseña de administrador (se pasa por argumento para que el primer
   arranque no se quede esperando en la consola), jugadores, PvP, *preset* de dificultad y conexión.
@@ -328,7 +369,7 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
   después de Minecraft.
 - **A resolver:** puerto RCON por defecto y papel exacto del puerto 16262.
 
-### Fase 5 — Enshrouded (0.8.0)
+### Fase 6 — Enshrouded (0.9.0)
 
 - **Asistente:** nombre, jugadores, *preset* de dificultad y **roles con contraseña** (Admin,
   Amigo, Invitado), que es su forma de gestionar permisos.
@@ -337,7 +378,7 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
 - **Parada:** Ctrl+Break, ya resuelto en Valheim. **Puerto:** un único UDP (`queryPort` 15637).
 - **Moderación:** no hay desde fuera del juego. Se dice claramente en su pestaña.
 
-### Fase 6 — Rust (0.9.0)
+### Fase 7 — Rust (0.10.0)
 
 - **Asistente:** nombre, descripción, tamaño y semilla del mapa, jugadores y conexión. El asistente
   avisa del peso real: RAM, tiempo de arranque y disco **(a medir)**.
@@ -345,19 +386,6 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
 - **El borrado mensual:** recordatorio del primer jueves de cada mes, actualización guiada y
   explicación de qué es un *wipe*. Opción de programarlo.
 - **Fuera de alcance en esta versión:** Oxide/Carbon. Van al futuro junto a la gestión de plugins de Rust.
-
-### Fase 7 — Factorio (0.10.0)
-
-- **Obtener el servidor en Windows exige tener el juego.** La app ofrece, por este orden:
-  1. Usar una instalación de Steam que ya exista en el equipo.
-  2. Iniciar sesión en factorio.com para descargarlo.
-
-  Nunca guarda la contraseña: solo el token que devuelva el servicio, y cifrado con la protección
-  de datos de Windows **(a confirmar el mecanismo)**.
-- **Asistente:** nombre, contraseña, jugadores, mapa (ajustes de generación), Space Age sí/no y conexión.
-- **Configuración:** `server-settings.json`. **Parada y moderación:** stdin y RCON.
-- **A resolver:** los problemas de Space Age en servidores de Windows y la descarga de mods del
-  portal oficial, que también pide credenciales.
 - **0.10.0:** con los seis juegos, revisión general de textos que todavía digan «Minecraft» donde no
   toca, rendimiento con varios servidores a la vez y guía de requisitos por juego.
 

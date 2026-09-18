@@ -107,6 +107,54 @@ function explain(reason: string): string {
   return `Steam no pudo instalar el servidor (${reason}).`
 }
 
+/**
+ * Por qué no ha entrado la cuenta de Steam.
+ *
+ * `kind` importa más que el texto: con `guard` la app tiene que pedir el código
+ * de Steam Guard y volver a intentarlo, y con `password` tiene que volver a
+ * pedir la contraseña. Los textos salen de lo que escribe SteamCMD de verdad
+ * (comprobado en la fase 4: un login con contraseña mala contesta
+ * «ERROR (Invalid Password)» y sale con código 5).
+ */
+export interface SteamLoginProblem {
+  kind: 'password' | 'guard' | 'rate-limit' | 'other'
+  message: string
+}
+
+export function loginProblem(stdout: string, exitCode: number | null): SteamLoginProblem | null {
+  if (/Two.factor code mismatch|Invalid Login Auth Code|Account Logon Denied/i.test(stdout)) {
+    return {
+      kind: 'guard',
+      message:
+        'Steam pide el código de Steam Guard. Míralo en la aplicación de Steam del móvil o en ' +
+        'tu correo y vuelve a intentarlo.'
+    }
+  }
+  if (/Rate Limit Exceeded/i.test(stdout)) {
+    return {
+      kind: 'rate-limit',
+      message:
+        'Steam ha bloqueado los intentos de entrar durante un rato por haber fallado varias veces. ' +
+        'Espera unos minutos y vuelve a probar.'
+    }
+  }
+  if (/Invalid Password|Password:.*FAILED|ERROR \(InvalidPassword\)/i.test(stdout)) {
+    return {
+      kind: 'password',
+      message: 'Steam no acepta ese usuario y esa contraseña. Compruébalos y vuelve a intentarlo.'
+    }
+  }
+  // Entrar de verdad deja siempre esta línea; si no está y no hubo un error
+  // conocido, algo ha ido mal aunque no sepamos qué.
+  if (/Logging in user .* to Steam Public\.\.\.(OK|Success)/i.test(stdout)) return null
+  if (/Logged in OK|Waiting for user info\.\.\.OK/i.test(stdout)) return null
+  if (exitCode === 0) return null
+  return {
+    kind: 'other',
+    message: `Steam no pudo iniciar sesión (código ${exitCode}). Vuelve a intentarlo.`
+  }
+}
+
 export function interpretRun(stdout: string, exitCode: number | null): SteamCmdOutcome {
   const success = /Success! App '\d+' (fully installed|already up to date)/i.exec(stdout)
   if (success) {

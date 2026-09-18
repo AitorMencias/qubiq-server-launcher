@@ -50,7 +50,7 @@ sus datos compartidos (nombre, condiciones, capacidades, puertos) en `src/shared
 - Selector de juego (fase 2): tras elegir juego, ¿preguntar el modo (A) o usar el de la barra lateral
   (B)? Bocetos en `%LOCALAPPDATA%\qubiq-dev\bocetos`.
 - Grabar WebRCON de Rust y A2S de Valheim con servidor real exige publicarlo en la lista de Steam con
-  la IP del usuario: preguntar antes (como tarde en las fases 3 y 6).
+  la IP del usuario: preguntar antes (como tarde en las fases 3 y 7).
 
 ## Pruebas
 
@@ -82,6 +82,8 @@ Antes de llevar una grabación al repo hay que quitar las rutas con el nombre de
   rutas `C:\...`). Para scripts con barras, escribirlos a un fichero con la herramienta Write y
   ejecutarlos, o editar con Edit.
 - **Rutas con `C:` en bash** para programas nativos: `cygpath -w`.
+- **Argumentos que empiezan por `/` en bash:** Git Bash los convierte en rutas (`/players` → `C:/Program Files/Git/players`). Los comandos de Factorio y de RCON van con
+  `MSYS_NO_PATHCONV=1` o dentro de un script, nunca sueltos en la línea de órdenes.
 - **Electron desde bash:** `env -u ELECTRON_RUN_AS_NODE <repo>\node_modules\electron\dist\electron.exe script.cjs`.
 - **`tar`:** usar siempre `systemTarPath()` (el de GNU del PATH rompe con `C:\`).
 - **Servidores de Steam:** Ctrl+C no llega a un proceso hijo (hereda la orden de ignorarlo); usar

@@ -6,6 +6,7 @@
 import type { MinecraftCreateOptions, MinecraftData } from './games/minecraft/types'
 import type { SatisfactoryCreateOptions, SatisfactoryData } from './games/satisfactory/types'
 import type { ValheimCreateOptions, ValheimData } from './games/valheim/types'
+import type { FactorioCreateOptions, FactorioData } from './games/factorio/types'
 
 /**
  * Nivel de detalle de la interfaz.
@@ -29,7 +30,7 @@ export interface BackupSettings {
 // --- Juegos -------------------------------------------------------------------
 
 /** Juegos que sabe gestionar la app. Cada uno vive en `games/<id>/`. */
-export type GameId = 'minecraft' | 'satisfactory' | 'valheim'
+export type GameId = 'minecraft' | 'satisfactory' | 'valheim' | 'factorio'
 
 /**
  * Condiciones que el usuario acepta de forma explícita al crear un servidor.
@@ -78,11 +79,20 @@ export interface ValheimManifest extends ManifestBase {
   data: ValheimData
 }
 
+export interface FactorioManifest extends ManifestBase {
+  game: 'factorio'
+  data: FactorioData
+}
+
 /**
  * Unión discriminada por `game`: quien lea `data` tiene que mirar antes de qué
  * juego es el servidor, y así no puede colarse un campo de un juego en otro.
  */
-export type InstanceManifest = MinecraftManifest | SatisfactoryManifest | ValheimManifest
+export type InstanceManifest =
+  | MinecraftManifest
+  | SatisfactoryManifest
+  | ValheimManifest
+  | FactorioManifest
 
 /**
  * Cambios que se pueden pedir sobre un manifiesto. `data` se fusiona con lo que
@@ -90,7 +100,13 @@ export type InstanceManifest = MinecraftManifest | SatisfactoryManifest | Valhei
  */
 export type ManifestChanges = Partial<
   Pick<ManifestBase, 'name' | 'expectedPlayers' | 'port' | 'autoRestart' | 'exposure' | 'backup'>
-> & { data?: Partial<MinecraftData> | Partial<SatisfactoryData> | Partial<ValheimData> }
+> & {
+  data?:
+    | Partial<MinecraftData>
+    | Partial<SatisfactoryData>
+    | Partial<ValheimData>
+    | Partial<FactorioData>
+}
 
 export type ServerStatus =
   | 'stopped'
@@ -176,10 +192,16 @@ export interface ValheimCreateRequest extends CreateRequestBase {
   options: ValheimCreateOptions
 }
 
+export interface FactorioCreateRequest extends CreateRequestBase {
+  game: 'factorio'
+  options: FactorioCreateOptions
+}
+
 export type CreateInstanceRequest =
   | MinecraftCreateRequest
   | SatisfactoryCreateRequest
   | ValheimCreateRequest
+  | FactorioCreateRequest
 
 // --- Copias de seguridad (§12) ----------------------------------------------
 

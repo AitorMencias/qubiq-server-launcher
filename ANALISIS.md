@@ -1700,7 +1700,7 @@ seguían **idénticos**. La `e2e` de Satisfactory repite esa comprobación en ca
 | **Reclamar durante la instalación** | El asistente arranca el servidor una vez, lo reclama, le pone las contraseñas y crea la partida. Cuesta ~40 s y evita que el usuario tenga que abrir el juego. Si la instalación se quedó a medias y el servidor ya tenía dueño, se entra con la contraseña en vez de fallar |
 | **Estado por sondeo** | El contrato gana `poll()`: los juegos que no cuentan nada por el registro dicen por ahí si están listos y cuánta gente hay. «Listo» en Satisfactory no es que el proceso viva, sino que hay **partida cargada** |
 | **Líneas ocultas** | El contrato gana `hidden`: el registro de Satisfactory es ruido de motor casi entero (y casi todo en forma de *avisos*). Se enseña lo que cuenta algo y se guarda todo para diagnosticar. Lo que huele a fallo grave (`Fatal`, `Failed to bind`, memoria) no se esconde nunca |
-| **Contraseñas en el manifiesto** | La de administrador se guarda tal cual: la app la necesita en cada arranque para hablar con la API, y el usuario la necesita dentro del juego. Está en su equipo, junto a los datos del servidor, y la ficha técnica la enseña en vez de fingir que es un secreto de la app. Cifrarla con la protección de datos de Windows queda para la fase 7, que ya la necesita para Factorio |
+| **Contraseñas en el manifiesto** | La de administrador se guarda tal cual: la app la necesita en cada arranque para hablar con la API, y el usuario la necesita dentro del juego. Está en su equipo, junto a los datos del servidor, y la ficha técnica la enseña en vez de fingir que es un secreto de la app. Cifrarla con la protección de datos de Windows queda para la fase 4, que ya la necesita para Factorio |
 | **Sin comprobación desde internet** | Satisfactory no sale en ninguna lista pública: no hay servicio al que preguntar. La capacidad `externalCheck` lo declara, el botón no aparece y la pantalla explica cuál es la única prueba de verdad (que entre alguien de otra red) |
 | **Sin moderación ni nombres** | Capacidades `moderation` y `playerNames` en falso: la pantalla de jugadores cuenta cuántos hay y dice dónde se modera (dentro del juego) en vez de enseñar botones que no funcionarían |
 | **Sin consola de órdenes** | El servidor no lee stdin. La caja de texto de la consola no aparece y se explica por qué |
@@ -1995,7 +1995,72 @@ ella y volviendo, con la copia previa etiquetada con la versión de la que se ve
 (en el recorrido los servidores de prueba no tienen instalación). El camino sí está probado por
 `e2e:steam`, que es el mismo `appUpdate`.
 
-### 19.19 Siguiente
+### 19.19 Factorio (Fase 4)
+
+Tercer juego nuevo, adelantado a la cuarta fase a petición del usuario. Factorio es distinto a todo
+lo anterior en una cosa que lo condiciona todo: **no hay servidor dedicado para Windows**. Lo que se
+lanza es el ejecutable del propio juego con `--start-server`, así que para tener un servidor hay que
+tener el juego, y la app no puede descargarlo de forma anónima como hace con los demás.
+
+#### Lo que se averiguó contra el juego real
+
+Se probó contra Factorio 2.1.19 con Space Age (la instalación de Steam del usuario) y contra la
+2.0.77 estable descargada con SteamCMD. Nada se publicó en ninguna lista: `visibility.public` estuvo
+siempre en `false`. Las opciones no se copiaron de la wiki: se le preguntaron al ejecutable con
+`--help`.
+
+| Hallazgo | Consecuencia |
+|---|---|
+| **`factorio.exe` es un binario de subsistema GUI, no de consola** (cabecera PE, subsistema 2): no tiene entrada estándar y escribir en ella da EPIPE | Se cae la mitad de lo que decía la hoja de ruta: no hay control por stdin. **Todo va por RCON**, así que todos los servidores lo llevan puesto aunque el usuario no lo pida. Ctrl+Break tampoco vale: no hace nada y, además, no guarda |
+| **Factorio ignora el «paquete terminador» de Source RCON**: contesta al comando y del terminador no devuelve nada | El cliente RCON de la app lo esperaba siempre (así hablan Minecraft y Zomboid), así que **toda orden acababa en un plantón**. Peor: el servicio interpretaba ese fallo como «servidor parado» y moderaba escribiendo ficheros. `RconOptions.terminatorEcho` permite el otro modo: recoger trozos hasta que deja de llegar nada |
+| Un `config.ini` propio con `write-data` **saca de `%APPDATA%\Factorio` las partidas, los mods, el registro, `temp` y las listas de moderación** | Es el aislamiento de esta fase, y hacía falta: ahí están las partidas de un jugador del usuario. El servidor ni siquiera lee su `player-data.json` |
+| **Las imágenes y los sonidos no hacen falta para servir.** Quitándolos, la instalación pasa de 5,1 GB a 246 MB **con los mismos checksums de prototipos** (base 2341852305, lista 1446647465) | Cada servidor tiene su copia del juego por ~250 MB en vez de 5,4 GB, y el mapa se genera 15 veces más rápido (1 s en vez de 15,7 s). Comprobado con un cliente real entrando a jugar en una copia adelgazada. **Los `.lua` que viven dentro de `graphics/` sí hacen falta**: sin ellos no carga ni el mod base |
+| **La versión estable (2.0.77) no termina de cerrarse** tras guardar con `/quit`: guarda al 100 %, escribe «Quitting multiplayer connection» y el proceso se queda vivo (probado con 60, 90 y 240 s). La 2.1.19 cierra en 0,4 s | Agotar el plazo y cerrar el proceso es seguro **porque la partida ya está en disco**: los arranques siguientes la cargan sin quejarse. Es la versión que la app propone por defecto, así que no es un caso raro |
+| **Cambiar de versión sobre una instalación adelgazada falla** (`state is 0x426`) y la deja a medias; una actualización normal sobre ella dice «already up to date» y no restaura nada | Por eso la descarga va a una carpeta aparte y de ahí se copia adelgazada: el almacén temporal se borra al terminar (decisión del usuario: 0 GB fijos, a cambio de volver a descargar al cambiar de versión) |
+| **SteamCMD pide la contraseña por teclado y no la escribe en la tubería**, pero sí la consume si se le manda nada más arrancar | La contraseña **no viaja en la línea de órdenes**, donde cualquiera que mire los procesos la vería. Se usa una vez; después valen las credenciales que Steam deja en caché, y a la app le basta el nombre de usuario |
+| SteamCMD descarga **también el DLC** (depósito 645393) si la cuenta lo tiene | La app no pregunta si compraste Space Age: mira si llegó `data/space-age` |
+| Factorio publica **una rama de Steam por versión** (22: de `0.12.35` a `2.1.19`), además de `public` (2.0.77), `experimental` y `console` | La pantalla de Versión de la 0.6.1 encaja sin tocar nada, y aquí importa más que en otros juegos: el cliente tiene que ir en la misma versión que el servidor |
+| **Con `require_user_verification: true` el servidor llama a `auth.factorio.com`** al arrancar (pide un «server padlock»); con `false` no sale un paquete | Es un ajuste explícito, encendido por defecto porque sin él cualquiera entra con el nombre que quiera. La interfaz dice lo que implica |
+| `--rcon-port` abre la consola remota **en 0.0.0.0**, o sea, a toda la red local | Se usa `--rcon-bind 127.0.0.1:<puerto>`: la consola remota es de la app, no de quien pase por el wifi. Por eso tampoco se lista ese puerto entre los que hay que abrir |
+| El registro da **nombres de jugador de verdad**: `[JOIN] Fulano joined the game`, `[CHAT] Fulano: hola`, `[LEAVE] …`, con fecha delante, y `--console-log` deja esas líneas limpias en un fichero aparte | A diferencia de Valheim, la pantalla de jugadores lista nombres que el usuario reconoce y la moderación va por nombre |
+| Quien intenta entrar sin contraseña queda como `Refusing connection for address (…), username (X). PasswordMissing` | Se traduce en la consola: el cliente solo ve que le cortan. ⚠ La dirección lleva paréntesis dentro, así que no se puede leer con un `\(([^)]+)\)` |
+| **`/promote` no funciona con quien nunca ha entrado**: el servidor contesta con un silencio y no apunta nada. En cambio, escribir `server-adminlist.json` con el servidor en marcha **sobrevive a la parada** | La moderación hace las dos cosas: la orden por RCON (para que vetar eche al momento) y el fichero (para que quede). A quien no está conectado se le puede nombrar administrador igual: se aplica al reiniciar |
+| El servidor guarda los nombres **en minúsculas** | Las listas se juntan sin distinguir mayúsculas; si no, la misma persona salía dos veces |
+| En Windows contesta «OS does not support non-blocking saving» | El ajuste no se ofrece: prometerlo sería mentir |
+| El portal de mods deja **buscar y consultar sin credenciales**, pero descargar redirige al login y contesta 403 | Para instalar hace falta el usuario y el token de factorio.com. El propio juego ya los tiene en `player-data.json`, así que la app ofrece usar esa sesión en vez de pedir otra contraseña. **El token no se guarda en disco** |
+| **La API del portal no sabe buscar por texto**: `q`, `query` y `search` se ignoran (devuelven los 23.000 mods en orden alfabético) y `namelist` contesta 500 | Se pide el índice entero —13 MB en segundo y medio—, se cachea una hora y se filtra en la app, ordenando por descargas. Es la única forma de que el buscador encuentre algo |
+
+**Comprobado que no se tocó nada del usuario.** Cada paso llevaba una foto de `%APPDATA%\Factorio`
+antes y después. Los únicos cambios que aparecieron fueron los que deja el propio cliente al abrirlo
+(`.lock`, sus registros, `crop-cache.dat`, el fondo del menú): ni una partida, ni un mod, ni el
+`player-data.json`. La `e2e` lo comprueba en cada ejecución.
+
+#### Decisiones
+
+- **De dónde sale el juego.** Dos caminos, y los dos piden algo: copiar una instalación que ya esté
+  en el equipo (no descarga nada) o bajarlo de Steam con la cuenta del usuario. La copia se adelgaza
+  siempre; la instalación de origen no se toca.
+- **La estable por defecto, en todos los juegos.** Las versiones en pruebas se eligen a mano. Ya lo
+  hacía el código común, y aquí se mantiene aunque la estable sea justo la que se cuelga al cerrar.
+- **RCON no es una opción.** Puerto y contraseña los genera la app al crear el servidor, atados a
+  `127.0.0.1`. Sin eso no habría forma de parar el servidor ni de moderarlo.
+- **Space Age se decide al crear y no se puede cambiar.** El mapa se genera con esos mods dentro y
+  el checksum de prototipos cambia con ellos.
+- **Ningún secreto se guarda.** Ni la contraseña de Steam, ni la de factorio.com, ni el token del
+  portal: se usan y se olvidan. Lo único que se guarda es el nombre de usuario de Steam, que hace
+  falta en cada descarga.
+
+#### Sobre el portal de mods
+
+El portal estuvo **caído (503) un buen rato** mientras se cerraba la fase. Cuando volvió se probó
+entero: buscar, instalar `flib` con las credenciales de la sesión del juego, comprobar que no se
+lleva por delante lo que ya había en `mod-list.json` (ahí está también Space Age) y quitarlo. La
+`e2e` distingue el caso de que el portal no conteste y termina con 2 en vez de con 1, como el smoke:
+que un servicio de fuera se caiga no es un fallo de la app.
+
+---
+
+### 19.20 Siguiente
 
 **Ahora (uso privado):**
 

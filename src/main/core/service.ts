@@ -34,6 +34,7 @@ import { gameFor, gameOf, isKnownGame } from './games/registry'
 import { createMinecraftService, type GameHost } from './games/minecraft/service'
 import { createSatisfactoryService } from './games/satisfactory/service'
 import { createValheimService } from './games/valheim/service'
+import { createFactorioService } from './games/factorio/service'
 
 /**
  * Orquestador del núcleo (§5).
@@ -82,6 +83,9 @@ class LauncherService extends EventEmitter implements GameHost {
 
   /** Operaciones exclusivas de Valheim (mundos y listas de moderación). */
   readonly valheim = createValheimService(this)
+
+  /** Operaciones exclusivas de Factorio (partidas y moderación, por RCON). */
+  readonly factorio = createFactorioService(this)
 
   async initialize(): Promise<void> {
     await ensureBaseDirs()
@@ -315,10 +319,29 @@ class LauncherService extends EventEmitter implements GameHost {
     await supervisor.stop()
   }
 
-  sendCommand(id: string, command: string): void {
+  /**
+   * Manda un comando al servidor.
+   *
+   * Lo normal es la entrada estándar del proceso, pero hay juegos que no la
+   * tienen: `factorio.exe` es un binario gráfico y solo escucha por RCON. Esos
+   * lo declaran en su adaptador, y aquí se enseña en la consola lo enviado y lo
+   * que contestaron, para que se vea igual en todos los juegos.
+   */
+  async sendCommand(id: string, command: string): Promise<void> {
     const supervisor = this.supervisors.get(id)
     if (!supervisor?.isRunning) throw new Error('El servidor no está arrancado.')
-    supervisor.sendCommand(command)
+
+    const manifest = await this.readManifest(id)
+    const adapter = manifest ? gameOf(manifest) : null
+    const clean = command.replace(/[\r\n]+/g, ' ').trim()
+    if (clean.length === 0) return
+
+    if (manifest && adapter?.sendCommand) {
+      const answer = await adapter.sendCommand(manifest, clean)
+      supervisor.echoCommand(clean, answer)
+      return
+    }
+    supervisor.sendCommand(clean)
   }
 
   /** Cierre limpio de todo lo arrancado. Se llama al salir de la app (§7). */

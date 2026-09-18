@@ -26,7 +26,16 @@ export async function requestStop(strategy: StopStrategy, target: StopTarget): P
       return
     case 'rcon':
       await rconCommand(
-        { host: strategy.host ?? '127.0.0.1', port: strategy.port, password: strategy.password },
+        {
+          host: strategy.host ?? '127.0.0.1',
+          port: strategy.port,
+          password: strategy.password,
+          // Factorio no devuelve el eco del terminador: esperarlo sería un
+          // plantón garantizado justo cuando hay que parar el servidor.
+          ...(strategy.terminatorEcho === undefined
+            ? {}
+            : { terminatorEcho: strategy.terminatorEcho })
+        },
         strategy.command
       )
       return

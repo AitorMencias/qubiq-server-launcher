@@ -3,6 +3,7 @@ import { registerCommonIpc } from './common'
 import { registerMinecraftIpc } from './minecraft'
 import { registerSatisfactoryIpc } from './satisfactory'
 import { registerValheimIpc } from './valheim'
+import { registerFactorioIpc } from './factorio'
 
 /**
  * Puente entre el núcleo y la interfaz.
@@ -15,4 +16,5 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   registerMinecraftIpc()
   registerSatisfactoryIpc()
   registerValheimIpc()
+  registerFactorioIpc()
 }

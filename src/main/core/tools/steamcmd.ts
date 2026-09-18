@@ -14,10 +14,12 @@ import {
   buildIdFromManifest,
   DEFAULT_BRANCH,
   interpretRun,
+  loginProblem,
   parseProgressLine,
   type SteamBranch,
   type SteamCmdOutcome,
-  type SteamCmdProgress
+  type SteamCmdProgress,
+  type SteamLoginProblem
 } from './steamcmdOutput'
 
 export { DEFAULT_BRANCH, type SteamBranch } from './steamcmdOutput'
@@ -29,8 +31,11 @@ const execFileAsync = promisify(execFile)
  * los servidores dedicados de Satisfactory, Valheim, Project Zomboid,
  * Enshrouded y Rust. Uno solo, compartido, en `<datos>/tools/steamcmd`.
  *
- * Siempre de forma anónima: ninguno de esos servidores pide cuenta, y la app
- * no maneja credenciales de Steam.
+ * Casi siempre de forma anónima: esos servidores dedicados no piden cuenta. La
+ * excepción es Factorio (fase 4), que no tiene servidor dedicado y hay que
+ * descargarlo con una cuenta que tenga el juego. Ni siquiera entonces se guarda
+ * la contraseña: se le pasa a SteamCMD por la entrada estándar una vez, y a
+ * partir de ahí valen las credenciales que Steam deja en su caché.
  */
 
 const DOWNLOAD_URL = 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip'
@@ -124,8 +129,20 @@ interface SpawnResult {
 /**
  * Lanza SteamCMD. Mientras corre, lee lo nuevo de `console_log.txt` para dar
  * el progreso en vivo, porque por la tubería no llega nada hasta el final.
+ *
+ * `stdinLines` son las respuestas a lo que SteamCMD pregunta por teclado (la
+ * contraseña y, si toca, el código de Steam Guard). Se escriben **nada más
+ * arrancar, sin esperar al `password:`**: ese aviso no llega nunca por la
+ * tubería (SteamCMD no la vacía, por eso el progreso se lee del
+ * `console_log.txt`), pero la entrada sí se consume cuando la pide
+ * (comprobado en la fase 4). Así la contraseña no viaja en la línea de
+ * órdenes, donde cualquiera que mire los procesos la vería.
  */
-function spawnSteamCmd(args: string[], onProgress?: SteamProgressFn): Promise<SpawnResult> {
+function spawnSteamCmd(
+  args: string[],
+  onProgress?: SteamProgressFn,
+  stdinLines?: string[]
+): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
     let offset = 0
     let pending = ''
@@ -168,6 +185,13 @@ function spawnSteamCmd(args: string[], onProgress?: SteamProgressFn): Promise<Sp
         () => 0
       )
       const child = spawn(steamCmdPath(), args, { cwd: steamCmdDir(), windowsHide: true })
+      if (stdinLines?.length) {
+        child.stdin.on('error', () => {
+          // Si SteamCMD no llega a preguntar (credenciales en caché), cierra la
+          // entrada y escribir da EPIPE. No es un fallo: no había nada que decir.
+        })
+        child.stdin.write(stdinLines.map((line) => `${line}\n`).join(''))
+      }
       let stdout = ''
       child.stdout.on('data', (chunk: Buffer) => (stdout += chunk.toString('utf8')))
       child.stderr.on('data', (chunk: Buffer) => (stdout += chunk.toString('utf8')))
@@ -191,10 +215,14 @@ function spawnSteamCmd(args: string[], onProgress?: SteamProgressFn): Promise<Sp
  * Ejecuta una orden reintentando lo que se arregla solo: la autoactualización
  * de SteamCMD y los fallos pasajeros de Steam.
  */
-async function runWithRetries(args: string[], onProgress?: SteamProgressFn): Promise<SteamCmdOutcome & { stdout: string }> {
+async function runWithRetries(
+  args: string[],
+  onProgress?: SteamProgressFn,
+  stdinLines?: string[]
+): Promise<SteamCmdOutcome & { stdout: string }> {
   let last: (SteamCmdOutcome & { stdout: string }) | null = null
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const { exitCode, stdout } = await spawnSteamCmd(args, onProgress)
+    const { exitCode, stdout } = await spawnSteamCmd(args, onProgress, stdinLines)
     const outcome = interpretRun(stdout, exitCode)
     last = { ...outcome, stdout }
     if (outcome.ok) return last
@@ -204,9 +232,36 @@ async function runWithRetries(args: string[], onProgress?: SteamProgressFn): Pro
   return last!
 }
 
+/**
+ * Cuenta de Steam para los juegos que no tienen servidor dedicado anónimo.
+ *
+ * Solo Factorio la necesita (fase 4): su «servidor» es el juego, y descargarlo
+ * exige una cuenta que lo tenga. **La contraseña no se guarda en ninguna
+ * parte**: se usa una vez y Steam deja sus propias credenciales en caché, así
+ * que a partir del segundo uso basta con el nombre de usuario.
+ */
+export interface SteamAccount {
+  user: string
+  /** Solo la primera vez en este equipo. Nunca se persiste. */
+  password?: string
+  /** Código de Steam Guard, cuando Steam lo pide. */
+  guardCode?: string
+}
+
+/** Lo que hay que escribirle por teclado, en el orden en que lo pregunta. */
+function loginAnswers(account?: SteamAccount): string[] {
+  if (!account) return []
+  return [account.password, account.guardCode].filter((x): x is string => Boolean(x))
+}
+
 export interface AppUpdateOptions {
   appId: number
   installDir: string
+  /**
+   * Cuenta con la que descargar. Sin esto, `anonymous`, que es lo que sirve
+   * para todos los servidores dedicados de verdad.
+   */
+  account?: SteamAccount
   /**
    * Rama de Steam. `public` es la de siempre; las demás las publica el estudio
    * (`experimental` en Satisfactory, `default_preal` en Valheim).
@@ -245,7 +300,7 @@ export function appUpdate(options: AppUpdateOptions): Promise<AppUpdateResult> {
       '+force_install_dir',
       options.installDir,
       '+login',
-      'anonymous',
+      options.account?.user ?? 'anonymous',
       '+app_update',
       String(options.appId),
       // `-beta public` es la forma de volver a la rama de siempre: Steam la
@@ -257,7 +312,7 @@ export function appUpdate(options: AppUpdateOptions): Promise<AppUpdateResult> {
       ...(options.validate || changingBranch ? ['validate'] : []),
       '+quit'
     ]
-    const outcome = await runWithRetries(args, options.onProgress)
+    const outcome = await runWithRetries(args, options.onProgress, loginAnswers(options.account))
     if (!outcome.ok) {
       throw new Error(outcome.error?.message ?? 'SteamCMD no pudo instalar el servidor.')
     }
@@ -267,6 +322,40 @@ export function appUpdate(options: AppUpdateOptions): Promise<AppUpdateResult> {
       branch: await installedBranch(options.installDir, options.appId)
     }
   })
+}
+
+/**
+ * Comprueba que la cuenta entra, sin descargar nada.
+ *
+ * Es lo que la app usa antes de empezar una descarga de varios GB: si la
+ * contraseña está mal o falta el código de Steam Guard, mejor saberlo ahora.
+ * Si sale bien, Steam deja las credenciales en caché y las siguientes veces no
+ * hará falta pedir nada.
+ */
+export async function steamLogin(account: SteamAccount): Promise<void> {
+  await ensureSteamCmd()
+  const { exitCode, stdout } = await spawnSteamCmd(
+    ['+login', account.user, '+quit'],
+    undefined,
+    loginAnswers(account)
+  )
+  const problema = loginProblem(stdout, exitCode)
+  if (problema) throw new SteamLoginError(problema.kind, problema.message)
+}
+
+/**
+ * Login que no ha salido. `kind` es lo que decide qué hace la interfaz: con
+ * `guard` hay que pedir el código de Steam Guard y reintentar, y con `password`
+ * volver a pedir la contraseña.
+ */
+export class SteamLoginError extends Error {
+  constructor(
+    readonly kind: SteamLoginProblem['kind'],
+    message: string
+  ) {
+    super(message)
+    this.name = 'SteamLoginError'
+  }
 }
 
 export async function installedBuildId(installDir: string, appId: number): Promise<string | null> {
