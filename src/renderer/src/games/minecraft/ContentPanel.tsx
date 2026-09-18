@@ -8,6 +8,7 @@ import {
   minecraftOf
 } from '@shared/games/minecraft/types'
 import { OfficialPlugins } from './OfficialPlugins'
+import { ContentConfigWindow } from './ContentConfigWindow'
 
 /**
  * Plugins y mods (§4.8).
@@ -39,6 +40,8 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
   const [info, setInfo] = useState<ContentInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  /** Plugin o mod cuya configuración está abierta en la ventana flotante. */
+  const [configuring, setConfiguring] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -209,6 +212,7 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
                 busy={busy}
                 running={running}
                 basic={basic}
+                onConfigure={() => setConfiguring(item.fileName)}
                 onToggle={() =>
                   void act(() =>
                     window.qubiq.minecraft.content.setEnabled(manifest.id, item.fileName, !item.enabled)
@@ -227,10 +231,20 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
 
         {running && items.length > 0 && (
           <div className="help" style={{ marginTop: 12 }}>
-            Para activar, desactivar o borrar hay que parar el servidor antes.
+            Para activar, desactivar o borrar hay que parar el servidor antes. La configuración se
+            puede mirar, pero para guardarla también hay que pararlo.
           </div>
         )}
       </div>
+
+      {configuring && (
+        <ContentConfigWindow
+          instanceId={manifest.id}
+          fileName={configuring}
+          running={running}
+          onClose={() => setConfiguring(null)}
+        />
+      )}
     </div>
   )
 }
@@ -240,11 +254,20 @@ interface RowProps {
   busy: boolean
   running: boolean
   basic: boolean
+  onConfigure: () => void
   onToggle: () => void
   onRemove: () => void
 }
 
-function ContentRow({ item, busy, running, basic, onToggle, onRemove }: RowProps): React.JSX.Element {
+function ContentRow({
+  item,
+  busy,
+  running,
+  basic,
+  onConfigure,
+  onToggle,
+  onRemove
+}: RowProps): React.JSX.Element {
   const name = item.fileName.replace(/\.jar(\.disabled)?$/i, '')
 
   return (
@@ -262,6 +285,11 @@ function ContentRow({ item, busy, running, basic, onToggle, onRemove }: RowProps
           {formatSize(item.sizeBytes)} · añadido {formatDate(item.addedAt)}
         </div>
       </div>
+
+      {/* Mirar se puede siempre; la ventana ya impide guardar en marcha. */}
+      <button disabled={busy} onClick={onConfigure}>
+        Configurar
+      </button>
 
       {/* Desactivar es la salida cuando un mod impide arrancar: se conserva el
           fichero y el servidor deja de cargarlo. */}

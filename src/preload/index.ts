@@ -26,7 +26,11 @@ import type {
   ProgressUpdate,
   ServerStatus
 } from '../shared/types'
+import type { ConfigChange } from '../shared/editableConfig'
 import type {
+  ContentConfigDocument,
+  ContentConfigInfo,
+  ContentConfigSaveResult,
   ContentInfo,
   CreateWorldRequest,
   Distribution,
@@ -100,7 +104,25 @@ const minecraft = {
     setEnabled: (id: string, fileName: string, enabled: boolean): Promise<ContentInfo> =>
       ipcRenderer.invoke(MINECRAFT_IPC.setContentEnabled, id, fileName, enabled),
     remove: (id: string, fileName: string): Promise<ContentInfo> =>
-      ipcRenderer.invoke(MINECRAFT_IPC.removeContent, id, fileName)
+      ipcRenderer.invoke(MINECRAFT_IPC.removeContent, id, fileName),
+
+    /** Configuración de un plugin o mod instalado (§19.20). */
+    config: {
+      files: (id: string, fileName: string): Promise<ContentConfigInfo> =>
+        ipcRenderer.invoke(MINECRAFT_IPC.contentConfigFiles, id, fileName),
+      read: (id: string, path: string): Promise<ContentConfigDocument> =>
+        ipcRenderer.invoke(MINECRAFT_IPC.readContentConfig, id, path),
+      write: (
+        id: string,
+        path: string,
+        hash: string,
+        changes: ConfigChange[]
+      ): Promise<ContentConfigSaveResult> =>
+        ipcRenderer.invoke(MINECRAFT_IPC.writeContentConfig, id, path, hash, changes),
+      /** Abre el fichero o la carpeta con el programa de Windows. */
+      open: (id: string, path: string): Promise<void> =>
+        ipcRenderer.invoke(MINECRAFT_IPC.openContentConfig, id, path)
+    }
   },
 
   official: {

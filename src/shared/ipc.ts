@@ -66,6 +66,12 @@ export const MINECRAFT_IPC = {
   setContentEnabled: 'minecraft:content:setEnabled',
   removeContent: 'minecraft:content:remove',
 
+  // Configuración de plugins y mods
+  contentConfigFiles: 'minecraft:content:config:files',
+  readContentConfig: 'minecraft:content:config:read',
+  writeContentConfig: 'minecraft:content:config:write',
+  openContentConfig: 'minecraft:content:config:open',
+
   // Plugins oficiales
   listOfficialPlugins: 'minecraft:official:list',
   installOfficialPlugin: 'minecraft:official:install',

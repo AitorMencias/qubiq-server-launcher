@@ -6,6 +6,7 @@
  * `shared/types.ts`. No debe importar nada de Node ni de Electron.
  */
 import type { InstanceManifest, MinecraftManifest } from '../../types'
+import type { ConfigFormat, EditableConfig } from '../../editableConfig'
 export type Distribution = 'vanilla' | 'paper' | 'fabric' | 'forge'
 
 export const DISTRIBUTIONS: Distribution[] = ['vanilla', 'paper', 'fabric', 'forge']
@@ -160,6 +161,48 @@ export interface ContentInfo {
   /** Nombre de la carpeta donde van los ficheros: `plugins` o `mods`. */
   folderName: string
   items: ContentItem[]
+}
+
+// --- Configuración de plugins y mods (§19.20) --------------------------------
+
+export interface ContentConfigFile {
+  /** Ruta relativa a la carpeta del servidor, con `/`: `plugins/Essentials/config.yml`. */
+  path: string
+  /** Null si la app no sabe editar ese formato: solo se ofrece abrirlo. */
+  format: ConfigFormat | null
+  sizeBytes: number
+  /** Aclaración para el usuario: "Ajustes de este mundo", "Demasiado grande"... */
+  note?: string
+}
+
+export interface ContentConfigInfo {
+  /** Nombre del plugin o mod, sacado de su jar; si no, del nombre del fichero. */
+  name: string
+  files: ContentConfigFile[]
+  /** Carpeta propia del plugin (relativa), exista o no todavía. Null en los mods. */
+  folder: string | null
+  /**
+   * Ficheros `-client` que no se enseñan: solo cuentan en el Minecraft de cada
+   * jugador, y cambiarlos en el servidor no hace nada.
+   */
+  hiddenClientFiles: number
+}
+
+export interface ContentConfigDocument {
+  path: string
+  /** Huella de lo leído. Al guardar se comprueba que el fichero no ha cambiado entre medias. */
+  hash: string
+  config: EditableConfig
+  /** Si no se puede guardar nada (codificación rara, fichero ilegible), por qué. */
+  readOnlyReason?: string
+}
+
+export interface ContentConfigSaveResult {
+  document: ContentConfigDocument
+  /** Opciones que se han escrito de verdad (las que no cambiaban no cuentan). */
+  written: number
+  /** Copia del fichero tal y como estaba, o null si no ha hecho falta escribir. */
+  backupPath: string | null
 }
 
 export interface ContentSource {

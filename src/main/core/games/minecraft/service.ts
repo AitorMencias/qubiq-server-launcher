@@ -1,15 +1,20 @@
 import { join } from 'node:path'
 import type { BackupInfo, InstanceManifest, ManifestChanges, MinecraftManifest } from '@shared/types'
 import type {
+  ContentConfigDocument,
+  ContentConfigInfo,
+  ContentConfigSaveResult,
   ContentInfo,
   CreateWorldRequest,
   WorldInfo
 } from '@shared/games/minecraft/types'
+import type { ConfigChange } from '@shared/editableConfig'
 import { officialPluginById, serverPropertiesFor } from '@shared/games/minecraft/officialPlugins'
 import type { OfficialPluginStatus } from '@shared/games/minecraft/officialPlugins'
 import { serverDir } from '../../paths'
 import { PropertiesFile } from './config/properties'
 import * as content from './content/manager'
+import * as contentConfig from './content/config'
 import * as official from './content/official'
 import * as worlds from './worlds/manager'
 
@@ -112,6 +117,39 @@ export function createMinecraftService(host: GameHost) {
       const manifest = await requireManifest(id)
       host.assertStopped(id, 'borrar plugins o mods')
       return content.removeContent(id, manifest.data.distribution, fileName)
+    },
+
+    // --- Configuración de plugins y mods (§19.20) ---------------------------
+    //
+    // Leer se puede siempre; guardar, solo con el servidor parado: muchos
+    // plugins vuelven a escribir su configuración al cerrarse y pisarían los
+    // cambios, y de todas formas no la leen hasta el siguiente arranque.
+
+    async contentConfigFiles(id: string, fileName: string): Promise<ContentConfigInfo> {
+      const manifest = await requireManifest(id)
+      return contentConfig.listConfigFiles(id, manifest.data.distribution, fileName)
+    },
+
+    async readContentConfig(id: string, path: string): Promise<ContentConfigDocument> {
+      await requireManifest(id)
+      return contentConfig.readConfig(id, path)
+    },
+
+    async writeContentConfig(
+      id: string,
+      path: string,
+      hash: string,
+      changes: ConfigChange[]
+    ): Promise<ContentConfigSaveResult> {
+      await requireManifest(id)
+      host.assertStopped(id, 'cambiar la configuración de un plugin o mod. Si no, la sobrescribirá al cerrarse')
+      return contentConfig.writeConfig(id, path, hash, changes)
+    },
+
+    /** Ruta absoluta de un fichero o carpeta de configuración, para abrirlo fuera. */
+    async contentConfigLocation(id: string, path: string): Promise<string> {
+      await requireManifest(id)
+      return contentConfig.resolveConfigPath(id, path, { folder: true })
     },
 
     // --- Plugins oficiales ---------------------------------------------------

@@ -46,6 +46,9 @@ Funciones disponibles:
   lista de lo instalado con activar/desactivar (solo en Paper, Fabric y Forge)
 - **Plugins oficiales** — los nuestros viajan dentro de la app: se instalan con un botón y se
   configuran con un formulario, sin tocar ficheros YAML
+- **Configurar cualquier plugin o mod** — cada uno instalado tiene un botón que abre una ventana con
+  sus ficheros de configuración (YAML, TOML, JSON, .properties) y cada opción con la explicación que
+  dejó el autor. Guarda sin tocar el resto del fichero y deja una copia `.bak`
 - **Moderar** — quién está conectado, con las acciones que permita cada juego: en Minecraft expulsar,
   banear y dar OP por la consola; en Valheim, hacer administrador, invitar o vetar escribiendo en sus
   listas. Lo que un juego no deja hacer se dice, en vez de esconderlo
@@ -94,7 +97,7 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 449 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Minecraft: lógica pura, mundos, plugins oficiales y contrato con las APIs externas |
+| `npm run smoke` | 530 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON y .properties, lectura de jars y el recorrido de buscar, leer y guardar) y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge` |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
 | `npm run e2e:satisfactory` | **Con todos los servidores de Satisfactory parados** (solo puede haber uno a la vez). Satisfactory de verdad: instalar, reclamar el servidor sin abrir el juego, arrancar, detectar «listo» por su API, puertos, partidas, ajustes en caliente, copia con el servidor en marcha, parada limpia, restauración y **comprobar que no se ha tocado `%LOCALAPPDATA%\FactoryGame`**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\satisfactory` con un enlace; `-- --descargar` baja los 15,5 GB de cero |
@@ -171,6 +174,7 @@ src/
 │       ├── net/             HTTP con caché degradable, descargas verificadas, IPs y puertos
 │       │                    (TCP y UDP), RCON, WebRCON, consulta A2S y servidores de Steam
 │       ├── formats/         Clave=valor que preserva comentarios y VDF de Valve (solo lectura)
+│       │   └── editable/    YAML, TOML, JSON y .properties ajenos, editados por líneas
 │       ├── runtime/         Supervisor de proceso, estrategias de parada y política de reinicio
 │       ├── tools/           SteamCMD: instalación, progreso en vivo y actualizaciones
 │       ├── system/          PowerShell seguro, Ctrl+Break a una consola, Visual C++ y firmas
@@ -186,7 +190,7 @@ src/
 │       │       ├── java/        Descarga y gestión de JDK (Adoptium)
 │       │       ├── install/     Una estrategia por distribución + flags de JVM
 │       │       ├── config/      Catálogo de opciones humanas de server.properties
-│       │       ├── content/     Plugins y mods: carpeta, listado y los oficiales
+│       │       ├── content/     Plugins y mods: carpeta, listado, los oficiales y su configuración
 │       │       ├── worlds/      Varios mundos por servidor (level-name)
 │       │       ├── logParser.ts Formatos de log y diagnósticos
 │       │       └── ping.ts      Server List Ping y comprobación desde internet
@@ -468,6 +472,14 @@ verdad en la carpeta del servidor. Actualizar uno = copiar el jar nuevo ahí y r
 Si añades un campo al catálogo de [`shared/games/minecraft/officialPlugins.ts`](src/shared/games/minecraft/officialPlugins.ts), el
 smoke comprueba que esa ruta existe en el YAML real, así que no puede quedarse un control que no
 guarde nada.
+
+**La configuración de plugins y mods ajenos se edita por líneas, nunca reescribiendo el fichero.**
+Los editores de `core/formats/editable/` sustituyen solo el trozo del valor. Así los comentarios, que
+son las explicaciones que enseña la ventana, sobreviven. Si añades un caso, pásalo por el banco de
+`%LOCALAPPDATA%\qubiq-dev\ui\muestras-config` (73 ficheros reales). Leer y escribir sin cambios tiene
+que dar los mismos bytes, y escribir el mismo valor no puede tocar nada. Lo que no sepas editar
+sin riesgo, márcalo como solo lectura con su motivo; no lo adivines. Y no quites la comprobación de
+huella al guardar: el plugin puede haber reescrito el fichero al arrancar (§19.20).
 
 **Un plugin oficial puede exigir ajustes de `server.properties`** (HardcoreUtility necesita
 `accepts-transfers`, porque el lobby y la partida se pasan a los jugadores entre sí). Se declaran en

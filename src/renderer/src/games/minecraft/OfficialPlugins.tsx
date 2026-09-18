@@ -3,12 +3,15 @@ import type { InstanceState } from '@shared/types'
 import type { OfficialPlugin, OfficialPluginStatus } from '@shared/games/minecraft/officialPlugins'
 import { officialPluginsFor } from '@shared/games/minecraft/officialPlugins'
 import { minecraftOf } from '@shared/games/minecraft/types'
+import { FloatingWindow } from '../../FloatingWindow'
 
 /**
  * Plugins oficiales: los que mantenemos nosotros (§4.8).
  *
  * Aquí no hay que ir a ninguna web ni arrastrar ficheros: se instalan con un
- * botón y se configuran con un formulario, porque conocemos su config.yml.
+ * botón y se configuran con un formulario, porque conocemos su config.yml. El
+ * formulario se abre en una ventana flotante, igual que la configuración de los
+ * plugins y mods que pone el usuario (§19.20).
  *
  * El caso delicado es HardcoreUtility: elegir el papel de "partida" implica
  * jugar en modo extremo, y eso cambia las reglas de la partida. Se avisa antes
@@ -43,10 +46,11 @@ export function OfficialPlugins({ state, onChanged }: Props): React.JSX.Element 
     void refresh()
   }, [refresh, status])
 
+  /** Devuelve el error, o null si ha ido bien, para que la ventana de configuración lo enseñe. */
   async function run(
     action: () => Promise<OfficialPluginStatus[]>,
     message: string
-  ): Promise<void> {
+  ): Promise<string | null> {
     setBusy(true)
     setError(null)
     setNotice(null)
@@ -54,8 +58,11 @@ export function OfficialPlugins({ state, onChanged }: Props): React.JSX.Element 
       setStatuses(await action())
       setNotice(message)
       onChanged()
+      return null
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const text = err instanceof Error ? err.message : String(err)
+      setError(text)
+      return text
     } finally {
       setBusy(false)
     }
@@ -115,7 +122,7 @@ interface RowProps {
   instanceId: string
   running: boolean
   busy: boolean
-  onRun: (action: () => Promise<OfficialPluginStatus[]>, message: string) => Promise<void>
+  onRun: (action: () => Promise<OfficialPluginStatus[]>, message: string) => Promise<string | null>
 }
 
 function OfficialPluginRow({
@@ -201,8 +208,8 @@ function OfficialPluginRow({
           )}
           {installed && (
             <>
-              <button disabled={running || busy} onClick={() => setConfiguring((v) => !v)}>
-                {configuring ? 'Cerrar' : 'Configurar'}
+              <button disabled={running || busy} onClick={() => setConfiguring(true)}>
+                Configurar
               </button>
               <button
                 className={status?.upToDate === false ? 'primary' : ''}
@@ -278,13 +285,20 @@ function OfficialPluginRow({
       )}
 
       {installed && configuring && (
-        <PluginConfigForm
-          plugin={plugin}
-          status={status}
-          instanceId={instanceId}
-          busy={busy}
-          onRun={onRun}
-        />
+        <FloatingWindow
+          title={`Configurar ${plugin.name}`}
+          subtitle={`Plugin oficial · v${plugin.version}`}
+          onClose={() => setConfiguring(false)}
+        >
+          <PluginConfigForm
+            plugin={plugin}
+            status={status}
+            instanceId={instanceId}
+            busy={busy}
+            onRun={onRun}
+            onSaved={() => setConfiguring(false)}
+          />
+        </FloatingWindow>
       )}
     </div>
   )
@@ -296,7 +310,9 @@ interface ConfigFormProps {
   status: OfficialPluginStatus | null
   instanceId: string
   busy: boolean
-  onRun: (action: () => Promise<OfficialPluginStatus[]>, message: string) => Promise<void>
+  onRun: (action: () => Promise<OfficialPluginStatus[]>, message: string) => Promise<string | null>
+  /** Al guardar bien se cierra la ventana: el aviso de «Listo» queda en la tarjeta. */
+  onSaved: () => void
 }
 
 function PluginConfigForm({
@@ -304,10 +320,12 @@ function PluginConfigForm({
   status,
   instanceId,
   busy,
-  onRun
+  onRun,
+  onSaved
 }: ConfigFormProps): React.JSX.Element {
   const [values, setValues] = useState<Record<string, string>>(status?.config ?? {})
   const [role, setRole] = useState<string>(status?.role ?? plugin.roles?.[0]?.value ?? '')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setValues(status?.config ?? {})
@@ -316,11 +334,9 @@ function PluginConfigForm({
 
   if (!status?.hasConfig) {
     return (
-      <div className="official-setup">
-        <p className="hint" style={{ marginBottom: 0 }}>
-          Todavía no hay configuración. Vuelve a instalar el plugin para que se cree.
-        </p>
-      </div>
+      <p className="hint" style={{ marginBottom: 0 }}>
+        Todavía no hay configuración. Vuelve a instalar el plugin para que se cree.
+      </p>
     )
   }
 
@@ -350,20 +366,29 @@ function PluginConfigForm({
       }
     }
 
-    await onRun(
+    const problem = await onRun(
       () => window.qubiq.minecraft.official.setConfig(instanceId, plugin.id, payload),
       'Configuración guardada. Se aplicará en el siguiente arranque.'
     )
+    setError(problem)
+    if (problem === null) onSaved()
   }
 
   return (
-    <div className="official-setup">
+    <div>
+      {error && (
+        <div className="alert error">
+          <strong>No se pudo guardar</strong>
+          <p>{error}</p>
+        </div>
+      )}
+
       {stale && (
         <div className="alert" style={{ marginBottom: 14 }}>
           <strong>Este servidor tiene una versión anterior del plugin</strong>
           <p>
             Puedes configurarlo igual, pero las opciones que sean nuevas no le harán efecto hasta
-            que pulses <strong>Actualizar</strong> ahí arriba. No perderás nada de lo que tengas
+            que pulses <b>Actualizar</b> en la tarjeta del plugin. No perderás nada de lo que tengas
             configurado.
           </p>
         </div>

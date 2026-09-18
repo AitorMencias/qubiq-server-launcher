@@ -2060,7 +2060,82 @@ que un servicio de fuera se caiga no es un fallo de la app.
 
 ---
 
-### 19.20 Siguiente
+### 19.20 Configurar plugins y mods desde la app
+
+Hasta aquí, solo los plugins oficiales tenían formulario (§19.9), porque conocemos su `config.yml`.
+Para cualquier otro plugin o mod había que abrir la carpeta y editar el fichero a mano. Ahora cada
+plugin o mod instalado tiene un botón **Configurar** que abre una **ventana flotante** con sus
+ficheros de configuración, cada opción con su control y con la explicación que el autor dejó en el
+fichero. El formulario de los plugins oficiales, que se desplegaba debajo del plugin, pasa a la
+misma ventana flotante, a petición del usuario.
+
+#### Si los ficheros traen explicaciones (medido, no supuesto)
+
+Antes de hacerlo se midió con ficheros reales cuántas opciones llevan un comentario encima:
+
+| Origen | Formato | Muestra | Resultado |
+|---|---|---|---|
+| Mods de Forge/NeoForge | TOML | 40 ficheros del modpack ATM-10 | 35 al 90-100 %. Muchos traen además `Default`, `Range` y `Allowed Values`, porque **los genera Forge a partir del código del mod** |
+| Mods con JSON | JSON | 25 ficheros del mismo modpack | **Ninguna**: el JSON no admite comentarios. Solo hay nombres de clave |
+| Plugins de Paper populares | YAML | EssentialsX, LuckPerms | Muchas (700 y 530 líneas de comentario), con banners de arte ASCII y opciones apagadas con `#` |
+| El propio Paper | YAML | `spigot.yml`, `paper-global.yml`, `bukkit.yml` | **Ninguna por opción**: una cabecera con un enlace a la documentación |
+
+Así que la ventana aprovecha bien los mods de Forge y los plugins grandes, y en JSON solo puede
+enseñar el nombre de cada clave; lo dice en vez de dejar el hueco vacío. La excepción que se encontró:
+los mods de Darkhax (Botany Pots, Enchantment Descriptions) meten la explicación en claves `"//"` y
+`"//default"` dentro del JSON, y se leen como tales.
+
+#### Decisiones
+
+- **Editar por líneas, sin librerías de YAML ni TOML.** La misma regla que `KeyValueFile` y
+  `PluginConfigFile`: se localiza el trozo exacto del valor y se sustituye solo eso. Un serializador
+  se comería los comentarios, que son justo lo que se quiere enseñar. Además el proyecto no tiene
+  dependencias de ejecución y esto no justificaba la primera. Los editores viven en
+  `core/formats/editable/` y no conocen Minecraft.
+- **Lo que no se sabe editar sin riesgo se enseña, pero no se toca**: textos de varias líneas,
+  listas con comentarios dentro, tablas en línea, anclas de YAML, `null`. Cada opción dice por qué
+  y hay un botón «Abrir en el editor».
+- **Un cambio que deja el mismo valor no escribe nada.** Si no, guardar reescribiría `1.6E7` como
+  `16000000.0` o juntaría en una línea una lista de varias. Los enteros van como texto: Mekanism
+  tiene `9223372036854775807`, que un `number` de JavaScript redondea.
+- **Cómo se sabe dónde guarda cada uno**: se lee el descriptor de dentro del jar (lector de zip
+  mínimo, sin descomprimirlo entero). Un plugin escribe en `plugins/<name>/` según su `plugin.yml`
+  (EssentialsX-2.21.jar escribe en `plugins/Essentials/`). Un mod escribe en `config/` con su
+  `modId` delante, y en Forge también en `<mundo>/serverconfig/` y `defaultconfigs/`. En el
+  `mods.toml` solo cuentan los `modId` de `[[mods]]`: los de las dependencias (`forge`,
+  `minecraft`) no son del jar.
+- **Los ficheros `-client` no se enseñan**: en el servidor no hacen nada. Se dice cuántos hay.
+- **Guardar exige el servidor parado** (mirar no): muchos plugins reescriben su configuración al
+  cerrarse. Además se comprueba que el fichero no ha cambiado desde que se abrió (huella SHA-1), se
+  deja una copia `.bak` y se escribe a un temporal que luego se renombra.
+- **Un fichero que no es UTF-8 no se deja guardar**: al escribirlo de vuelta se estropearía.
+- **Las rutas que llegan de la interfaz se limitan** a `plugins/`, `config/`, `defaultconfigs/` y
+  `<mundo>/serverconfig/`. Sin eso se podría escribir cualquier fichero del equipo.
+
+#### Cómo se probó
+
+- Un banco de pruebas con **73 ficheros reales** (los de la tabla de arriba y la configuración de un
+  servidor de Paper de la `e2e`). Por cada fichero se comprobó:
+  - leer y escribir sin cambios deja los mismos bytes;
+  - escribir cada opción con su propio valor no cambia nada;
+  - cambiarlas todas a la vez se relee bien, sin perder un comentario, y los JSON siguen siendo
+    válidos.
+
+  Así salieron los casos de los enteros, las listas de varias líneas y la clave vacía de YAML con
+  ejemplos comentados debajo (`nick-blacklist:` con `#- Notch`), que es una lista vacía y no un
+  texto. El banco y las muestras están en `%LOCALAPPDATA%\qubiq-dev\ui\muestras-config`.
+- El smoke, con esos casos y el jar real de HardcoreUtility.
+- Un recorrido de interfaz (`plugins-config.mjs`) con esos ficheros reales puestos en plugins y mods
+  de mentira. Cambia dos opciones de EssentialsX, guarda y comprueba que el fichero solo cambia en
+  esas dos líneas y que queda el `.bak`.
+
+**Lo que no se ha probado**: la ventana con un servidor arrancado de verdad (el aviso de «solo
+mirar» y el botón de guardar deshabilitado se ven en el código, no en una captura), ni con un mod de
+Fabric real.
+
+---
+
+### 19.21 Siguiente
 
 **Ahora (uso privado):**
 

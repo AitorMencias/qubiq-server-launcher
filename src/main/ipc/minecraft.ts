@@ -1,6 +1,7 @@
 import { ipcMain, shell } from 'electron'
 import type { CreateWorldRequest, Distribution } from '@shared/games/minecraft/types'
 import { MINECRAFT_IPC, type MemoryInfo } from '@shared/ipc'
+import type { ConfigChange } from '@shared/editableConfig'
 import { service } from '../core/service'
 import * as catalog from '../core/games/minecraft/versions/catalog'
 import { PROPERTY_CATALOG } from '../core/games/minecraft/config/properties'
@@ -60,6 +61,25 @@ export function registerMinecraftIpc(): void {
     const folder = await mc.contentFolder(id)
     if (folder) await shell.openPath(folder)
     return folder
+  })
+
+  ipcMain.handle(MINECRAFT_IPC.contentConfigFiles, async (_e, id: string, file: string) =>
+    mc.contentConfigFiles(id, file)
+  )
+  ipcMain.handle(MINECRAFT_IPC.readContentConfig, async (_e, id: string, path: string) =>
+    mc.readContentConfig(id, path)
+  )
+  ipcMain.handle(
+    MINECRAFT_IPC.writeContentConfig,
+    async (_e, id: string, path: string, hash: string, changes: ConfigChange[]) =>
+      mc.writeContentConfig(id, path, hash, changes)
+  )
+  ipcMain.handle(MINECRAFT_IPC.openContentConfig, async (_e, id: string, path: string) => {
+    const target = await mc.contentConfigLocation(id, path)
+    // Un .yml o un .toml puede no tener programa asociado en Windows: entonces
+    // se enseña en el Explorador, que siempre funciona.
+    const problem = await shell.openPath(target)
+    if (problem) shell.showItemInFolder(target)
   })
 
   // --- Plugins oficiales ----------------------------------------------------

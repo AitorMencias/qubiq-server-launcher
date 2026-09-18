@@ -83,7 +83,7 @@ export async function listContent(
 }
 
 /** Comprueba que el nombre no se sale de la carpeta de contenido. */
-function assertSafeName(fileName: string): void {
+export function assertSafeName(fileName: string): void {
   if (fileName.includes('/') || fileName.includes('\\') || fileName.includes('..')) {
     throw new Error('Nombre de fichero no válido.')
   }

@@ -32,6 +32,7 @@ import {
 import { parseLine, diagnose } from '../../src/main/core/games/minecraft/logParser'
 import { validateWorldName } from '../../src/main/core/games/minecraft/worlds/manager'
 import { PluginConfigFile } from '../../src/main/core/games/minecraft/content/pluginConfig'
+import { minecraftConfigSmoke } from './minecraftConfig'
 import {
   OFFICIAL_PLUGINS,
   officialPluginsFor,
@@ -365,6 +366,10 @@ export async function minecraftSmoke(): Promise<void> {
     check('vanilla no ofrece plugins oficiales', officialPluginsFor('vanilla').length === 0)
     check('paper sí', officialPluginsFor('paper').length > 0)
   })
+
+  // --- Configuración de plugins y mods (§19.20) ------------------------------
+
+  await minecraftConfigSmoke()
 
   // --- Red de Minecraft (§10) ------------------------------------------------
 
