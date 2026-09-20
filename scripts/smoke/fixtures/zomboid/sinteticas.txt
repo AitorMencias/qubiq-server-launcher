@@ -1,0 +1,17 @@
+// LÍNEAS SINTÉTICAS: no son una grabación.
+//
+// Son las de entrada y salida de jugadores, que no se han podido grabar porque
+// hacen falta dos clientes del juego conectándose de verdad. Están reconstruidas
+// a partir de las cadenas del propio ejecutable del servidor
+// (`zombie/network/GameServer.class`, Build 42.20): «Connected new client »,
+// «" fully connected », «Disconnected player "» y
+// «User: "%s" index=%d ip=%s is trying to connect».
+//
+// Da igual si el formato no es exacto: la lista buena de quién está dentro NO
+// sale de aquí, sino de preguntárselo al servidor por RCON (`poll()`). Estas
+// líneas solo sirven para que la consola cuente lo que pasa y para probar que
+// la IP de quien entra nunca se enseña.
+LOG  : General      f:0 st:29.153.200> User: "Fulano" index=0 ip=198.51.100.56 is trying to connect
+LOG  : General      f:0 st:29.153.210> Connected new client Fulano ID # 1
+LOG  : General      f:0 st:29.153.260> "Fulano" fully connected (10700,9500,0)
+LOG  : General      f:0 st:29.154.010> Disconnected player "Fulano" 1

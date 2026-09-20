@@ -4,13 +4,15 @@ import { minecraftUi } from './minecraft'
 import { satisfactoryUi } from './satisfactory'
 import { valheimUi } from './valheim'
 import { factorioUi } from './factorio'
+import { zomboidUi } from './zomboid'
 
 /** Registro de juegos de la interfaz: el equivalente a `main/core/games/registry.ts`. */
 export const GAME_UI: Record<GameId, GameUi> = {
   minecraft: minecraftUi,
   satisfactory: satisfactoryUi,
   valheim: valheimUi,
-  factorio: factorioUi
+  factorio: factorioUi,
+  zomboid: zomboidUi
 }
 
 export function uiFor(game: GameId | InstanceManifest): GameUi {

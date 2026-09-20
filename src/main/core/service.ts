@@ -35,6 +35,7 @@ import { createMinecraftService, type GameHost } from './games/minecraft/service
 import { createSatisfactoryService } from './games/satisfactory/service'
 import { createValheimService } from './games/valheim/service'
 import { createFactorioService } from './games/factorio/service'
+import { createZomboidService } from './games/zomboid/service'
 
 /**
  * Orquestador del núcleo (§5).
@@ -86,6 +87,9 @@ class LauncherService extends EventEmitter implements GameHost {
 
   /** Operaciones exclusivas de Factorio (partidas y moderación, por RCON). */
   readonly factorio = createFactorioService(this)
+
+  /** Operaciones exclusivas de Zomboid (ajustes, reglas de partida y cuentas). */
+  readonly zomboid = createZomboidService(this)
 
   async initialize(): Promise<void> {
     await ensureBaseDirs()
@@ -356,6 +360,17 @@ class LauncherService extends EventEmitter implements GameHost {
 
   hasRunningServers(): boolean {
     return [...this.supervisors.values()].some((s) => s.isRunning)
+  }
+
+  /**
+   * Progreso de algo largo que no es una instalación.
+   *
+   * Lo usan las operaciones de un juego que tardan y no pasan por `install`
+   * (descargar un mod del taller), para que la interfaz se entere por el mismo
+   * sitio que de todo lo demás.
+   */
+  emitProgress(id: string, phase: string, detail: string): void {
+    this.emit('progress', { instanceId: id, phase, progress: null, detail })
   }
 
   /** Lanza un error legible si el servidor está en marcha. */

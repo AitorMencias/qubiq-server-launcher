@@ -4,6 +4,7 @@ import { registerMinecraftIpc } from './minecraft'
 import { registerSatisfactoryIpc } from './satisfactory'
 import { registerValheimIpc } from './valheim'
 import { registerFactorioIpc } from './factorio'
+import { registerZomboidIpc } from './zomboid'
 
 /**
  * Puente entre el núcleo y la interfaz.
@@ -17,4 +18,5 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   registerSatisfactoryIpc()
   registerValheimIpc()
   registerFactorioIpc()
+  registerZomboidIpc()
 }

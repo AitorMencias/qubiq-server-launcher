@@ -14,15 +14,18 @@ import {
   buildIdFromManifest,
   DEFAULT_BRANCH,
   interpretRun,
+  interpretWorkshop,
   loginProblem,
   parseProgressLine,
   type SteamBranch,
   type SteamCmdOutcome,
   type SteamCmdProgress,
-  type SteamLoginProblem
+  type SteamLoginProblem,
+  type WorkshopOutcome
 } from './steamcmdOutput'
 
 export { DEFAULT_BRANCH, type SteamBranch } from './steamcmdOutput'
+export type { WorkshopOutcome } from './steamcmdOutput'
 
 const execFileAsync = promisify(execFile)
 
@@ -321,6 +324,72 @@ export function appUpdate(options: AppUpdateOptions): Promise<AppUpdateResult> {
       buildId: await installedBuildId(options.installDir, options.appId),
       branch: await installedBranch(options.installDir, options.appId)
     }
+  })
+}
+
+export interface WorkshopDownloadOptions {
+  /**
+   * App del **juego**, no la del servidor dedicado: los objetos del taller
+   * cuelgan del juego (Project Zomboid es 108600; su servidor, 380870).
+   */
+  appId: number
+  workshopId: string
+  /** Steam deja el contenido en `<installDir>/steamapps/workshop/content/...`. */
+  installDir: string
+  /**
+   * Cuenta con la que descargar. Sin esto, `anonymous`, que **basta para el
+   * taller de Project Zomboid** (comprobado descargando un mod de verdad). Si
+   * algún día hiciera falta una cuenta, aquí está el hueco.
+   */
+  account?: SteamAccount
+  onProgress?: SteamProgressFn
+}
+
+export interface WorkshopDownloadResult {
+  /** Carpeta donde ha quedado el contenido del objeto. */
+  path: string
+  bytes: number | null
+}
+
+/**
+ * Descarga un objeto del taller de Steam.
+ *
+ * ⚠ SteamCMD **sale con código 0 aunque la descarga falle** (comprobado con un
+ * id inexistente y con uno de otro juego), así que lo que decide es lo que
+ * escribe, no el código.
+ */
+export function workshopDownload(
+  options: WorkshopDownloadOptions
+): Promise<WorkshopDownloadResult> {
+  return serialized(async () => {
+    await mkdir(options.installDir, { recursive: true })
+    const args = [
+      // Como en `app_update`: antes del login o se ignora.
+      '+force_install_dir',
+      options.installDir,
+      '+login',
+      options.account?.user ?? 'anonymous',
+      '+workshop_download_item',
+      String(options.appId),
+      options.workshopId,
+      '+quit'
+    ]
+
+    let last: WorkshopOutcome | null = null
+    for (let intento = 0; intento < MAX_ATTEMPTS; intento++) {
+      const { exitCode, stdout } = await spawnSteamCmd(
+        args,
+        options.onProgress,
+        loginAnswers(options.account)
+      )
+      last = interpretWorkshop(stdout, exitCode)
+      if (last.ok) return { path: last.path!, bytes: last.bytes ?? null }
+      // La autoactualización de SteamCMD se come la primera orden, igual que
+      // al instalar un servidor.
+      if (!last.error?.retryable && !/Update complete, launching/i.test(stdout)) break
+      await new Promise((r) => setTimeout(r, 2000 * (intento + 1)))
+    }
+    throw new Error(last?.error?.message ?? 'Steam no pudo descargar el mod.')
   })
 }
 

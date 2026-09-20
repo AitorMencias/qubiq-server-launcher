@@ -7,6 +7,7 @@ import type { MinecraftCreateOptions, MinecraftData } from './games/minecraft/ty
 import type { SatisfactoryCreateOptions, SatisfactoryData } from './games/satisfactory/types'
 import type { ValheimCreateOptions, ValheimData } from './games/valheim/types'
 import type { FactorioCreateOptions, FactorioData } from './games/factorio/types'
+import type { ZomboidCreateOptions, ZomboidData } from './games/zomboid/types'
 
 /**
  * Nivel de detalle de la interfaz.
@@ -30,7 +31,7 @@ export interface BackupSettings {
 // --- Juegos -------------------------------------------------------------------
 
 /** Juegos que sabe gestionar la app. Cada uno vive en `games/<id>/`. */
-export type GameId = 'minecraft' | 'satisfactory' | 'valheim' | 'factorio'
+export type GameId = 'minecraft' | 'satisfactory' | 'valheim' | 'factorio' | 'zomboid'
 
 /**
  * Condiciones que el usuario acepta de forma explícita al crear un servidor.
@@ -84,6 +85,11 @@ export interface FactorioManifest extends ManifestBase {
   data: FactorioData
 }
 
+export interface ZomboidManifest extends ManifestBase {
+  game: 'zomboid'
+  data: ZomboidData
+}
+
 /**
  * Unión discriminada por `game`: quien lea `data` tiene que mirar antes de qué
  * juego es el servidor, y así no puede colarse un campo de un juego en otro.
@@ -93,6 +99,7 @@ export type InstanceManifest =
   | SatisfactoryManifest
   | ValheimManifest
   | FactorioManifest
+  | ZomboidManifest
 
 /**
  * Cambios que se pueden pedir sobre un manifiesto. `data` se fusiona con lo que
@@ -106,6 +113,7 @@ export type ManifestChanges = Partial<
     | Partial<SatisfactoryData>
     | Partial<ValheimData>
     | Partial<FactorioData>
+    | Partial<ZomboidData>
 }
 
 export type ServerStatus =
@@ -197,11 +205,17 @@ export interface FactorioCreateRequest extends CreateRequestBase {
   options: FactorioCreateOptions
 }
 
+export interface ZomboidCreateRequest extends CreateRequestBase {
+  game: 'zomboid'
+  options: ZomboidCreateOptions
+}
+
 export type CreateInstanceRequest =
   | MinecraftCreateRequest
   | SatisfactoryCreateRequest
   | ValheimCreateRequest
   | FactorioCreateRequest
+  | ZomboidCreateRequest
 
 // --- Copias de seguridad (§12) ----------------------------------------------
 

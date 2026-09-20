@@ -1,0 +1,56 @@
+// Salidas REALES de `steamcmd +login anonymous +workshop_download_item 108600 <id>`,
+// capturadas con el prototipo `pz-workshop.mjs` / `pz-workshop-fallos.mjs`.
+// Se han sustituido las rutas con el nombre de usuario.
+//
+// ⚠ Lo importante de esta grabación: **SteamCMD termina con código 0 aunque la
+// descarga falle** (los dos primeros errores salieron con 0; solo el del id con
+// letras dio 10). Por eso la app lee la salida y no el código.
+//
+// Cada caso va separado por una línea `=== <caso>`.
+
+=== bien
+Steam Console Client (c) Valve Corporation - version 1788292693
+-- type 'quit' to exit --
+Loading Steam API...OK
+
+Connecting anonymously to Steam Public...OK
+Waiting for client config...OK
+Waiting for user info...OK
+Downloading item 3802614552 ...
+Success. Downloaded item 3802614552 to "C:\QubiQ\data\instances\demo\server\.taller\steamapps\workshop\content\108600\3802614552" (70857 bytes)
+Unloading Steam API...OK
+
+=== no existe
+Steam Console Client (c) Valve Corporation - version 1788292693
+-- type 'quit' to exit --
+Loading Steam API...OK
+
+Connecting anonymously to Steam Public...OK
+Waiting for client config...OK
+Waiting for user info...OK
+Downloading item 999999999999 ...
+ERROR! Download item 999999999999 failed (File Not Found).
+Unloading Steam API...OK
+
+=== de otro juego
+Steam Console Client (c) Valve Corporation - version 1788292693
+-- type 'quit' to exit --
+Loading Steam API...OK
+
+Connecting anonymously to Steam Public...OK
+Waiting for client config...OK
+Waiting for user info...OK
+Downloading item 450814997 ...
+ERROR! Download item 450814997 failed (No match).
+Unloading Steam API...OK
+
+=== id con letras
+Steam Console Client (c) Valve Corporation - version 1788292693
+-- type 'quit' to exit --
+Loading Steam API...OK
+
+Connecting anonymously to Steam Public...OK
+Waiting for client config...OK
+Waiting for user info...OK
+ERROR! Failed to start downloading item 0.
+Unloading Steam API...OK

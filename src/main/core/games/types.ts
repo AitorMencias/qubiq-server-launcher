@@ -124,6 +124,16 @@ export interface LiveStatus {
   ready?: boolean
   /** Cuántos jugadores hay dentro, si el juego lo dice. */
   playerCount?: number
+  /**
+   * Y quiénes son, cuando el juego los sabe nombrar.
+   *
+   * Es la lista completa, no un cambio: sustituye a la que hubiera. La estrena
+   * Project Zomboid, que da la lista entera por RCON cada vez que se le
+   * pregunta. Eso vale más que ir sumando y restando nombres según el registro,
+   * donde basta perder una línea para que la lista quede mal hasta el siguiente
+   * arranque.
+   */
+  players?: string[]
 }
 
 /** Lo mínimo del supervisor que necesita un juego (p. ej. para copias en caliente). */

@@ -2223,7 +2223,141 @@ real, y NeoForge con mods de verdad.
 
 ---
 
-### 19.22 Siguiente
+### 19.22 Project Zomboid (Fase 5)
+
+Cuarto juego nuevo y el más parecido a Minecraft de toda la hoja de ruta: consola por la entrada
+estándar, RCON, ficheros de texto editables y memoria de una JVM. Casi toda la gestión que ya
+existía vale tal cual, así que el trabajo de la fase no fue inventar piezas nuevas, sino averiguar
+**qué hace el servidor de verdad** y no prometer lo que no cumple.
+
+A cambio trae la configuración más grande de la app: un `servertest.ini` de 144 claves y un
+`servertest_SandboxVars.lua` de más de 300 opciones, los dos con las explicaciones que el propio
+servidor escribe **en el idioma con el que se arrancó**.
+
+#### Lo que se averiguó contra el servidor real
+
+Todo con la Build 42.20 instalada de forma anónima, con el prototipo `pz-fase5.mjs` del material de
+desarrollo. **Nada se anunció en ninguna lista**: los arranques fueron con `-Dzomboid.steam=0`.
+
+| Hallazgo | Consecuencia |
+|---|---|
+| **Con Steam, el servidor sale en el navegador de servidores de Steam aunque `Public=false`.** Lo avisa su propio `.ini`: «los servidores habilitados para Steam siempre son visibles» | Decisión del usuario: **la app arranca sin Steam** (`-Dzomboid.steam=0`) y lo enciende solo quien lo pida, en modo avanzado y con el aviso delante. Crear un servidor no publica la dirección de nadie |
+| **Sin Steam el servidor no contesta al A2S en ningún puerto** (probado en 16261 y 16262). Con Steam sí, y solo en el de juego | «¿Responde?» va por **RCON**, que contesta siempre. El A2S se usa solo cuando hay Steam, como en Valheim con `-public 1` |
+| **Sin contraseña de RCON no hay RCON**: con la de serie (vacía) el puerto ni se abre (visto en netstat) | La app genera una al azar al crear el servidor. Sin ella no habría forma de saber quién está dentro ni de moderar |
+| **RCON escucha en 0.0.0.0**, o sea, en toda la red local, y Zomboid **no deja elegir la dirección** (Factorio sí, con `--rcon-bind`) | La contraseña es larga y aleatoria, y ese puerto **no se lista nunca** entre los que hay que abrir en el router. Es lo único que se puede hacer |
+| **Sin Steam solo se abre un puerto UDP**, el de juego. El segundo (`UDPPort`, el siguiente) está en su configuración y en todas las guías, pero no llega a escucharse | `serverPorts()` pide abrir uno, y dos solo con Steam encendido. Pedir abrir un puerto que no se usa es ruido con coste |
+| **El servidor reescribe él mismo el `.ini` al arrancar**: conserva los valores, pero borra las claves que no son suyas y los comentarios que no ha puesto él | La app no guarda nada suyo ahí: edita las claves que gestiona sobre el fichero que hay. Da igual que `KeyValueFile` conserve lo desconocido, porque quien lo borra es el juego |
+| **Pero acepta un `.ini` a medias y lo completa** con sus otras 130 claves y sus comentarios | Es lo que permite dejar el puerto y el RCON puestos **antes** del primer arranque. Sin eso, ese arranque usaría siempre el 16261, que es justo cuando más fácil es chocar con otro servidor |
+| **El `SandboxVars.lua` sí se respeta entero**: 738 comentarios intactos tras arrancar y parar, con los valores cambiados aplicados | Las reglas de la partida se pueden editar opción a opción sin destrozar el fichero |
+| **`-adminpassword` evita el plantón del primer arranque.** Sin él, el servidor se queda esperando en la consola a que alguien escriba la contraseña | Estaba en la investigación como «a confirmar»: confirmado |
+| **`UPnP=true` puede colgar el arranque.** Lo dice el propio servidor: «If the server hangs here, set UPnP=false» | La app lo deja apagado. De abrir puertos ya se encarga la pantalla de conexión, que además explica lo que implica |
+| **Ocupa 6,7 GB**, no los 3 y pico que se le suponían: lo dice su propio `appmanifest_380870.acf` (`SizeOnDisk` = 7.163.388.553), y son casi todo `media/` | La ficha del selector de juego lo dice medido, no estimado. Es el segundo más gordo después de Satisfactory |
+| **El primer arranque tarda ~85 s** (genera el mundo) y los siguientes ~35 s. Parar con `quit` guarda y cierra en 8-11 s | El asistente lo dice antes de empezar, y el plazo de gracia de la parada es de 180 s |
+| **Project Zomboid no arranca si llega a su carpeta por un enlace** (`mklink /J`): se cae generando el mundo porque no carga su Lua de servidor («attempted index: biomes of non-table»). Con la ruta real arranca en 39 s; con la misma carpeta enlazada se cae a los 23 s | Se lleva por delante el truco que usan las pruebas de Valheim y Satisfactory para no descargar. La `e2e:zomboid` guarda una **copia de verdad** y la **mueve** dentro de la instancia, que en el mismo disco es instantáneo |
+| El `players` de RCON contesta `Players connected (0): \n`; `changeoption MaxPlayers 9` contesta «Option : MaxPlayers is now : 9» y lo guarda él mismo; `save` contesta «World saved» | De ahí salen los jugadores, los ajustes en caliente y la copia en caliente |
+| **`save` contesta «World saved» ANTES de terminar de escribir.** La copia hecha justo después falla con un `tar.exe: (null)` que no dice nada: los ficheros de la partida cambian de tamaño mientras se leen | La copia en caliente espera a que la carpeta de la partida **deje de moverse** (mismo número de ficheros, mismo tamaño y misma fecha dos veces seguidas), en vez de fiarse de la respuesta. De paso, `runTar` ya no se traga ese «(null)»: añade lo que diga por la salida normal y el código de salida |
+| **Por RCON, una razón de veto de más de una palabra no funciona.** `banuser fulano -r dupear items` contesta con la **ayuda del comando** y no veta a nadie, aunque ese mismo ejemplo esté en su ayuda; con una sola palabra sí veta. Y **las comillas rompen los comandos**: `banuser "fulano" -r motivo` contesta «This user can't be banned» | La razón se manda en una palabra (los espacios pasan a guiones) y los nombres van sin comillas. Y cada respuesta se mira: el servidor **no falla** cuando no entiende una orden, contesta con su ayuda y se queda tan ancho, así que sin mirarla la app diría que ha vetado a alguien que sigue jugando |
+| Las cuentas viven en un **SQLite** (`db/servertest.db`): tabla `whitelist` con usuario, contraseña cifrada y rol, y `role` con los siete niveles (`banned`, `user`, `priority`, `observer`, `gm`, `moderator`, `admin`). Los vetos por IP van aparte, en `bannedip` | Se lee con `node:sqlite` en solo lectura, así que la pantalla enseña quién es quién **esté el servidor como esté**. Cambiar algo va siempre por RCON: la base de datos es del servidor |
+
+**El aislamiento, que es lo de siempre.** Por defecto Zomboid escribe en `%USERPROFILE%\Zomboid`, la
+misma carpeta donde el usuario tiene sus partidas de un jugador. Con `-Duser.home` y `-cachedir` todo
+queda dentro de la instancia (`server/datos/Zomboid`). Es la tercera vez que aparece esta trampa,
+después de Valheim y Satisfactory, y la `e2e` mira esa carpeta antes y después de cada ejecución.
+
+#### Decisiones
+
+- **Steam apagado por defecto** (decisión del usuario). Sin él no hay VAC ni se entra desde la lista
+  de amigos, y se entra escribiendo la dirección; a cambio, el servidor no aparece en ninguna lista.
+  Encenderlo está en modo avanzado, con lo que implica escrito al lado.
+- **El primer arranque forma parte de la instalación** (decisión del usuario). Los ficheros de
+  configuración los escribe el servidor, con sus explicaciones: escribirlos la app sería inventarse
+  su contenido y dejar el editor avanzado enseñando opciones sin una línea que las explique. Cuesta
+  minuto y medio, una vez.
+- **El nombre de la partida no se elige:** siempre `servertest`. Es a la vez el nombre de la carpeta
+  de guardado, el prefijo de los ficheros de configuración y el de la base de datos; dejarlo en el de
+  siempre hace que cualquier guía de internet valga tal cual para los ficheros de este servidor.
+- **La dificultad son los preajustes del propio juego** (Alzamiento, Superviviente, Apocalipsis,
+  Brote, 6 meses después y Extinción), con los nombres y las descripciones que les da Zomboid en
+  español. No se copian encima del `SandboxVars.lua`: se leen sus valores y se escriben **sobre** el
+  fichero comentado, que es lo que hace que después se pueda editar opción a opción.
+- **Seis reglas en el modo básico y las trescientas en avanzado.** Las seis son claves reales del
+  fichero y sus valores son los que el juego acepta; el smoke lo comprueba contra el
+  `SandboxVars.lua` real, así que si una actualización les cambia el nombre, salta.
+- **Moderar exige el servidor arrancado, y se dice.** No hay listas de texto (Valheim) ni ficheros
+  JSON (Factorio): hay una base de datos que el servidor tiene abierta. Ver quién es quién se puede
+  siempre; cambiarlo, no.
+
+#### Piezas nuevas del núcleo
+
+| Pieza | Dónde | Para qué |
+|---|---|---|
+| **Editor de tablas Lua** | `core/formats/editable/lua.ts` | El quinto formato de `editable/`, junto a YAML, TOML, JSON y `.properties`. Saca de los comentarios del juego la explicación, los límites, el valor por defecto y **el nombre de cada valor** («4 = Normal»), así que la pantalla enseña lo mismo que el menú de Zomboid. ⚠ Los números vienen con **coma decimal**, porque el servidor los escribe en su idioma |
+| `ConfigOption.allowedLabels` | `shared/editableConfig.ts` | Cómo se llama cada valor admitido. Sin esto se enseñaría un número pelado donde el juego enseña una palabra |
+| **Buscador de ajustes** | `GameUi.ConfigSearch`, `games/zomboid/ConfigSearch.tsx` | Zomboid reparte **414 opciones entre dos ficheros**, y quien busca «refugio» no tiene por qué saber en cuál vive: hay 1 en las reglas de la partida y 13 en los ajustes del servidor. La barra va encima de las pestañas, busca por nombre y por la explicación del juego, agrupa por origen y deja editar y guardar los dos a la vez (cada uno con su regla: el `.ini` en caliente, las reglas solo con el servidor parado). Es el único juego que lo pone; los demás tienen pocos ajustes |
+| `LiveStatus.players` | `core/games/types.ts` | La lista entera de quién está dentro, no un cambio. La estrena Zomboid, que la da completa por RCON cada vez que se le pregunta; el supervisor la hace mandar sobre la que se venía armando con el registro. Con el registro bastaba perder una línea para que la lista quedara mal hasta el siguiente arranque |
+
+#### Los mods: el taller de Steam
+
+Entraron después de dar la fase por hecha, al cambiar la regla de la hoja de ruta: **una fase no
+termina si el juego se queda sin su forma de añadir contenido**. Y hubo suerte, porque el camino
+resultó mejor de lo que pintaba.
+
+| Hallazgo | Consecuencia |
+|---|---|
+| **El taller se descarga sin cuenta.** `steamcmd +login anonymous +workshop_download_item 108600 <id>` baja el mod y ya está (probado con uno real) | Al revés que Factorio, aquí no hay que pedirle la cuenta de Steam al usuario. La app lo hace sola |
+| **El taller cuelga del JUEGO (108600), no del servidor dedicado** (380870) | Pedir los objetos del 380870 no devuelve nada |
+| **SteamCMD sale con código 0 aunque la descarga falle** (comprobado con un id inexistente y con uno de otro juego; solo el id con letras dio 10) | `interpretWorkshop` lee la salida, no el código. Los tres errores están grabados en `fixtures/steam/zomboid-workshop.txt` |
+| **La Build 42 exige la carpeta de versión dentro del mod.** Un mod con el `mod.info` y el `media/` en la raíz **no se encuentra**: el servidor solo escribe «required mod not found» en una línea perdida | La app mira las carpetas de cada mod y **avisa antes**, en vez de dejar que el servidor calle |
+| **Y la regla no es «la más alta que no pase»: manda la serie mayor.** Medido con mods de mentira en un servidor 42.20.4: `41` **no** carga, `43` **no** carga, `42` y `42.20` sí, y con `42` y `42.20` a la vez cogió **la 42**. `common` vale siempre | `bestVersion()` hace exactamente eso. Sin medirlo, la app habría dado por bueno un mod de la Build 41 |
+| Un objeto del taller **puede traer varios mods** (`mods/<Nombre>/…`), y lo que va en `Mods=` es el `id` del `mod.info` de cada uno, no el número del taller | El manifiesto guarda el objeto pedido y las carpetas que dejó; los identificadores se leen del disco |
+| La API `GetPublishedFileDetails` de Steam **no pide clave**: da título, juego, tamaño y fecha de la última actualización | La app enseña el nombre antes de descargar, rechaza un mod de otro juego sin bajarlo y sabe cuándo su autor lo ha tocado |
+| `Map=` es una tercera lista aparte, y **el mapa del juego va el último** | La app la rellena sola: sin eso, añadir un mapa es editar tres claves a mano y equivocarse en el orden |
+| Con el servidor sin Steam, `WorkshopItems=` **se deja vacío a propósito** | Esa clave es para que el servidor se los baje él por Steam. Aquí ya están copiados en `Zomboid/mods` |
+
+**Lo que no se puede arreglar y se dice:** sin Steam, **los jugadores tienen que suscribirse ellos
+mismos** a los mismos mods en el taller. El servidor no puede pasárselos. La pantalla de mods lo
+avisa junto al botón de añadir.
+
+**Lo que no se ha probado:** que un cliente entre a jugar con mods (haría falta el juego comprado), y
+mods con dependencias entre ellos de verdad —la app las lee del `mod.info` y avisa de las que
+falten, pero no se ha visto el caso con mods reales—.
+
+#### Cómo se ha comprobado
+
+- **`npm run smoke`**: 774 correctas, 0 fallidas. Las de Zomboid van contra sus ficheros reales:
+  la línea de órdenes (con el aislamiento como comprobación principal), las claves que gestiona la
+  app, su registro, el editor del `.ini` y el del `SandboxVars.lua` (ida y vuelta byte a byte,
+  límites con coma decimal, nombres de los valores), aplicar un preajuste sobre el fichero
+  comentado, y que **las seis reglas del modo básico existan de verdad en el juego con esos
+  valores**: si una actualización les cambia el nombre, salta aquí.
+- **`npm run e2e:zomboid`**: completa y en verde con el servidor real, sin Steam. Instalar, primer
+  arranque que escribe la configuración y genera el mundo, el puerto de juego abierto y **el segundo
+  no**, jugadores por RCON, ajustes en caliente, cuentas y niveles de acceso, reglas de la partida
+  solo con el servidor parado, copia en caliente, parada con `quit` en 10 s, **un mod real del taller
+  descargado, cargado por el servidor, apagado y quitado**, restauración y —lo que más importa— que
+  `%USERPROFILE%\Zomboid` no ha cambiado.
+- **`npm run typecheck`**, **`npm run e2e paper`** y **`npm run e2e:restart`** en verde: Minecraft no
+  ha empeorado.
+- **Recorrido de interfaz** (Playwright, datos aislados): el selector con los cinco juegos, el
+  asistente básico paso a paso —incluidas las tres formas de rechazar una contraseña de
+  administrador—, el avanzado con la casilla de Steam apagada, y las pantallas de un servidor ya
+  creado con los ficheros de configuración reales. Sin un solo error de consola. De ahí salieron dos
+  arreglos: **dos pestañas se llamaban «Servidor»** y el desplegable de nivel de acceso se comía el
+  nombre del jugador.
+
+#### Lo que no se ha podido comprobar
+
+- **Las líneas de entrada y salida de jugadores.** Hacen falta dos clientes del juego conectándose de
+  verdad. Están reconstruidas a partir de las cadenas del ejecutable y marcadas como sintéticas en
+  `fixtures/zomboid/sinteticas.txt`. **No deciden nada**: quién está dentro se le pregunta al
+  servidor por RCON, que es exacto y no depende de que el formato del registro no cambie.
+- **El A2S con Steam encendido** en este servidor: la grabación que se usa es la de la fase 1, hecha
+  con Steam. Volver a grabarlo exigiría publicar el servidor del usuario, y no hace falta.
+- **Entrar a jugar de verdad**, que exige tener el juego comprado.
+
+---
+
+### 19.23 Siguiente
 
 **Ahora (uso privado):**
 

@@ -5,6 +5,7 @@ import {
   SATISFACTORY_IPC,
   VALHEIM_IPC,
   FACTORIO_IPC,
+  ZOMBOID_IPC,
   EVENTS,
   type MemoryInfo,
   type SystemMemory
@@ -50,6 +51,13 @@ import type {
   ValheimWorld
 } from '../shared/games/valheim/types'
 import type { FactorioListKind, FactorioSave } from '../shared/games/factorio/types'
+import type {
+  ZomboidAccount,
+  ZomboidBannedIp,
+  ZomboidModEntry,
+  ZomboidRole
+} from '../shared/games/zomboid/types'
+import type { EditableConfig } from '../shared/editableConfig'
 
 /** Ajustes del servidor de Satisfactory, con lo pendiente de un reinicio. */
 interface SatisfactoryOptions {
@@ -361,6 +369,88 @@ const factorio = {
   }
 }
 
+const zomboid = {
+  /**
+   * Ajustes del servidor (`servertest.ini`).
+   *
+   * Se pueden cambiar con el servidor arrancado: por dentro van por su consola
+   * remota, que es lo que ofrece el propio juego.
+   */
+  settings: {
+    get: (id: string): Promise<EditableConfig> => ipcRenderer.invoke(ZOMBOID_IPC.getSettings, id),
+    set: (id: string, changes: ConfigChange[]): Promise<EditableConfig> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.setSettings, id, changes)
+  },
+
+  /**
+   * Reglas de la partida (`SandboxVars.lua`). Exigen el servidor parado: el
+   * juego las lee al cargar el mundo y no las vuelve a mirar.
+   */
+  sandbox: {
+    get: (id: string): Promise<EditableConfig> => ipcRenderer.invoke(ZOMBOID_IPC.getSandbox, id),
+    set: (id: string, changes: ConfigChange[]): Promise<EditableConfig> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.setSandbox, id, changes),
+    /** Vuelve a poner las reglas del preajuste de dificultad elegido. */
+    applyPreset: (id: string): Promise<EditableConfig> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.applyPreset, id)
+  },
+
+  /**
+   * Cuentas del servidor. Se leen de su base de datos (siempre) y se cambian
+   * por la consola remota (solo con el servidor arrancado).
+   */
+  accounts: {
+    list: (id: string): Promise<ZomboidAccount[]> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.listAccounts, id),
+    setRole: (
+      id: string,
+      username: string,
+      role: ZomboidRole,
+      reason?: string
+    ): Promise<ZomboidAccount[]> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.setRole, id, username, role, reason),
+    add: (id: string, username: string, password: string): Promise<ZomboidAccount[]> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.addAccount, id, username, password),
+    setPassword: (id: string, username: string, password: string): Promise<void> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.setPassword, id, username, password),
+    kick: (id: string, username: string, reason?: string): Promise<void> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.kick, id, username, reason),
+    bannedIps: (id: string): Promise<ZomboidBannedIp[]> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.listBannedIps, id),
+    unbanIp: (id: string, ip: string): Promise<ZomboidBannedIp[]> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.unbanIp, id, ip)
+  },
+
+  /** Lo que se le puede pedir al servidor en marcha. */
+  broadcast: (id: string, message: string): Promise<void> =>
+    ipcRenderer.invoke(ZOMBOID_IPC.broadcast, id, message),
+  saveNow: (id: string): Promise<void> => ipcRenderer.invoke(ZOMBOID_IPC.saveNow, id),
+
+  /**
+   * Mods del taller de Steam.
+   *
+   * Todo lo que cambia algo exige el servidor parado: el juego lee los mods al
+   * cargar el mundo y no los vuelve a mirar. Listarlos se puede siempre.
+   */
+  mods: {
+    list: (id: string): Promise<ZomboidModEntry[]> => ipcRenderer.invoke(ZOMBOID_IPC.listMods, id),
+    /** Acepta el enlace del taller o el número suelto. */
+    add: (id: string, text: string): Promise<ZomboidModEntry[]> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.addMod, id, text),
+    remove: (id: string, workshopId: string): Promise<ZomboidModEntry[]> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.removeMod, id, workshopId),
+    setEnabled: (id: string, workshopId: string, enabled: boolean): Promise<ZomboidModEntry[]> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.setModEnabled, id, workshopId, enabled),
+    /** `-1` lo sube en el orden de carga, `1` lo baja. */
+    move: (id: string, workshopId: string, delta: number): Promise<ZomboidModEntry[]> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.moveMod, id, workshopId, delta),
+    /** Los que su autor ha tocado desde que se instalaron. */
+    updates: (id: string): Promise<string[]> => ipcRenderer.invoke(ZOMBOID_IPC.modUpdates, id),
+    update: (id: string, workshopId: string): Promise<ZomboidModEntry[]> =>
+      ipcRenderer.invoke(ZOMBOID_IPC.updateMod, id, workshopId)
+  }
+}
+
 const api = {
   settings: {
     get: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.getSettings),
@@ -416,13 +506,16 @@ const api = {
 
   system: {
     /** Memoria del equipo, para avisar de lo que pide cada juego. */
-    memory: (): Promise<SystemMemory> => ipcRenderer.invoke(IPC.systemMemory)
+    memory: (): Promise<SystemMemory> => ipcRenderer.invoke(IPC.systemMemory),
+    /** Abre un enlace en el navegador del usuario. Solo https. */
+    openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IPC.openExternal, url)
   },
 
   minecraft,
   satisfactory,
   valheim,
   factorio,
+  zomboid,
 
   on: {
     log: (handler: (id: string, line: LogLine) => void) =>

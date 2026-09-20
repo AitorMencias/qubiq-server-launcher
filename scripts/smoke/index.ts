@@ -18,6 +18,7 @@ import { minecraftSmoke } from './minecraft'
 import { satisfactorySmoke } from './satisfactory'
 import { valheimSmoke } from './valheim'
 import { factorioSmoke } from './factorio'
+import { zomboidSmoke } from './zomboid'
 import { steamSmoke } from './steam'
 import { setDataRoot, setResourcesRoot, ensureBaseDirs } from '../../src/main/core/paths'
 
@@ -33,6 +34,7 @@ async function main(): Promise<void> {
   await satisfactorySmoke()
   await valheimSmoke()
   await factorioSmoke()
+  await zomboidSmoke()
   await minecraftSmoke()
 
   await rm(root, { recursive: true, force: true })

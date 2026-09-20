@@ -81,6 +81,27 @@ export function registerCommonIpc(getWindow: () => BrowserWindow | null): void {
     await shell.openPath(instanceDir(id))
   })
 
+  /**
+   * Abre un enlace en el navegador del usuario.
+   *
+   * ⚠ Solo `https`. Esto recibe una cadena que viene de la interfaz, y
+   * `shell.openExternal` abre **lo que sea** que Windows sepa abrir: sin este
+   * filtro, un `file:` o un esquema raro sería una forma de ejecutar cosas
+   * desde la ventana.
+   */
+  ipcMain.handle(IPC.openExternal, async (_e, url: string) => {
+    let destino: URL
+    try {
+      destino = new URL(url)
+    } catch {
+      throw new Error('Eso no es una dirección válida.')
+    }
+    if (destino.protocol !== 'https:') {
+      throw new Error('Solo se abren direcciones https.')
+    }
+    await shell.openExternal(destino.toString())
+  })
+
   // Memoria del equipo: con ella el selector de juego puede decir si Satisfactory
   // va a ir justo ANTES de descargar 15 GB.
   ipcMain.handle(IPC.systemMemory, (): SystemMemory => ({

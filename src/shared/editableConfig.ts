@@ -3,12 +3,12 @@
  * pueden editar sin destrozar el fichero (§19.20).
  *
  * Es el modelo común de los lectores de `core/formats/editable/`: YAML, TOML,
- * JSON/JSON5 y `.properties`. No conoce Minecraft; lo usa para los plugins y
- * mods, pero sirve igual para cualquier juego que guarde su configuración en
- * uno de esos formatos.
+ * JSON/JSON5, `.properties` y las tablas Lua de Project Zomboid. No conoce
+ * Minecraft; lo usa para los plugins y mods, pero sirve igual para cualquier
+ * juego que guarde su configuración en uno de esos formatos.
  */
 
-export type ConfigFormat = 'yaml' | 'toml' | 'json' | 'properties'
+export type ConfigFormat = 'yaml' | 'toml' | 'json' | 'properties' | 'lua'
 
 /**
  * - `integer` y `number` se distinguen porque escribir `5.0` donde el fichero
@@ -35,6 +35,14 @@ export interface ConfigOption {
   defaultValue?: string
   /** Valores admitidos, cuando el fichero los enumera. */
   allowed?: string[]
+  /**
+   * Cómo se llama cada valor admitido, cuando el fichero lo dice.
+   *
+   * Project Zomboid enumera los suyos en el comentario de encima («1 =
+   * Zombicidio», «2 = Muy alto»): sin esto, la app enseñaría un número pelado
+   * donde el juego enseña un nombre.
+   */
+  allowedLabels?: Record<string, string>
   min?: number
   max?: number
 }

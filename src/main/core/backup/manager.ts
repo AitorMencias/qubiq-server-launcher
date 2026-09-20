@@ -36,12 +36,17 @@ async function runTar(args: string[]): Promise<void> {
       maxBuffer: 1024 * 1024 * 16
     })
   } catch (err) {
-    const detail = (err as { stderr?: string }).stderr?.trim()
-    throw new Error(
-      detail && detail.length > 0
-        ? `No se pudo comprimir la copia: ${detail}`
-        : `No se pudo comprimir la copia: ${(err as Error).message}`
+    // tar de Windows a veces solo escribe «tar.exe: (null)», que no le dice
+    // nada a nadie: se le añade lo que haya dicho por la salida normal y el
+    // código con el que terminó, que es lo que permite distinguir un fichero
+    // bloqueado de un disco lleno.
+    const fallo = err as { stderr?: string; stdout?: string; code?: number }
+    const partes = [fallo.stderr?.trim(), fallo.stdout?.trim()].filter(
+      (parte): parte is string => parte !== undefined && parte.length > 0 && parte !== 'tar.exe: (null)'
     )
+    if (partes.length === 0) partes.push((err as Error).message)
+    if (fallo.code !== undefined) partes.push(`(tar terminó con ${fallo.code})`)
+    throw new Error(`No se pudo comprimir la copia: ${partes.join(' ')}`)
   }
 }
 

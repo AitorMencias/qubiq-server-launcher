@@ -13,6 +13,14 @@ import {
   MEMORY_RECOMMENDED_GB as FACTORIO_MEMORY_RECOMMENDED_GB
 } from './factorio/types'
 import {
+  DEFAULT_GAME_PORT as ZOMBOID_DEFAULT_PORT,
+  DEFAULT_MAX_PLAYERS as ZOMBOID_MAX_PLAYERS,
+  MEMORY_MIN_GB as ZOMBOID_MEMORY_MIN_GB,
+  MEMORY_RECOMMENDED_GB as ZOMBOID_MEMORY_RECOMMENDED_GB,
+  presetInfo as zomboidPresetInfo,
+  udpPortFor
+} from './zomboid/types'
+import {
   DEFAULT_GAME_PORT as VALHEIM_DEFAULT_PORT,
   MAX_PLAYERS as VALHEIM_MAX_PLAYERS,
   MEMORY_MIN_GB as VALHEIM_MEMORY_MIN_GB,
@@ -338,6 +346,53 @@ export const GAMES: Record<GameId, GameInfo> = {
     moderationHint:
       'En Factorio se modera por nombre de cuenta de Factorio, que es el que se ve en el chat. ' +
       'Vetar a alguien lo echa al momento.'
+  },
+
+  zomboid: {
+    id: 'zomboid',
+    name: 'Project Zomboid',
+    card: {
+      tagline: 'Sobrevivir a la epidemia zombi todo lo que se pueda.',
+      players: `Hasta ${ZOMBOID_MAX_PLAYERS} cómodamente`,
+      memoryGb: { min: ZOMBOID_MEMORY_MIN_GB, recommended: ZOMBOID_MEMORY_RECOMMENDED_GB },
+      download: '6,7 GB',
+      downloadMeasured: true,
+      highlights: [
+        { text: 'Se modera y se manda como en Minecraft', tone: 'good' },
+        { text: 'Cientos de reglas de partida', tone: 'neutral' },
+        { text: 'Tarda un minuto largo en arrancar', tone: 'warn' }
+      ]
+    },
+    // Como Valheim y Satisfactory: el servidor se baja de Steam de forma
+    // anónima, así que lo que se acepta es el acuerdo de Steam.
+    agreements: [
+      {
+        id: 'steam-subscriber',
+        label: 'el Acuerdo de Suscriptor de Steam',
+        url: 'https://store.steampowered.com/subscriber_agreement/'
+      }
+    ],
+    disclaimer: 'Herramienta no oficial. No está asociada a The Indie Stone ni a Project Zomboid.',
+    joinHint: 'En Project Zomboid: Unirse → Favoritos → Añadir servidor, con esta dirección.',
+    joinSteps: [
+      'Abre Project Zomboid y entra en «Unirse» desde el menú principal.',
+      'Ve a la pestaña «Favoritos» y pulsa «Añadir servidor» con esta dirección y su puerto.',
+      'Escribe el nombre de usuario y la contraseña que quieras: la primera vez se te crea la cuenta sola.',
+      'Si el servidor tiene contraseña, va en el campo «Contraseña del servidor», que es distinto al de tu cuenta.'
+    ],
+    joinWarning:
+      'Tu usuario y tu contraseña son de este servidor, no de Steam: te los inventas tú la primera ' +
+      'vez y con ellos vuelves a tu mismo personaje. Si te equivocas al escribirlos, el servidor te ' +
+      'dice que la contraseña no es válida en vez de crearte otra cuenta.',
+    tunnelAddressExample: 'algo.gl.at.ply.gg',
+    save: { singular: 'partida', plural: 'partidas', feminine: true },
+    backupScope:
+      'Se guardan la partida, los ajustes y la base de datos de cuentas (quién es administrador y ' +
+      'quién está vetado). El juego no hace falta: se vuelve a descargar de Steam.',
+    moderationHint:
+      'En Zomboid se modera por nombre de cuenta del servidor, no por Steam. Las órdenes viajan ' +
+      'por la consola remota, así que hay que tener el servidor arrancado: con él parado se ve ' +
+      'quién es quién, pero no se puede cambiar.'
   }
 }
 
@@ -442,6 +497,22 @@ export function serverPorts(manifest: InstanceManifest): ServerPort[] {
       // solo en 127.0.0.1 para poder parar y moderar el servidor, y abrirlo
       // fuera del equipo sería dar la consola remota a quien pase por ahí.
       return [{ port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' }]
+    case 'zomboid':
+      // Medido con netstat: **sin Steam el servidor abre solo el de juego**. El
+      // segundo (`UDPPort`) está en su configuración y en todas las guías, pero
+      // solo llega a usarse con Steam encendido, así que solo entonces se pide
+      // abrirlo. El de RCON no se lista nunca: es la consola de la app.
+      return manifest.data.useSteam
+        ? [
+            { port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' },
+            {
+              port: udpPortFor(manifest.port),
+              protocol: 'udp',
+              label: 'Datos de jugador',
+              tunnelType: 'UDP'
+            }
+          ]
+        : [{ port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' }]
     case 'valheim':
       // Todo por UDP, y el de consulta es siempre el siguiente al de juego.
       // Con crossplay no hace falta abrir ninguno, pero se siguen listando:
@@ -546,6 +617,27 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
         externalCheck: false,
         crossplay: false
       }
+    case 'zomboid':
+      // El más parecido a Minecraft: consola de verdad (la lee por su entrada
+      // estándar), RCON, nombres de jugador, moderación completa y mods del
+      // taller de Steam. Lo único que no tiene son mundos intercambiables.
+      return {
+        worlds: false,
+        content: true,
+        officialPlugins: false,
+        memory: true,
+        settings: true,
+        reinstall: true,
+        versions: true,
+        commands: true,
+        playerIds: true,
+        playerNames: true,
+        moderation: true,
+        // Sin Steam el servidor no contesta a nadie de fuera, y con Steam la
+        // única comprobación honesta exigiría publicar la IP del usuario.
+        externalCheck: false,
+        crossplay: false
+      }
     case 'valheim':
       // Los mundos y la moderación los aporta el juego con sus propias pestañas
       // (las listas son ficheros de texto, no comandos). El servidor no lee
@@ -585,6 +677,10 @@ export function versionLabel(manifest: InstanceManifest): string {
         : 'Satisfactory'
     case 'valheim':
       return manifest.data.gameVersion ? `Valheim ${manifest.data.gameVersion}` : 'Valheim'
+    case 'zomboid':
+      return manifest.data.gameVersion
+        ? `Project Zomboid ${manifest.data.gameVersion}`
+        : 'Project Zomboid'
     case 'factorio':
       // En Factorio la versión no es un detalle: el cliente tiene que ir en la
       // misma, así que se enseña siempre que se sepa.
@@ -604,6 +700,8 @@ export function summaryLabel(manifest: InstanceManifest): string {
       return `Satisfactory · ${manifest.data.sessionName}`
     case 'valheim':
       return `Valheim · ${manifest.data.worldName}`
+    case 'zomboid':
+      return `Project Zomboid · ${zomboidPresetInfo(manifest.data.preset).name}`
     case 'factorio':
       return manifest.data.spaceAge
         ? `Factorio · ${manifest.data.saveName} · Space Age`
@@ -622,5 +720,7 @@ export function defaultPortFor(game: GameId): number {
       return VALHEIM_DEFAULT_PORT
     case 'factorio':
       return FACTORIO_DEFAULT_PORT
+    case 'zomboid':
+      return ZOMBOID_DEFAULT_PORT
   }
 }

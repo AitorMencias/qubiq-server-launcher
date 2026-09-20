@@ -222,7 +222,10 @@ dos prototipos de riesgo, porque su resultado puede reordenar las fases siguient
 
 ## Fases 2 a 7 — Un juego cada vez
 
-Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
+Todas siguen la **misma plantilla**, para que ningún juego llegue a medias. Y **a medias
+significa también sin mods**: un juego se da por hecho cuando se puede jugar con él como juega la
+gente, y en casi todos estos juegos eso incluye mods. Que después salgan mejoras es normal; empezar
+la fase siguiente dejando un juego sin su forma de añadir contenido, no.
 
 1. **Instalación y arranque** con la capa de la fase 1.
 2. **Detección de «listo»** y **parada limpia** probadas contra el servidor real.
@@ -230,15 +233,30 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
    pregunta, siempre con opción marcada, y el servidor queda configurado al terminar).
 4. **Configuración avanzada:** lo que se desbloquea en modo avanzado.
 5. **Copias de seguridad** de las carpetas de guardado del juego.
-6. **Jugadores y moderación** hasta donde el juego lo permita, y **explicando lo que no se puede**
+6. **Mods o contenido añadido.** Si el juego tiene una forma establecida de ampliarlo (un taller,
+   un portal, un cargador), la fase la deja **hecha**: buscar o pegar la referencia, instalar,
+   activar y quitar, avisar de actualizaciones, y que lo instalado llegue al servidor como el juego
+   lo espera. Si el juego **no** tiene ninguna, se dice en su pantalla —como se hace con la
+   moderación que no existe— y se anota por qué. Lo que no vale es dejarlo para más adelante.
+7. **Jugadores y moderación** hasta donde el juego lo permita, y **explicando lo que no se puede**
    en vez de esconderlo.
-7. **Conexión:** puertos, protocolo y guía.
-8. **`e2e/<juego>.ts`:** instalar, arrancar, esperar a «listo», comprobar jugadores, parar limpio y
+8. **Conexión:** puertos, protocolo y guía.
+9. **`e2e/<juego>.ts`:** instalar, arrancar, esperar a «listo», comprobar jugadores, parar limpio y
    confirmar que se guardó.
-9. **Icono:** ya está dibujado en `src/renderer/src/games/<juego>/icon.svg`. Basta con importarlo en
-   la interfaz del juego (`GameUi.icon`): el componente `GameIcon` lo pone solo en el selector de
-   juego, la lista de servidores, la cabecera del servidor y la del asistente. No se sustituye por un logo oficial (ANALISIS.md §13.1).
-10. **Documentación** en ANALISIS.md y README.
+10. **Icono:** ya está dibujado en `src/renderer/src/games/<juego>/icon.svg`. Basta con importarlo en
+    la interfaz del juego (`GameUi.icon`): el componente `GameIcon` lo pone solo en el selector de
+    juego, la lista de servidores, la cabecera del servidor y la del asistente. No se sustituye por un logo oficial (ANALISIS.md §13.1).
+11. **Documentación** en ANALISIS.md y README.
+
+**Deuda de las fases cerradas antes de esta regla.** Las fases 2 y 3 se dieron por hechas sin la
+parte de mods, así que la tienen pendiente y hay que saldarla antes de cerrar la 0.10.0:
+
+| Juego | Cómo se amplía | Estado |
+|---|---|---|
+| Satisfactory (fase 2) | ficsit.app, con el gestor de mods del propio juego | **Pendiente** |
+| Valheim (fase 3) | BepInEx como cargador, Thunderstore como catálogo | **Pendiente** |
+| Factorio (fase 4) | Portal de mods oficial | Hecho en su fase |
+| Project Zomboid (fase 5) | Steam Workshop | Hecho (ANALISIS §19.22) |
 
 ### Fase 2 — Satisfactory (0.5.0)
 
@@ -359,6 +377,40 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
 
 ### Fase 5 — Project Zomboid (0.8.0)
 
+> **Estado: hecha** (pendiente de publicar como 0.8.0). Detalle, hallazgos del servidor real,
+> decisiones y verificación en [ANALISIS.md §19.22](ANALISIS.md). Cambios respecto a este plan:
+> - **Las dos incógnitas, resueltas:** el puerto de RCON por defecto es el **27015**, y el 16262 es
+>   el segundo puerto UDP de datos de jugador (`UDPPort`). **Sin Steam ni siquiera se abre**: el
+>   servidor escucha solo en el de juego, así que solo se pide abrir uno.
+> - **El servidor arranca sin Steam** (`-Dzomboid.steam=0`), que no estaba en el plan y cambia
+>   bastante: con Steam, el servidor **sale en el navegador de servidores de Steam aunque
+>   `Public=false`**, y eso publica la dirección del usuario. Encenderlo es una casilla del modo
+>   avanzado, con el aviso al lado.
+> - **Sin Steam el servidor no contesta al A2S** en ningún puerto, así que «¿responde?» y «cuánta
+>   gente hay» van por **RCON**. Y sin contraseña de RCON el servidor ni abre el puerto, así que la
+>   app genera una siempre.
+> - **La instalación incluye un primer arranque** de minuto y medio: los ficheros de configuración
+>   —y sus explicaciones— los escribe el propio servidor, y escribirlos la app sería inventárselos.
+>   Antes de ese arranque se siembra un `.ini` con el puerto y el RCON, que el servidor completa.
+> - **Los jugadores no salen del registro, sino de RCON.** El contrato gana `LiveStatus.players`:
+>   la lista entera, que manda sobre la que se venía armando con el registro.
+> - **El editor de `SandboxVars.lua` es un formato más de `formats/editable/`**, no un editor
+>   aparte: saca de los comentarios del juego la explicación, los límites y **el nombre de cada
+>   valor**. `ConfigOption` gana `allowedLabels`.
+> - **La dificultad son los seis preajustes del propio juego**, aplicados sobre el fichero comentado
+>   en vez de copiados encima.
+> - **Project Zomboid no arranca si llega a su carpeta por un enlace** (`mklink /J`): la `e2e` no
+>   puede enlazar la instalación compartida como hacen las de Valheim y Satisfactory, y mueve una
+>   copia de verdad.
+> - **Moderar exige el servidor arrancado:** las cuentas viven en un SQLite que él tiene abierto.
+>   Leerlo se puede siempre, y la pantalla lo explica en vez de esconder los botones.
+> - **Mods del taller de Steam, hechos** (se añadieron al cambiar la regla de la plantilla). Se
+>   descargan **sin cuenta** con SteamCMD, se copian a `Zomboid/mods` y la app rellena sola las tres
+>   claves que el servidor necesita. Dos trampas medidas: la Build 42 **exige la carpeta de versión**
+>   dentro del mod (uno al estilo antiguo no se encuentra), y manda la **serie mayor**, no «la más
+>   alta que no pase». Lo que no se puede arreglar y se dice: sin Steam, **cada jugador tiene que
+>   suscribirse él** a los mismos mods.
+
 - **Asistente:** nombre, contraseña de administrador (se pasa por argumento para que el primer
   arranque no se quede esperando en la consola), jugadores, PvP, *preset* de dificultad y conexión.
 - **Configuración:** `servertest.ini` con el editor clave=valor extraído en la fase 0.
@@ -367,7 +419,8 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
 - **Memoria:** control de `-Xmx`, igual que la memoria de Minecraft.
 - **Parada, jugadores y moderación:** consola por stdin y RCON. Es la experiencia más completa
   después de Minecraft.
-- **A resolver:** puerto RCON por defecto y papel exacto del puerto 16262.
+- **Mods:** el taller de Steam, pegando el enlace del mod. Instalar, encender y apagar, ordenar,
+  avisar de actualizaciones y quitar.
 
 ### Fase 6 — Enshrouded (0.9.0)
 
@@ -377,6 +430,10 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
   al tocar cualquier ajuste, porque si no el servidor los ignora en silencio.
 - **Parada:** Ctrl+Break, ya resuelto en Valheim. **Puerto:** un único UDP (`queryPort` 15637).
 - **Moderación:** no hay desde fuera del juego. Se dice claramente en su pestaña.
+- **Mods: lo primero que hay que averiguar en la fase.** Enshrouded no tiene taller ni cargador
+  oficial que se sepa; si al mirarlo resulta que no hay ninguna forma establecida, se dice en su
+  pantalla igual que se dice lo de la moderación, y se anota en INVESTIGACION-JUEGOS.md. Lo que no
+  se hace es callarlo.
 
 ### Fase 7 — Rust (0.10.0)
 
@@ -385,7 +442,9 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
 - **Control:** WebRCON para parar, guardar, ver jugadores, expulsar y banear.
 - **El borrado mensual:** recordatorio del primer jueves de cada mes, actualización guiada y
   explicación de qué es un *wipe*. Opción de programarlo.
-- **Fuera de alcance en esta versión:** Oxide/Carbon. Van al futuro junto a la gestión de plugins de Rust.
+- **Mods:** Oxide/Carbon, que es como se amplía Rust. Entra en la fase, como en todos los demás:
+  instalar el cargador sobre el servidor, gestionar los plugins que se dejan caer en su carpeta y
+  avisar de que un *wipe* o una actualización del juego pueden romperlos.
 - **0.10.0:** con los seis juegos, revisión general de textos que todavía digan «Minecraft» donde no
   toca, rendimiento con varios servidores a la vez y guía de requisitos por juego.
 
@@ -411,5 +470,6 @@ Todas siguen la **misma plantilla**, para que ningún juego llegue a medias:
 - **Juegos propuestos sin investigar** (lista en INVESTIGACION-JUEGOS.md §5): pasarán la misma criba
   y, si entran, seguirán la plantilla de las fases 2 a 7.
 - **Dyson Sphere Program con el mod Nebula,** como integración experimental, si hay demanda.
-- **Plugins y mods** de los juegos nuevos: Oxide/Carbon en Rust, mods de Valheim (BepInEx), mods de
-  Zomboid (Workshop) y el portal de Factorio.
+- **Los mods ya no viven aquí:** son parte de la fase de cada juego (punto 6 de la plantilla). Lo
+  que queda para más adelante son las mejoras sobre lo que cada fase deje hecho —catálogos con
+  buscador propio, dependencias resueltas solas, perfiles de mods—, no la función en sí.

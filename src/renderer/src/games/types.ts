@@ -49,6 +49,17 @@ export interface GamePlayerAction {
   run: (player: string) => Promise<void>
 }
 
+/**
+ * Lo que recibe la barra de búsqueda de un juego, además del contexto.
+ *
+ * `onSearching` es cómo le dice a la pantalla de Configuración que está
+ * enseñando resultados: mientras lo sea, el contenido de la pestaña no se
+ * pinta, porque lo que manda es la búsqueda.
+ */
+export interface GameConfigSearchProps extends GameConfigContext {
+  onSearching: (searching: boolean) => void
+}
+
 export interface GameUi {
   /** URL de su icono propio (`games/<juego>/icon.png`, 128×128), nunca el logo oficial. */
   icon: string
@@ -73,6 +84,16 @@ export interface GameUi {
    * identificadores (Valheim: «Steam 7656…»).
    */
   playerLabel?(player: string): string
+  /**
+   * Buscador que se pinta encima de las pestañas de Configuración.
+   *
+   * Solo lo pone el juego que lo necesita. Lo estrena Project Zomboid, que
+   * reparte más de cuatrocientas opciones entre dos ficheros: sin esto hay que
+   * saber de antemano en qué pestaña vive cada una. Los demás juegos tienen
+   * pocos ajustes y no lo ponen.
+   */
+  ConfigSearch?: ComponentType<GameConfigSearchProps>
+
   /** Qué ajustes del juego proteger antes de abrir un puerto en el router. */
   routerSafetyNote: ReactNode
 }

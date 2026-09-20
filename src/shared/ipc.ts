@@ -44,6 +44,7 @@ export const IPC = {
 
   // Sistema
   openInstanceFolder: 'system:openFolder',
+  openExternal: 'system:openExternal',
   systemMemory: 'system:memory'
 } as const
 
@@ -162,6 +163,41 @@ export const FACTORIO_IPC = {
   removeMod: 'factorio:mods:remove',
   credentialsFromGame: 'factorio:portal:fromGame',
   portalLogin: 'factorio:portal:login'
+} as const
+
+/** Canales exclusivos de Project Zomboid. */
+export const ZOMBOID_IPC = {
+  // Ajustes del servidor: en caliente por RCON, en frío editando el `.ini`.
+  getSettings: 'zomboid:settings:get',
+  setSettings: 'zomboid:settings:set',
+
+  // Reglas de la partida (`SandboxVars.lua`), solo con el servidor parado.
+  getSandbox: 'zomboid:sandbox:get',
+  setSandbox: 'zomboid:sandbox:set',
+  applyPreset: 'zomboid:sandbox:preset',
+
+  // Cuentas: se leen de la base de datos del servidor y se cambian por RCON.
+  listAccounts: 'zomboid:accounts:list',
+  setRole: 'zomboid:accounts:role',
+  addAccount: 'zomboid:accounts:add',
+  setPassword: 'zomboid:accounts:password',
+  kick: 'zomboid:accounts:kick',
+  listBannedIps: 'zomboid:accounts:bannedIps',
+  unbanIp: 'zomboid:accounts:unbanIp',
+
+  // Lo que se le puede pedir al servidor en marcha.
+  broadcast: 'zomboid:server:broadcast',
+  saveNow: 'zomboid:server:save',
+
+  // Mods del taller de Steam. Cambiarlos exige el servidor parado: el juego
+  // los lee al cargar el mundo.
+  listMods: 'zomboid:mods:list',
+  addMod: 'zomboid:mods:add',
+  removeMod: 'zomboid:mods:remove',
+  setModEnabled: 'zomboid:mods:enable',
+  moveMod: 'zomboid:mods:move',
+  modUpdates: 'zomboid:mods:updates',
+  updateMod: 'zomboid:mods:update'
 } as const
 
 /** Eventos que el núcleo empuja hacia la interfaz. */

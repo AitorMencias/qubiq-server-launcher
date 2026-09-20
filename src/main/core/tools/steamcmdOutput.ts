@@ -304,3 +304,82 @@ function findKey(node: VdfValue | undefined, key: string): VdfValue | undefined 
   }
   return undefined
 }
+
+// --- Objetos del taller (Workshop) -------------------------------------------
+
+/**
+ * Lo que deja `workshop_download_item`, que **no se parece a lo de `app_update`**
+ * y, peor, **termina con código 0 aunque haya fallado** (comprobado):
+ *
+ *     Success. Downloaded item 3802614552 to "C:\...\108600\3802614552" (70857 bytes)
+ *     ERROR! Download item 999999999999 failed (File Not Found).
+ *     ERROR! Download item 450814997 failed (No match).
+ *     ERROR! Failed to start downloading item 0.          <- con código 10
+ *
+ * Por eso hay que leer la salida y no fiarse del código de salida.
+ */
+export interface WorkshopOutcome {
+  ok: boolean
+  /** Dónde ha dejado el contenido, tal como lo dice SteamCMD. */
+  path?: string
+  bytes?: number
+  error?: SteamCmdError
+}
+
+export function interpretWorkshop(stdout: string, exitCode: number | null): WorkshopOutcome {
+  const success = /Success\. Downloaded item \d+ to "([^"]+)"(?:\s*\((\d+) bytes\))?/i.exec(stdout)
+  if (success) {
+    return {
+      ok: true,
+      path: success[1],
+      ...(success[2] ? { bytes: Number(success[2]) } : {})
+    }
+  }
+
+  const failure = /ERROR! Download item \d+ failed \(([^)]+)\)/i.exec(stdout)
+  if (failure) {
+    const reason = failure[1]!.trim()
+    return {
+      ok: false,
+      error: {
+        reason,
+        retryable: RETRYABLE.some((re) => re.test(reason)),
+        message: explainWorkshop(reason)
+      }
+    }
+  }
+
+  if (/ERROR! Failed to start downloading item/i.test(stdout)) {
+    return {
+      ok: false,
+      error: {
+        reason: 'no empezó',
+        retryable: false,
+        message: 'Eso no parece el identificador de un mod del taller de Steam.'
+      }
+    }
+  }
+
+  return {
+    ok: false,
+    error: {
+      reason: `código ${exitCode}`,
+      retryable: true,
+      message: `Steam no pudo descargar el mod (código ${exitCode}). Vuelve a intentarlo.`
+    }
+  }
+}
+
+function explainWorkshop(reason: string): string {
+  if (/file not found/i.test(reason)) {
+    return 'En el taller de Steam no hay ningún mod con ese identificador. Comprueba el enlace.'
+  }
+  if (/no match/i.test(reason)) {
+    return 'Ese mod del taller es de otro juego, no de este.'
+  }
+  if (/disk|space/i.test(reason)) return 'No hay espacio suficiente en el disco para el mod.'
+  if (/no connection|timeout|service unavailable/i.test(reason)) {
+    return 'No se pudo conectar con Steam. Revisa la conexión a internet y vuelve a intentarlo.'
+  }
+  return `Steam no pudo descargar el mod (${reason}).`
+}

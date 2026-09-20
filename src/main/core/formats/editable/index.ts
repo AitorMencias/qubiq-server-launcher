@@ -4,6 +4,7 @@ import { parseYaml } from './yaml'
 import { parseToml } from './toml'
 import { parseJson } from './json'
 import { parseProperties } from './properties'
+import { parseLua } from './lua'
 
 /**
  * Editores de ficheros de configuración ajenos (§19.20).
@@ -29,6 +30,8 @@ export function formatForFile(fileName: string): ConfigFormat | null {
       return 'json'
     case 'properties':
       return 'properties'
+    case 'lua':
+      return 'lua'
     default:
       return null
   }
@@ -44,5 +47,6 @@ const parsers: Record<ConfigFormat, (content: string) => EditableDocument> = {
   yaml: parseYaml,
   toml: parseToml,
   json: parseJson,
-  properties: parseProperties
+  properties: parseProperties,
+  lua: parseLua
 }

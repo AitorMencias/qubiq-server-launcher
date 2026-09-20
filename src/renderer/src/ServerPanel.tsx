@@ -58,6 +58,10 @@ export function ServerPanel({
   const [configTab, setConfigTab] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  /** El buscador del juego está enseñando resultados: tapan la pestaña. */
+  const [searching, setSearching] = useState(false)
+  /** Cambiarlo vuelve a montar el buscador, o sea, lo vacía. */
+  const [searchNonce, setSearchNonce] = useState(0)
   const gameUi = uiFor(manifest)
   const capabilities = capabilitiesFor(manifest)
 
@@ -105,6 +109,9 @@ export function ServerPanel({
     // Sin elección previa se abre la primera pestaña, sea cual sea el juego.
     const activeTab = configTab && tabs.some((t) => t.id === configTab) ? configTab : tabs[0]!.id
     const activeGameTab = gameTabs.find((t) => t.id === activeTab)
+    // Los juegos con cientos de ajustes repartidos en varias pestañas ponen su
+    // propio buscador aquí arriba (Project Zomboid). Los demás no.
+    const ConfigSearch = gameUi.ConfigSearch
 
     return (
       <>
@@ -114,16 +121,35 @@ export function ServerPanel({
             <button
               key={t.id}
               className={`tab ${activeTab === t.id ? 'active' : ''}`}
-              onClick={() => setConfigTab(t.id)}
+              onClick={() => {
+                setConfigTab(t.id)
+                // Elegir una pestaña es decir «quiero esto», así que cierra la
+                // búsqueda: si no, se quedaría tapando lo que se acaba de
+                // pedir. Se cierra volviendo a montarla, que es lo que la deja
+                // vacía sin que esta pantalla tenga que llevar su estado.
+                if (searching) setSearchNonce((n) => n + 1)
+              }}
             >
               {t.label}
             </button>
           ))}
         </div>
 
-        {activeGameTab?.render()}
+        {ConfigSearch && (
+          <ConfigSearch
+            key={searchNonce}
+            state={{ ...state, players }}
+            mode={mode}
+            onRefresh={onRefresh}
+            onSearching={setSearching}
+          />
+        )}
 
-        {activeTab === 'conexion' && (
+        {/* Mientras la búsqueda enseña resultados, la pestaña no se pinta: lo
+            que se busca puede estar en cualquiera de ellas. */}
+        {!searching && activeGameTab?.render()}
+
+        {!searching && activeTab === 'conexion' && (
           <div className="panel">
             {/* Básico: una sola dirección, la que hay que pasar. Avanzado: las
                 tres, con latencia y la comprobación desde internet. */}
@@ -135,7 +161,7 @@ export function ServerPanel({
           </div>
         )}
 
-        {activeTab === 'copias' && (
+        {!searching && activeTab === 'copias' && (
           <BackupPanel
             state={state}
             mode={mode}
@@ -148,7 +174,7 @@ export function ServerPanel({
           />
         )}
 
-        {activeTab === 'servidor' && (
+        {!searching && activeTab === 'servidor' && (
           <div className="panel">
             {error && (
               <div className="alert error">

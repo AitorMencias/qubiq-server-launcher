@@ -185,8 +185,19 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
           this.emit('ready')
         }
 
-        if (status.playerCount !== undefined && status.playerCount !== this.currentPlayerCount) {
-          this.currentPlayerCount = status.playerCount
+        // La lista que da el juego manda sobre la que se había ido armando con
+        // el registro: es la de ahora mismo, no la suma de lo que se vio pasar.
+        const listaNueva =
+          status.players !== undefined && !sameNames(this.onlinePlayers, status.players)
+        if (listaNueva) {
+          this.onlinePlayers.clear()
+          for (const name of status.players!) this.onlinePlayers.add(name)
+        }
+
+        const cuentaNueva =
+          status.playerCount !== undefined && status.playerCount !== this.currentPlayerCount
+        if (cuentaNueva) this.currentPlayerCount = status.playerCount!
+        if (listaNueva || cuentaNueva) {
           this.emit('players', this.players, this.currentPlayerCount)
         }
       } catch {
@@ -465,4 +476,9 @@ function killTree(pid: number, fallback: () => void): void {
   killer.on('close', (code) => {
     if (code !== 0) fallback()
   })
+}
+
+/** ¿Es la misma gente, sin mirar el orden? */
+function sameNames(current: Set<string>, next: string[]): boolean {
+  return current.size === next.length && next.every((name) => current.has(name))
 }

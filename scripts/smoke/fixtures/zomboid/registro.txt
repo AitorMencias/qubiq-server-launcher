@@ -1,0 +1,33 @@
+// Registro real del servidor de Project Zomboid Build 42.20 (prototipo de la fase 5,
+// arrancado con -Dzomboid.steam=0). Se han quitado las rutas con el nombre de usuario.
+// Es una selección: las 2.000 líneas de carga de sprites no aportan nada.
+LOG  : General      f:0 st:12.766.505> version=42.20.4 b0bbce05d5 demo=false
+LOG  : General      f:0 st:12.773.223> Administrator account 'admin' created.
+LOG  : General      f:0 st:12.773.419> admin password changed via -adminpassword option
+LOG  : General      f:0 st:12.773.420> If the server hangs here, set UPnP=false.
+LOG  : Network      f:0 st:12.785.431> No UPnP-enabled Internet gateway found, you must configure port forwarding on your gateway manually in order to make your server accessible from the Internet.
+WARN : General      f:0 st:12.794.134 at XuiSkin$EntityUiStyle.Load          > Could not find icon: Item_Dice, script = Entity_DisplayName_Default
+WARN : General      f:0 st:12.794.134 at XuiSkin$EntityUiStyle.LoadComponentInfo> Could not find icon: Item_Dice
+WARN : General      f:0 st:12.794.135 at XuiSkin$EntityUiStyle.LoadComponentInfo> Could not find icon: Item_Dice
+LOG  : General      f:0 st:12.840.941> IsoMetaGrid.Create: begin scanning directories
+LOG  : General      f:0 st:12.840.984> IsoMetaGrid.Create: X: [ -250 250 ], Y: [ -250 250 ]
+LOG  : General      f:0 st:12.840.985> IsoMetaGrid.Create: finished scanning directories in 0.044 seconds
+LOG  : General      f:0 st:12.841.044> IsoMetaGrid.Create: begin loading
+LOG  : General      f:0 st:12.842.010> LoadTileDefinitions end
+LOG  : General      f:0 st:12.844.906> IsoMetaGrid.Create: finished loading in 3.86 seconds
+ERROR: Lua          f:0 st:12.845.636 at Lua(Vanilla).handleMannequinZone    > ERROR: Mannequin zone missing properties in media/maps/Muldraugh, KY/objects.lua coords: 13583, 1299, 0
+LOG  : General      f:0 st:12.849.644> ZombiePopulationManager.init() start
+LOG  : General      f:0 st:12.849.672> ZombiePopulationManager.init() end
+LOG  : Network      f:0 st:12.849.725> Initialising RakNet...
+LOG  : Network      f:0 st:12.849.743> *** SERVER STARTED ****
+LOG  : General      f:0 st:12.851.957> command entered via server console (System.in): "quit"
+LOG  : General      f:0 st:12.852.069> Quit
+LOG  : General      f:0 st:12.852.152> Shutdown handling started
+LOG  : Network      f:0 st:12.852.153> Server exited
+LOG  : General      f:0 st:12.852.208> SaveAll took 54.8937 ms
+LOG  : General      f:0 st:12.852.208> Saving players
+LOG  : General      f:0 st:12.852.221> Saving worldgen params
+LOG  : General      f:0 st:12.852.227> Saving GlobalModData
+LOG  : General      f:0 st:12.852.238> Saving finish
+LOG  : General      f:0 st:12.852.239> Saving took 85.7419 ms
+LOG  : General      f:0 st:12.859.371> Shutdown handling finished

@@ -18,7 +18,7 @@ El análisis completo —decisiones, arquitectura, fuentes de datos y hoja de ru
 
 ## Estado
 
-MVP funcional. Tres juegos, con todas sus distribuciones instalándose, arrancando y parando:
+MVP funcional. Cinco juegos, con todas sus distribuciones instalándose, arrancando y parando:
 
 | Juego | Instalación | Arranque | Notas |
 |---|---|---|---|
@@ -30,6 +30,8 @@ MVP funcional. Tres juegos, con todas sus distribuciones instalándose, arrancan
 | Minecraft · A medida | — (se trae) | ✅ | Una carpeta que ya tenías (server pack, modpack), que arranca con su run.bat |
 | Satisfactory | ✅ | ✅ | SteamCMD (15,5 GB); la app reclama el servidor y crea la partida sola |
 | Valheim | ✅ | ✅ | SteamCMD (2 GB); crossplay con código, sin abrir puertos |
+| Factorio | ✅ | ✅ | Hace falta tener el juego: se copia del equipo o se baja con tu cuenta de Steam |
+| Project Zomboid | ✅ | ✅ | SteamCMD (6,7 GB); consola, RCON, moderación y mods del taller. Sin Steam, no se anuncia en ningún sitio |
 
 Funciones disponibles:
 
@@ -104,13 +106,14 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 635 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON y .properties, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
+| `npm run smoke` | 774 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Project Zomboid, contra los ficheros reales de su servidor (su `servertest.ini` de 144 claves, su `SandboxVars.lua` de 300 opciones y su registro): aislamiento de la carpeta del usuario, Steam apagado, claves que gestiona la app, lectura del registro sin enseñar la IP de quien entra, editor de tablas Lua (ida y vuelta byte a byte, límites con coma decimal y nombres de cada valor), aplicar un preajuste de dificultad sobre el fichero comentado, que las reglas del modo básico existan de verdad en el juego, y los mods del taller (leer un `mod.info` real, la regla de las carpetas de versión medida contra el servidor, las tres claves que se le escriben y las salidas reales de SteamCMD al descargar, incluidas las que fallan con código 0). De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON, .properties y Lua, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge`, `neoforge` |
 | `npm run e2e:custom` | Servidor a medida de verdad: monta un server pack de NeoForge 1.21.1 con su instalador oficial en una carpeta aparte, lo trae (comprueba que se **mueve**), arranca con su run.bat usando el Java de la app, pone la memoria en `user_jvm_args.txt`, para limpio sin quedarse en el `pause` y, con un script que se reinicia solo, comprueba que forzar el cierre mata también a Java |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
 | `npm run e2e:satisfactory` | **Con todos los servidores de Satisfactory parados** (solo puede haber uno a la vez). Satisfactory de verdad: instalar, reclamar el servidor sin abrir el juego, arrancar, detectar «listo» por su API, puertos, partidas, ajustes en caliente, copia con el servidor en marcha, parada limpia, restauración y **comprobar que no se ha tocado `%LOCALAPPDATA%\FactoryGame`**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\satisfactory` con un enlace; `-- --descargar` baja los 15,5 GB de cero |
 | `npm run e2e:valheim` | Valheim de verdad: instalar, arrancar generando el mundo, puertos UDP, moderación, copia en caliente esperando a que el servidor guarde, parada con Ctrl+Break, parar mientras arranca, mundos, restauración y **comprobar que no se ha tocado la carpeta de Valheim del usuario**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\valheim` con un enlace; `-- --descargar` baja los 2 GB de cero. No publica el servidor: arranca con `-public 0` y sin crossplay |
 | `npm run e2e:factorio` | Factorio de verdad: copiar el juego de una instalación del equipo y adelgazarlo (de 5,1 GB a ~246 MB), generar el mapa, arrancar, puerto UDP, moderación por RCON en caliente, copia con el servidor en marcha, parada con `/quit`, restauración y **comprobar que no se ha tocado `%APPDATA%\Factorio`**. `-- --rapido` usa la copia ya adelgazada del laboratorio; `-- --mods` prueba además buscar e instalar un mod real del portal, que necesita tu sesión de factorio.com. Son 34 comprobaciones. Termina con 2 si lo único que falla es que el portal no responde |
+| `npm run e2e:zomboid` | Project Zomboid de verdad: instalar, primer arranque que escribe la configuración y genera el mundo, puerto UDP (y comprobar que el segundo **no** se abre sin Steam), jugadores por RCON, ajustes en caliente, cuentas y niveles de acceso, reglas de la partida con el servidor parado, copia en caliente, parada con `quit`, **un mod real del taller que el servidor carga de verdad**, restauración y **comprobar que no se ha tocado `%USERPROFILE%\Zomboid`**. Guarda una copia del juego en `%LOCALAPPDATA%\qubiq-dev\e2e-zomboid-juego` y la **mueve** dentro de la instancia: **no se puede enlazar**, porque Zomboid no arranca si llega a su carpeta por un `mklink /J`. `-- --descargar` baja los 6,7 GB de cero. Arranca sin Steam: no se anuncia en ningún sitio |
 | `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones, viaje de ida y vuelta a una rama anterior y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%LOCALAPPDATA%\qubiq-dev\e2e-steam`); `-- --limpio` empieza de cero |
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
@@ -407,6 +410,68 @@ quien no ha entrado nunca al servidor. Por eso la moderación hace las dos cosas
 RCON (así, vetar echa al momento a quien esté dentro) **y** escribe el fichero, que sobrevive a la
 parada y se aplica al siguiente arranque. Y cuidado al comparar nombres: el servidor los guarda en
 minúsculas.
+
+**Un servidor de Zomboid con Steam sale en la lista pública de Steam, ponga lo que ponga `Public`.**
+Lo avisa su propio `servertest.ini`: «los servidores habilitados para Steam siempre son visibles en
+el navegador de servidores de Steam». Por eso la app arranca con `-Dzomboid.steam=0` salvo que el
+usuario encienda Steam a mano. El precio de apagarlo: sin Steam el servidor **no contesta al A2S en
+ningún puerto** (comprobado en 16261 y 16262) y solo abre el de juego, así que «¿responde?» y
+«cuánta gente hay» van por RCON, y solo se pide abrir un puerto.
+
+**Y sin contraseña de RCON, Zomboid no abre el puerto de RCON.** Viene vacía de serie, así que la
+app genera una siempre. Ojo: **Zomboid no deja elegir en qué dirección escucha** (Factorio sí, con
+`--rcon-bind`): lo abre en 0.0.0.0, o sea, en toda la red local. De ahí que la contraseña sea larga
+y aleatoria y que ese puerto no se liste nunca entre los que hay que abrir en el router.
+
+**Zomboid reescribe su `servertest.ini` al arrancar, pero acepta uno a medias.** Al arrancar
+conserva los valores y borra las claves que no son suyas y los comentarios que no ha puesto él, así
+que no guardes nada tuyo ahí. A cambio, si le dejas un `.ini` con cuatro claves, lo completa con sus
+otras 140 y sus explicaciones: es lo que permite fijar el puerto **antes** del primer arranque, en
+vez de dejar que ese arranque use el 16261 aunque el usuario hubiera elegido otro.
+
+**Project Zomboid no arranca si llega a su carpeta por un enlace.** Con un `mklink /J` se cae
+generando el mundo, porque no carga su Lua de servidor («attempted index: biomes of non-table»);
+con la ruta real arranca en 39 s. Se lleva por delante el truco que usan las pruebas de Valheim y
+Satisfactory para no descargar: la `e2e:zomboid` guarda una copia de verdad y la **mueve** dentro de
+la instancia, que en el mismo disco es instantáneo.
+
+**En Zomboid, quién está dentro se le pregunta; no se deduce del registro.** El adaptador
+implementa `poll()` y le manda `players` por RCON, que devuelve la lista entera. Para eso el
+contrato tiene `LiveStatus.players`: ir sumando y restando nombres según el registro significa que
+basta perder una línea para que la lista quede mal hasta el siguiente arranque.
+
+**Los ajustes de Zomboid no caben en una pestaña, así que tiene buscador.** Son 414 repartidos
+entre el `SandboxVars.lua` (270) y el `servertest.ini` (144), y buscar «refugio» encuentra 1 en uno y
+13 en el otro. La barra la pone el juego (`GameUi.ConfigSearch`), va encima de las pestañas de
+Configuración y busca por el nombre de la opción y por la explicación que escribe el juego. Es el
+único juego que la implementa: los demás tienen pocos ajustes y el hueco del contrato es opcional.
+
+**Los mods de Zomboid necesitan la carpeta de versión, y la regla no es la que parece.** Un mod con
+el `mod.info` en la raíz no lo encuentra la Build 42: solo deja un «required mod not found» perdido
+en el registro. Y manda la **serie mayor**, no «la versión más alta que no pase»: medido en un
+servidor 42.20.4, un mod con carpeta `41` **no** carga, uno con `43` tampoco, y con `42` y `42.20` a
+la vez cogió la `42`. `common` vale siempre. Está en `bestVersion()`, con la tabla de lo medido.
+
+**Y un objeto del taller no es un mod.** Puede traer varios, y lo que va en `Mods=` es el `id` de
+cada `mod.info`, no el número del taller. Además hay que rellenar `Map=` —con el mapa del juego **al
+final**— y dejar `WorkshopItems=` vacío, porque el servidor arranca sin Steam y los mods ya están
+copiados. Esas tres claves las escribe la app en cada arranque.
+
+**Zomboid dice «World saved» antes de haber terminado de guardar.** Si copias justo después, tar
+falla con un «(null)» que no dice nada, porque los ficheros cambian de tamaño mientras los lee. La
+copia en caliente espera a que la carpeta de la partida deje de moverse.
+
+**Y sus órdenes de moderación son quisquillosas.** Por RCON, `banuser fulano -r dupear items` (razón
+de dos palabras) contesta con la **ayuda del comando** y no veta a nadie, aunque ese ejemplo salga en
+su propia ayuda; con una sola palabra sí. Y las **comillas** rompen los comandos. Peor: el servidor
+**no falla** cuando no entiende una orden —contesta con su ayuda—, así que hay que mirar la respuesta
+o la app dirá que ha vetado a alguien que sigue jugando.
+
+**Y sus cuentas viven en un SQLite que el servidor tiene abierto.** No hay listas de texto ni
+ficheros JSON: `db/servertest.db`, con la tabla `whitelist` y los siete niveles de acceso. Se lee en
+solo lectura con `node:sqlite` (así la pantalla enseña quién es quién esté el servidor como esté),
+pero **cambiar algo va siempre por RCON**, y eso exige el servidor arrancado. La pantalla lo dice en
+vez de esconder los botones.
 
 **La consulta de Steam de Valheim solo responde en el puerto de consulta.** Ni publicado contesta
 en el de juego. Y no te fíes de su campo `version`, que dice siempre «1.0.0.0»: la versión de

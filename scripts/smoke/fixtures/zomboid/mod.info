@@ -1,0 +1,8 @@
+name=Get In The Damn Car!
+id=GetInTheDamnCar
+author=Diakøe
+modversion=1.0.10
+versionMin=42.20
+description=Press a configurable key near a vehicle to enter the nearest accessible one. Prefers the driver seat, falls back to a passenger seat, and uses vanilla movement, door, and vehicle-entry actions.
+poster=poster.png
+icon=poster.png

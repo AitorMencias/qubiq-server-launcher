@@ -16,6 +16,7 @@
     "e2e:steam": "vite build --config scripts/vite.e2e-steam.config.ts && node out/e2e-steam/e2e-steam.mjs",
     "e2e:satisfactory": "vite build --config scripts/vite.e2e-satisfactory.config.ts && node out/e2e-satisfactory/e2e-satisfactory.mjs",
     "e2e:valheim": "vite build --config scripts/vite.e2e-valheim.config.ts && node out/e2e-valheim/e2e-valheim.mjs",
+    "e2e:zomboid": "vite build --config scripts/vite.e2e-zomboid.config.ts && node out/e2e-zomboid/e2e-zomboid.mjs",
     "e2e:custom": "vite build --config scripts/vite.e2e-custom.config.ts && node out/e2e-custom/e2e-custom.mjs",
     "e2e:factorio": "vite build --config scripts/vite.e2e-factorio.config.ts && node out/e2e-factorio/e2e-factorio.mjs",
     "postinstall": "node -e \"try{require('electron/install.js')}catch(e){}\"",

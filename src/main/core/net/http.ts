@@ -129,4 +129,38 @@ export async function fetchText(url: string, timeoutMs = 20_000): Promise<string
   }
 }
 
+/**
+ * Petición POST con un formulario, sin caché.
+ *
+ * La necesita la API pública de Steam que da los datos de un objeto del taller
+ * (`GetPublishedFileDetails`): no admite GET y quiere los identificadores como
+ * campos de formulario numerados. A cambio no pide clave de API.
+ */
+export async function postForm(
+  url: string,
+  fields: Record<string, string>,
+  timeoutMs = 20_000
+): Promise<unknown> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'user-agent': USER_AGENT,
+        accept: 'application/json',
+        'content-type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams(fields).toString(),
+      signal: controller.signal
+    })
+    if (!res.ok) {
+      throw new HttpError(`${res.status} ${res.statusText} en ${url}`, res.status, url)
+    }
+    return await res.json()
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export { USER_AGENT }

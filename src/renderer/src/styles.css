@@ -1568,3 +1568,27 @@ button.link:hover:not(:disabled) {
 .topbar .game-icon {
   margin-right: 2px;
 }
+
+/* Buscador de ajustes que pone el juego encima de las pestañas de
+   Configuración (Project Zomboid). Va pegado a la barra de pestañas, no dentro
+   de un panel: lo que busca puede estar en cualquiera de ellas. */
+.config-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px 0;
+}
+
+.config-search input {
+  flex: 1;
+}
+
+.config-search .cfg-count {
+  white-space: nowrap;
+}
+
+/* Los botones de guardar, separados de la primera opción: pegados parecen
+   parte de ella y no de la lista entera. */
+.cfg-actions {
+  margin: 6px 0 22px;
+}
