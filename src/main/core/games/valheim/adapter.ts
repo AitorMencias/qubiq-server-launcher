@@ -493,6 +493,18 @@ export function parseLine(raw: string): ParsedEvent {
     return { level: 'info', text: SAVED_TEXT }
   }
 
+  // BepInEx escribe sus primeras líneas por la salida estándar, así que llegan
+  // aquí mezcladas con las del juego (comprobado con el servidor real). Es lo
+  // que confirma en la consola que el servidor lleva mods.
+  //
+  // ⚠ Lo que **no** llega es la lista de mods cargados: esa la escribe el
+  // chainloader solo en `BepInEx/LogOutput.log`, y de leerla se encarga la
+  // pestaña de mods (`mods.readLoaderLog`).
+  const cargador = /^\[\w+\s*:\s*BepInEx\]\s*BepInEx ([\d.]+)/.exec(clean)
+  if (cargador) {
+    return { level: 'info', text: `Cargador de mods BepInEx ${cargador[1]} en marcha.` }
+  }
+
   if (/Could not parse '(.+?)' as a world modifier preset/i.test(clean)) {
     return {
       level: 'warn',

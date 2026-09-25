@@ -16,6 +16,7 @@ import {
   validPlayerId,
   validWorldName
 } from '../../src/main/core/games/valheim/service'
+import * as mods from '../../src/main/core/games/valheim/mods'
 import { capabilitiesFor, gameInfo, serverPorts } from '../../src/shared/games'
 import {
   GLOBAL_KEYS,
@@ -438,5 +439,120 @@ export async function valheimSmoke(): Promise<void> {
     check('habla de mundos, no de partidas', info.save.singular === 'mundo')
     check('el identificador de Steam del juego es el suyo, no el del servidor',
       VALHEIM_GAME_APP_ID === 892970)
+  })
+
+  // --- Mods de Thunderstore -------------------------------------------------------
+
+  await section('Valheim: mods de Thunderstore', async () => {
+    // Dónde acaba cada fichero de un paquete. Las tres formas salen de mods
+    // reales del catálogo (ANALISIS.md §19.23).
+    const puesto = (entry: string): string => mods.placeInPackage('Autor-Mod', entry).dest
+
+    check(
+      'un .dll suelto va a la carpeta del mod',
+      puesto('Advize_PlantEverything.dll') === 'BepInEx/plugins/Autor-Mod/Advize_PlantEverything.dll'
+    )
+    check(
+      'lo que viene en plugins/ también, sin duplicar la carpeta',
+      puesto('plugins/Jotunn.dll') === 'BepInEx/plugins/Autor-Mod/Jotunn.dll'
+    )
+    check(
+      'un BepInEx/ entero se respeta tal cual',
+      puesto('BepInEx/patchers/Cosa/x.dll') === 'BepInEx/patchers/Cosa/x.dll'
+    )
+    // ⚠ La configuración va SUELTA: cada mod la busca por su nombre de fichero,
+    // y metida en una subcarpeta arrancaría con los valores de fábrica sin
+    // decir nada.
+    check(
+      'la configuración va suelta en BepInEx/config',
+      puesto('config/advize.PlantEverything.cfg') === 'BepInEx/config/advize.PlantEverything.cfg'
+    )
+    check(
+      'y se apunta el fichero, no la carpeta compartida',
+      mods.placeInPackage('Autor-Mod', 'config/x.cfg').owns === 'BepInEx/config/x.cfg'
+    )
+    check(
+      'de un .dll suelto, lo suyo es su carpeta',
+      mods.placeInPackage('Autor-Mod', 'x.dll').owns === 'BepInEx/plugins/Autor-Mod'
+    )
+
+    // Los identificadores de Thunderstore y sus dependencias con versión clavada.
+    check('parte «Autor-Mod» por el primer guion', mods.splitId('Advize-PlantEverything').name === 'PlantEverything')
+    const dep = mods.splitDependency('denikson-BepInExPack_Valheim-5.4.2350')
+    check('separa la versión de la dependencia', dep?.version === '5.4.2350', dep?.version ?? '')
+    check('y deja el resto como identificador', dep?.id === 'denikson-BepInExPack_Valheim', dep?.id ?? '')
+    // Los nombres llevan guiones: partir por el último rompería el nombre.
+    const conGuiones = mods.splitDependency('Azumatt-AzuAntiDrift-1.2.3')
+    check('un nombre con guiones no se parte mal', conGuiones?.id === 'Azumatt-AzuAntiDrift', conGuiones?.id ?? '')
+    check('lo que no lleva versión no es una dependencia', mods.splitDependency('Autor-Mod') === null)
+
+    check('1.21.2 es posterior a 1.3.0', mods.compareVersions('1.21.2', '1.3.0') > 0)
+
+    // Lo que BepInEx deja en su registro, del servidor real.
+    const leido = mods.parseLoaderLog(await readFile(join(FIXTURES, 'bepinex-log.txt'), 'utf8'))
+    check(
+      'el registro del cargador dice qué mods cargó',
+      leido.loaded.length === 1,
+      leido.loaded.join(', ')
+    )
+    check('con su versión', leido.loaded[0] === 'PlantEverything 1.21.2')
+    // ⚠ Ese fichero recoge también el registro del juego, y un servidor sin
+    // pantalla escribe de serie errores de vídeo y de shaders. Darlos por
+    // problemas de mods sería alarmar por lo que siempre ha estado ahí.
+    check(
+      'y no confunde los errores del juego con problemas de mods',
+      leido.problems.length === 0,
+      leido.problems.join(' · ')
+    )
+    const conFallo = mods.parseLoaderLog('[Error  :PlantEverything] no encuentro su configuración')
+    check(
+      'un fallo de un mod sí se cuenta, y con quién se queja',
+      conFallo.problems[0] === 'PlantEverything: no encuentro su configuración',
+      conFallo.problems[0]
+    )
+
+    // ⚠ Y NO lo dice por la consola: la línea del chainloader no llega por la
+    // tubería del proceso (comprobado). Lo que sí llega es su presentación.
+    const presentacion = parseLine('[Message:   BepInEx] BepInEx 5.4.23.5 - valheim_server (15/09/2026 17:01:18)')
+    check(
+      'la consola anuncia el cargador',
+      presentacion.text === 'Cargador de mods BepInEx 5.4.23.5 en marcha.',
+      presentacion.text
+    )
+
+    check('y ahora el juego declara que tiene mods', capabilitiesFor(manifestoDePrueba()).content)
+  })
+
+  // Contrato con Thunderstore: si su API cambia, esto lo dice.
+  await section('Valheim: la API de Thunderstore sigue contestando lo mismo', async () => {
+    const resultados = await mods.searchMods('plant everything', 10)
+    check('el buscador devuelve algo', resultados.length > 0, `${resultados.length} resultados`)
+    // ⚠ Esta es LA comprobación que importa: el parámetro de búsqueda es `q=`, y
+    // con `search=` la API contesta 200 devolviendo el catálogo entero. Si un
+    // día dejara de filtrar, el usuario vería siempre los mismos mods.
+    check(
+      'y filtra de verdad por lo que se busca',
+      resultados.some((m) => /plant/i.test(m.name)),
+      resultados.slice(0, 3).map((m) => m.id).join(', ')
+    )
+    check('con autor y descargas', resultados.every((m) => m.author.length > 0 && m.downloads >= 0))
+
+    // El cargador tiene que seguir publicándose: sin BepInEx no hay mods.
+    const bepinex = await mods.latestVersion(mods.LOADER_ID)
+    check('BepInEx sigue en el catálogo', bepinex.latest.version_number.length > 0, bepinex.latest.version_number)
+    check(
+      'y con enlace de descarga',
+      bepinex.latest.download_url.startsWith('https://thunderstore.io/package/download/')
+    )
+
+    // Y las dependencias siguen viniendo con la versión pegada al nombre.
+    const mod = await mods.latestVersion('Advize-PlantEverything')
+    const dependencias = mod.latest.dependencies.map((d) => mods.splitDependency(d))
+    check('las dependencias traen versión clavada', dependencias.every((d) => d !== null))
+    check(
+      'y una de ellas es el cargador',
+      dependencias.some((d) => d?.id.includes('BepInExPack')),
+      mod.latest.dependencies.join(', ')
+    )
   })
 }

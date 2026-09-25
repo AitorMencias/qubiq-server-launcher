@@ -9,6 +9,8 @@
  * No debe importar nada de Node ni de Electron.
  */
 
+import type { ModRef } from '../mods'
+
 /** Lo propio de un servidor de Satisfactory dentro del manifiesto (`manifest.data`). */
 export interface SatisfactoryData {
   /**
@@ -38,6 +40,14 @@ export interface SatisfactoryData {
   buildId?: string
   /** Versión del juego, tal como la publica el propio servidor. */
   gameVersion?: string
+  /**
+   * Los mods de ficsit.app que lleva el servidor, en el orden en que se
+   * añadieron. Falta en los servidores creados antes de que la app supiera de
+   * mods, y eso es «ninguno», no un manifiesto roto.
+   */
+  mods?: ModRef[]
+  /** Versión de SML instalada, que es el cargador sin el cual no carga ninguno. */
+  loaderVersion?: string
 }
 
 /** Lo que el asistente elige para un servidor de Satisfactory nuevo. */

@@ -46,6 +46,11 @@ import type {
   SatisfactoryState
 } from '../shared/games/satisfactory/types'
 import type {
+  ModCatalogItem,
+  ModInstallResult,
+  ModsView
+} from '../shared/games/mods'
+import type {
   ValheimListEntry,
   ValheimListKind,
   ValheimWorld
@@ -216,7 +221,29 @@ const satisfactory = {
   },
 
   setClientPassword: (id: string, password: string): Promise<void> =>
-    ipcRenderer.invoke(SATISFACTORY_IPC.setClientPassword, id, password)
+    ipcRenderer.invoke(SATISFACTORY_IPC.setClientPassword, id, password),
+
+  /**
+   * Mods de ficsit.app. Buscar no toca el servidor; lo demás exige tenerlo
+   * parado, porque la carpeta de mods se lee al arrancar.
+   */
+  mods: {
+    search: (id: string, text: string): Promise<ModCatalogItem[]> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.searchMods, id, text),
+    list: (id: string): Promise<ModsView> => ipcRenderer.invoke(SATISFACTORY_IPC.listMods, id),
+    add: (id: string, modId: string): Promise<ModInstallResult> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.addMod, id, modId),
+    remove: (id: string, modId: string): Promise<ModsView> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.removeMod, id, modId),
+    setEnabled: (id: string, modId: string, enabled: boolean): Promise<ModsView> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.setModEnabled, id, modId, enabled),
+    updates: (id: string): Promise<Record<string, string>> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.modUpdates, id),
+    update: (id: string, modId: string): Promise<ModsView> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.updateMod, id, modId),
+    removeLoader: (id: string): Promise<ModsView> =>
+      ipcRenderer.invoke(SATISFACTORY_IPC.removeLoader, id)
+  }
 }
 
 const valheim = {
@@ -249,6 +276,28 @@ const valheim = {
       ipcRenderer.invoke(VALHEIM_IPC.addToList, id, kind, playerId, note),
     remove: (id: string, kind: ValheimListKind, playerId: string): Promise<ValheimListEntry[]> =>
       ipcRenderer.invoke(VALHEIM_IPC.removeFromList, id, kind, playerId)
+  },
+
+  /**
+   * Mods de Thunderstore, con BepInEx de cargador. Todo con el servidor parado:
+   * el cargador se engancha al arrancar el proceso.
+   */
+  mods: {
+    search: (id: string, text: string): Promise<ModCatalogItem[]> =>
+      ipcRenderer.invoke(VALHEIM_IPC.searchMods, id, text),
+    list: (id: string): Promise<ModsView> => ipcRenderer.invoke(VALHEIM_IPC.listMods, id),
+    add: (id: string, modId: string): Promise<ModInstallResult> =>
+      ipcRenderer.invoke(VALHEIM_IPC.addMod, id, modId),
+    remove: (id: string, modId: string): Promise<ModsView> =>
+      ipcRenderer.invoke(VALHEIM_IPC.removeMod, id, modId),
+    setEnabled: (id: string, modId: string, enabled: boolean): Promise<ModsView> =>
+      ipcRenderer.invoke(VALHEIM_IPC.setModEnabled, id, modId, enabled),
+    updates: (id: string): Promise<Record<string, string>> =>
+      ipcRenderer.invoke(VALHEIM_IPC.modUpdates, id),
+    update: (id: string, modId: string): Promise<ModsView> =>
+      ipcRenderer.invoke(VALHEIM_IPC.updateMod, id, modId),
+    removeLoader: (id: string): Promise<ModsView> =>
+      ipcRenderer.invoke(VALHEIM_IPC.removeLoader, id)
   }
 }
 

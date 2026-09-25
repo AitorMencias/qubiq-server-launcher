@@ -11,6 +11,7 @@ import { CreateWizard } from './CreateWizard'
 import { ValheimSettingsPanel } from './SettingsPanel'
 import { WorldsPanel } from './WorldsPanel'
 import { ModerationPanel } from './ModerationPanel'
+import { CatalogModsPanel } from '../../CatalogModsPanel'
 import icon from './icon.svg'
 
 /** Piezas de interfaz de Valheim. */
@@ -38,6 +39,29 @@ export const valheimUi: GameUi = {
         label: 'Moderación',
         slot: 'afterConnection' as const,
         render: () => <ModerationPanel state={state} onChanged={onRefresh} />
+      },
+      {
+        id: 'mods',
+        label: 'Mods',
+        slot: 'afterConnection' as const,
+        render: () => (
+          <CatalogModsPanel
+            state={state}
+            onChanged={onRefresh}
+            api={window.qubiq.valheim.mods}
+            loaderId="denikson-BepInExPack_Valheim"
+            catalog={{ name: 'Thunderstore', url: 'thunderstore.io' }}
+            playersNote={
+              <>
+                Valheim deja entrar igual a quien no tenga los mods, pero el juego se le portará
+                mal: le faltarán objetos y construcciones. Cada jugador se los instala en el suyo
+                con r2modman o el Thunderstore Mod Manager, poniendo los mismos y en la misma
+                versión.
+              </>
+            }
+            searchPlaceholder="Por ejemplo: Plant Everything, Epic Loot, Jotunn…"
+          />
+        )
       }
     ]
   },

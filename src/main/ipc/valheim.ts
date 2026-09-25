@@ -45,4 +45,26 @@ export function registerValheimIpc(): void {
     async (_e, id: string, kind: ValheimListKind, playerId: string) =>
       vh.removeFromList(id, kind, playerId)
   )
+
+  // --- Mods de Thunderstore -------------------------------------------------
+
+  ipcMain.handle(VALHEIM_IPC.searchMods, async (_e, _id: string, text: string) =>
+    vh.searchMods(text)
+  )
+  ipcMain.handle(VALHEIM_IPC.listMods, async (_e, id: string) => vh.listMods(id))
+  ipcMain.handle(VALHEIM_IPC.addMod, async (_e, id: string, modId: string) =>
+    vh.addMod(id, modId, (detail) => service.emitProgress(id, 'mods', detail))
+  )
+  ipcMain.handle(VALHEIM_IPC.removeMod, async (_e, id: string, modId: string) =>
+    vh.removeMod(id, modId)
+  )
+  ipcMain.handle(
+    VALHEIM_IPC.setModEnabled,
+    async (_e, id: string, modId: string, enabled: boolean) => vh.setModEnabled(id, modId, enabled)
+  )
+  ipcMain.handle(VALHEIM_IPC.modUpdates, async (_e, id: string) => vh.modUpdates(id))
+  ipcMain.handle(VALHEIM_IPC.updateMod, async (_e, id: string, modId: string) =>
+    vh.updateMod(id, modId, (detail) => service.emitProgress(id, 'mods', detail))
+  )
+  ipcMain.handle(VALHEIM_IPC.removeLoader, async (_e, id: string) => vh.removeLoader(id))
 }

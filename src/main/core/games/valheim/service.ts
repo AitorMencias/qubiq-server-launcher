@@ -7,8 +7,17 @@ import {
   type ValheimListKind,
   type ValheimWorld
 } from '@shared/games/valheim/types'
+import type {
+  ModCatalogItem,
+  ModEntry,
+  ModInstallResult,
+  ModRef,
+  ModsView
+} from '@shared/games/mods'
 import type { GameHost } from '../minecraft/service'
+import { dropStash, pathsSize, removePaths, stashPaths, unstashPaths } from '../modFiles'
 import { saveDirFor, worldsDirFor, worldSize } from './adapter'
+import * as mods from './mods'
 
 /**
  * Operaciones exclusivas de Valheim: mundos y listas de moderación.
@@ -270,7 +279,262 @@ export function createValheimService(host: GameHost) {
         kind,
         entries.filter((e) => e.id !== playerId)
       )
+    },
+
+    // --- Mods de Thunderstore -----------------------------------------------
+
+    /** Busca en el catálogo. No toca el servidor: da igual si está arrancado. */
+    async searchMods(text: string): Promise<ModCatalogItem[]> {
+      return mods.searchMods(text)
+    },
+
+    /** El cargador y los mods que lleva el servidor, con lo que hay en disco. */
+    async listMods(id: string): Promise<ModsView> {
+      const manifest = await requireManifest(id)
+      return buildView(id, manifest)
+    },
+
+    /**
+     * Añade un mod con todo lo que necesita, y BepInEx si aún no estaba.
+     *
+     * Con el servidor parado: BepInEx se engancha al arrancar el proceso, y los
+     * mods se cargan una sola vez, al principio.
+     */
+    async addMod(
+      id: string,
+      modId: string,
+      onProgress?: (detail: string) => void
+    ): Promise<ModInstallResult> {
+      const manifest = await requireManifest(id)
+      host.assertStopped(id, 'instalar un mod')
+      if (modsOf(manifest).some((mod) => mod.id === modId)) {
+        throw new Error('Ese mod ya está en este servidor.')
+      }
+
+      const plan = await mods.planInstall(modId, {
+        installed: new Map(modsOf(manifest).map((mod) => [mod.id, mod.version])),
+        loaderVersion: manifest.data.loaderVersion ?? null
+      })
+
+      let loaderVersion = manifest.data.loaderVersion
+      // Sin cargador no hay mods: si el paquete no lo declara como dependencia
+      // —hay mods que se olvidan— se pone igualmente el último publicado.
+      const cargador = plan.loader ?? (await loaderIfMissing(id))
+      if (cargador) {
+        onProgress?.('Instalando BepInEx, el cargador de mods')
+        await mods.installLoader(id, cargador, onProgress)
+        loaderVersion = cargador.version_number
+      }
+
+      const nuevos: ModRef[] = []
+      for (const entry of plan.entries) {
+        const paths = await mods.installPackage(id, entry.id, entry.version, onProgress)
+        nuevos.push({
+          id: entry.id,
+          name: entry.name,
+          version: entry.version.version_number,
+          enabled: true,
+          dependency: entry.id !== modId,
+          paths,
+          addedAt: new Date().toISOString()
+        })
+      }
+
+      const actualizado = await host.updateInstance(id, {
+        data: {
+          ...manifest.data,
+          ...(loaderVersion ? { loaderVersion } : {}),
+          mods: [
+            ...modsOf(manifest).filter((mod) => !nuevos.some((nuevo) => nuevo.id === mod.id)),
+            ...nuevos
+          ]
+        }
+      })
+
+      return {
+        view: await buildView(id, actualizado as ValheimManifest),
+        dependencies: nuevos.filter((mod) => mod.dependency).map((mod) => mod.name)
+      }
+    },
+
+    /** Quita un mod del servidor y del disco. */
+    async removeMod(id: string, modId: string): Promise<ModsView> {
+      const manifest = await requireManifest(id)
+      host.assertStopped(id, 'quitar un mod')
+      const ref = modsOf(manifest).find((mod) => mod.id === modId)
+      if (!ref) throw new Error('Ese mod no está en este servidor.')
+
+      await removePaths(id, ref.id, ref.paths)
+      const actualizado = await host.updateInstance(id, {
+        data: { ...manifest.data, mods: modsOf(manifest).filter((mod) => mod.id !== modId) }
+      })
+      return buildView(id, actualizado as ValheimManifest)
+    },
+
+    /**
+     * Enciende o apaga un mod sin borrarlo.
+     *
+     * Apagarlo lo saca de `BepInEx/plugins`: el cargador recorre esa carpeta
+     * entera buscando `.dll`, así que cambiarle el nombre no lo apagaría.
+     */
+    async setModEnabled(id: string, modId: string, enabled: boolean): Promise<ModsView> {
+      const manifest = await requireManifest(id)
+      host.assertStopped(id, 'encender o apagar un mod')
+      const ref = modsOf(manifest).find((mod) => mod.id === modId)
+      if (!ref) throw new Error('Ese mod no está en este servidor.')
+
+      if (enabled) await unstashPaths(id, ref.id, ref.paths)
+      else await stashPaths(id, ref.id, ref.paths)
+
+      const actualizado = await host.updateInstance(id, {
+        data: {
+          ...manifest.data,
+          mods: modsOf(manifest).map((mod) => (mod.id === modId ? { ...mod, enabled } : mod))
+        }
+      })
+      return buildView(id, actualizado as ValheimManifest)
+    },
+
+    /**
+     * ¿Hay versión nueva de algún mod o del cargador?
+     *
+     * Una consulta por mod, que es como está hecha la API de Thunderstore. No
+     * se actualiza nada solo: un mod nuevo puede cambiar el mundo guardado.
+     */
+    async modUpdates(id: string): Promise<Record<string, string>> {
+      const manifest = await requireManifest(id)
+      const nuevas: Record<string, string> = {}
+
+      for (const ref of modsOf(manifest)) {
+        const info = await mods.latestVersion(ref.id).catch(() => null)
+        const ultima = info?.latest.version_number
+        if (ultima && mods.compareVersions(ultima, ref.version) > 0) nuevas[ref.id] = ultima
+      }
+
+      if (manifest.data.loaderVersion) {
+        const info = await mods.latestVersion(mods.LOADER_ID).catch(() => null)
+        const ultima = info?.latest.version_number
+        if (ultima && mods.compareVersions(ultima, manifest.data.loaderVersion) > 0) {
+          nuevas[mods.LOADER_ID] = ultima
+        }
+      }
+      return nuevas
+    },
+
+    /** Pone la última versión de un mod, con copia de seguridad antes. */
+    async updateMod(
+      id: string,
+      modId: string,
+      onProgress?: (detail: string) => void
+    ): Promise<ModsView> {
+      const manifest = await requireManifest(id)
+      host.assertStopped(id, 'actualizar un mod')
+
+      // Un mod nuevo puede tocar lo que ya está construido en el mundo.
+      await host.createBackup(id, `Antes de actualizar ${modId}`, true).catch(() => undefined)
+
+      if (modId === mods.LOADER_ID) {
+        const info = await mods.latestVersion(mods.LOADER_ID)
+        await mods.installLoader(id, info.latest, onProgress)
+        const actualizado = await host.updateInstance(id, {
+          data: { ...manifest.data, loaderVersion: info.latest.version_number }
+        })
+        return buildView(id, actualizado as ValheimManifest)
+      }
+
+      const ref = modsOf(manifest).find((mod) => mod.id === modId)
+      if (!ref) throw new Error('Ese mod no está en este servidor.')
+
+      const info = await mods.latestVersion(modId)
+      // Se quita lo anterior antes de poner lo nuevo: un mod que cambia de
+      // ficheros dejaría el `.dll` viejo cargándose junto al nuevo.
+      await removePaths(id, ref.id, ref.paths)
+      const paths = await mods.installPackage(id, modId, info.latest, onProgress)
+      if (!ref.enabled) await stashPaths(id, ref.id, paths)
+
+      const actualizado = await host.updateInstance(id, {
+        data: {
+          ...manifest.data,
+          mods: modsOf(manifest).map((mod) =>
+            mod.id === modId ? { ...mod, version: info.latest.version_number, paths } : mod
+          )
+        }
+      })
+      return buildView(id, actualizado as ValheimManifest)
+    },
+
+    /**
+     * Quita BepInEx y deja el servidor como vino de Steam.
+     *
+     * Solo cuando no queda ningún mod: sin cargador, los que hubiera se
+     * quedarían en el disco sin cargarse y sin decir por qué.
+     */
+    async removeLoader(id: string): Promise<ModsView> {
+      const manifest = await requireManifest(id)
+      host.assertStopped(id, 'quitar el cargador de mods')
+      if (modsOf(manifest).length > 0) {
+        throw new Error('Quita antes los mods: sin BepInEx no se cargaría ninguno.')
+      }
+      await mods.removeLoader(id)
+      await dropStash(id, mods.LOADER_ID)
+      const actualizado = await host.updateInstance(id, {
+        data: { ...manifest.data, loaderVersion: undefined }
+      })
+      return buildView(id, actualizado as ValheimManifest)
     }
+  }
+}
+
+/**
+ * Los mods del manifiesto.
+ *
+ * Un servidor creado antes de que la app supiera de mods no tiene la lista, y
+ * leerla a pelo dejaría su pestaña rota en vez de vacía.
+ */
+function modsOf(manifest: ValheimManifest): ModRef[] {
+  return manifest.data.mods ?? []
+}
+
+/**
+ * La versión de BepInEx que hay que poner, o null si ya está.
+ *
+ * Se mira el disco y no el manifiesto: si alguien borró sus ficheros a mano, el
+ * manifiesto seguiría diciendo que está y el mod se instalaría para nada.
+ */
+async function loaderIfMissing(id: string): Promise<mods.ThunderstoreVersion | null> {
+  if (await mods.loaderInstalled(id)) return null
+  return (await mods.latestVersion(mods.LOADER_ID)).latest
+}
+
+/**
+ * La pestaña de mods de una vez.
+ *
+ * Lo que manda es el disco: el cargador se da por puesto cuando están sus dos
+ * piezas (`winhttp.dll` y el preloader), no porque el manifiesto lo diga.
+ */
+async function buildView(id: string, manifest: ValheimManifest): Promise<ModsView> {
+  const cargador = await mods.loaderInstalled(id)
+
+  const entries: ModEntry[] = []
+  for (const ref of modsOf(manifest)) {
+    const sizeBytes = await pathsSize(id, ref.id, ref.paths, ref.enabled)
+    const problem =
+      ref.enabled && sizeBytes === 0 ? 'No está en la carpeta del servidor.' : undefined
+    entries.push({ ...ref, sizeBytes, ...(problem ? { problem } : {}) })
+  }
+
+  // Lo que BepInEx hizo la última vez. Solo se mira si está puesto: preguntarlo
+  // en un servidor sin mods sería leer ficheros que no existen en cada visita.
+  const ultimo = cargador ? await mods.readLoaderLog(id) : null
+
+  return {
+    loader: {
+      name: mods.LOADER_NAME,
+      installed: cargador,
+      version: cargador ? (manifest.data.loaderVersion ?? null) : null,
+      ...(ultimo ? { lastRun: ultimo } : {})
+    },
+    mods: entries
   }
 }
 

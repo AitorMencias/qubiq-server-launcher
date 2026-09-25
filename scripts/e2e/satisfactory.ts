@@ -8,7 +8,10 @@
  * 5. Copia en caliente (el servidor guarda antes) y restauración.
  * 6. Partidas: listar, guardar, crear otra y volver a la primera.
  * 7. Parada limpia por la API: sale solo y con código 0.
- * 8. **Lo más importante:** que la carpeta del juego del usuario
+ * 8. Mods de ficsit.app: se instala uno de verdad con su cargador, se arranca y
+ *    se comprueba que **SML dice en el registro que los ha cargado**, que es la
+ *    única prueba de que están puestos. Después se apaga, se enciende y se quita.
+ * 9. **Lo más importante:** que la carpeta del juego del usuario
  *    (`%LOCALAPPDATA%\FactoryGame`) no se haya tocado.
  *
  * El servidor ocupa 15,5 GB, así que por defecto se enlaza la instalación de
@@ -37,6 +40,13 @@ const execFileAsync = promisify(execFile)
 const PORT = 7777
 const ID = 'e2e-satisfactory'
 const ADMIN_PASSWORD = 'qubiq-e2e'
+
+/**
+ * El mod con el que se prueba: pequeño (13 MB), con versión de servidor y sin
+ * dependencias más allá de SML, así que la prueba no depende de media docena de
+ * bibliotecas ajenas.
+ */
+const MOD = 'DirectToSplitter'
 
 let failed = 0
 
@@ -243,6 +253,80 @@ async function main(): Promise<void> {
   check('suelta el puerto del juego', !(await isPortInUse(PORT)))
   check('suelta el de mensajería', !(await isPortInUse(RELIABLE_PORT)))
 
+  // --- 6b. Mods de ficsit.app ------------------------------------------------
+
+  console.log('\n== Mods (ficsit.app)')
+  const encontrados = await service.satisfactory.searchMods('snapon')
+  check(
+    'el buscador de ficsit encuentra mods',
+    encontrados.some((m) => m.id === MOD),
+    encontrados
+      .slice(0, 3)
+      .map((m) => m.id)
+      .join(', ')
+  )
+  check('y dice cuáles sirven para un servidor', encontrados.some((m) => m.forServer))
+
+  const instalacion = await service.satisfactory.addMod(manifest.id, MOD, (detalle) =>
+    console.log(`  ... ${detalle}`)
+  )
+  check(
+    'instala el mod',
+    instalacion.view.mods.some((m) => m.id === MOD),
+    instalacion.view.mods.map((m) => `${m.id} ${m.version}`).join(', ')
+  )
+  check('y pone SML, que es el cargador', instalacion.view.loader.installed, instalacion.view.loader.version ?? '')
+  check(
+    'el mod está donde el servidor lo busca',
+    await exists(join(serverDir(manifest.id), 'FactoryGame', 'Mods', MOD)),
+  )
+
+  // Lo único que demuestra que los mods están puestos: que SML los anuncie.
+  const lineas: string[] = []
+  const anotar = (_id: string, line: { text: string }): void => {
+    lineas.push(line.text)
+  }
+  service.on('log', anotar)
+
+  console.log('  ... arrancando con el mod puesto')
+  await service.start(manifest.id)
+  const conMods = await waitForStatus(manifest.id, 'running', 5 * 60_000)
+  check('arranca con el mod puesto', conMods)
+  check(
+    'SML dice en la consola que está en marcha',
+    lineas.some((l) => l.startsWith('Cargador de mods SML')),
+    lineas.find((l) => l.startsWith('Cargador de mods SML'))
+  )
+  check(
+    'y que ha cargado el mod',
+    lineas.some((l) => l === `Mod cargado: ${MOD} ${instalacion.view.mods.find((m) => m.id === MOD)?.version}`),
+    lineas.find((l) => l.startsWith('Mod cargado:'))
+  )
+  service.off('log', anotar)
+
+  await service.stop(manifest.id)
+  check('y para igual de limpio con mods', (await service.get(manifest.id)).status === 'stopped')
+
+  const apagado = await service.satisfactory.setModEnabled(manifest.id, MOD, false)
+  check('apagar un mod lo deja apuntado', apagado.mods.find((m) => m.id === MOD)?.enabled === false)
+  check(
+    'y lo saca de la carpeta de mods, que es lo que el servidor mira',
+    !(await exists(join(serverDir(manifest.id), 'FactoryGame', 'Mods', MOD)))
+  )
+  const encendido = await service.satisfactory.setModEnabled(manifest.id, MOD, true)
+  check('encenderlo lo devuelve a su sitio', encendido.mods.find((m) => m.id === MOD)?.enabled === true)
+  check('con sus ficheros', await exists(join(serverDir(manifest.id), 'FactoryGame', 'Mods', MOD)))
+
+  const sinMod = await service.satisfactory.removeMod(manifest.id, MOD)
+  check('quitarlo lo borra de la lista', !sinMod.mods.some((m) => m.id === MOD))
+  check(
+    'y del disco',
+    !(await exists(join(serverDir(manifest.id), 'FactoryGame', 'Mods', MOD)))
+  )
+
+  const sinCargador = await service.satisfactory.removeLoader(manifest.id)
+  check('sin mods, se puede quitar también el cargador', !sinCargador.loader.installed)
+
   // --- 7. Restaurar ------------------------------------------------------------
 
   console.log('\n== Restauración')
@@ -269,6 +353,10 @@ async function main(): Promise<void> {
     // El enlace se lleva por delante solo el enlace, pero la carpeta `datos`
     // que creó la prueba está DENTRO de la instalación compartida: se limpia.
     await rm(join(compartido, 'datos'), { recursive: true, force: true })
+    // Y lo que dejaron los mods: la carpeta `Mods` y la `Configs` que crea SML
+    // la primera vez que arranca. Ninguna de las dos viene de Steam.
+    await rm(join(compartido, 'FactoryGame', 'Mods'), { recursive: true, force: true })
+    await rm(join(compartido, 'FactoryGame', 'Configs'), { recursive: true, force: true })
     const sigue = await stat(compartido).catch(() => null)
     check('la instalación compartida sigue en su sitio', sigue !== null)
   }

@@ -4,6 +4,7 @@ import { BasicWizard } from './BasicWizard'
 import { CreateWizard } from './CreateWizard'
 import { SettingsPanel } from './SettingsPanel'
 import { SavesPanel } from './SavesPanel'
+import { CatalogModsPanel } from '../../CatalogModsPanel'
 import icon from './icon.svg'
 
 /** Piezas de interfaz de Satisfactory. */
@@ -25,6 +26,28 @@ export const satisfactoryUi: GameUi = {
         label: 'Partidas',
         slot: 'afterConnection' as const,
         render: () => <SavesPanel state={state} mode={mode} onChanged={onRefresh} />
+      },
+      {
+        id: 'mods',
+        label: 'Mods',
+        slot: 'afterConnection' as const,
+        render: () => (
+          <CatalogModsPanel
+            state={state}
+            onChanged={onRefresh}
+            api={window.qubiq.satisfactory.mods}
+            loaderId="SML"
+            catalog={{ name: 'ficsit.app', url: 'ficsit.app' }}
+            playersNote={
+              <>
+                Satisfactory comprueba los mods al entrar: quien no tenga los mismos que el
+                servidor se queda fuera. Cada jugador se los instala en su juego con el
+                Satisfactory Mod Manager, que es la herramienta de ficsit.app.
+              </>
+            }
+            searchPlaceholder="Por ejemplo: Refined Power, SnapOn, Infinite Zoop…"
+          />
+        )
       }
     ]
   },

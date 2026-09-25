@@ -10,7 +10,11 @@
  * 7. Parar mientras arranca: la señal se ignora y hay que reintentarla, así que
  *    se comprueba que el servidor **no acaba muerto a la fuerza**.
  * 8. Mundos: crear otro, cambiar y borrar, con la copia previa automática.
- * 9. Restauración de la copia.
+ * 9. Mods de Thunderstore: se instala uno de verdad con BepInEx, se arranca y
+ *    se comprueba que **el cargador dice en su registro que lo ha cargado** y
+ *    que el servidor sigue parando limpio con Ctrl+Break, que es lo que no se
+ *    puede perder. Después se apaga, se enciende y se quita.
+ * 10. Restauración de la copia.
  * 10. **Lo más importante:** que la carpeta del juego del usuario
  *     (`%USERPROFILE%\AppData\LocalLow\IronGate\Valheim`) no se haya tocado.
  *
@@ -40,6 +44,13 @@ const PORT = 2456
 const ID = 'e2e-valheim'
 /** Guardado cada minuto: la copia en caliente espera a que le toque guardar. */
 const SAVE_INTERVAL_SECONDS = 60
+
+/**
+ * El mod con el que se prueba: pequeño (290 KB), de servidor, con el `.dll`
+ * suelto en la raíz del paquete —la forma más común— y sin más dependencia que
+ * el propio BepInEx.
+ */
+const MOD = 'Advize-PlantEverything'
 
 let failed = 0
 
@@ -289,6 +300,105 @@ async function main(): Promise<void> {
   }
   check('no deja borrar el mundo en uso', bloqueado)
 
+  // --- 7b. Mods de Thunderstore ---------------------------------------------------------
+
+  console.log('\n== Mods (Thunderstore)')
+  const encontrados = await service.valheim.searchMods('plant everything')
+  check(
+    'el buscador de Thunderstore encuentra mods',
+    encontrados.some((m) => m.id === MOD),
+    encontrados
+      .slice(0, 3)
+      .map((m) => m.id)
+      .join(', ')
+  )
+
+  const instalacion = await service.valheim.addMod(manifest.id, MOD, (detalle) =>
+    console.log(`  ... ${detalle}`)
+  )
+  check(
+    'instala el mod',
+    instalacion.view.mods.some((m) => m.id === MOD),
+    instalacion.view.mods.map((m) => `${m.id} ${m.version}`).join(', ')
+  )
+  check('y pone BepInEx, que es el cargador', instalacion.view.loader.installed)
+  // El `winhttp.dll` de al lado del ejecutable es lo que engancha el cargador.
+  check(
+    'con el winhttp.dll junto al ejecutable',
+    await exists(join(serverDir(manifest.id), 'winhttp.dll'))
+  )
+  check(
+    'y el mod en BepInEx/plugins',
+    await exists(join(serverDir(manifest.id), 'BepInEx', 'plugins', MOD))
+  )
+
+  const lineas: string[] = []
+  const anotar = (_id: string, line: { text: string }): void => {
+    lineas.push(line.text)
+  }
+  service.on('log', anotar)
+
+  console.log('  ... arrancando con el mod puesto')
+  const tMods = Date.now()
+  await service.start(manifest.id)
+  const conMods = await waitForStatus(manifest.id, 'running', 5 * 60_000)
+  check('arranca con el mod puesto', conMods, `${((Date.now() - tMods) / 1000).toFixed(0)} s`)
+  check(
+    'BepInEx se anuncia en la consola',
+    lineas.some((l) => l.startsWith('Cargador de mods BepInEx')),
+    lineas.find((l) => l.startsWith('Cargador de mods BepInEx'))
+  )
+  service.off('log', anotar)
+
+  // Lo que más importa: que meter un cargador no rompa la parada limpia, que en
+  // Valheim es lo único que guarda el mundo.
+  const tParada = Date.now()
+  await service.stop(manifest.id)
+  check(
+    'sigue parando limpio con Ctrl+Break, con el cargador puesto',
+    (await service.get(manifest.id)).status === 'stopped',
+    `${((Date.now() - tParada) / 1000).toFixed(1)} s`
+  )
+
+  // ⚠ La lista de mods cargados NO sale por la consola: la escribe el
+  // chainloader solo en su registro, y de ahí la lee la app.
+  const conMod = await service.valheim.listMods(manifest.id)
+  check(
+    'el registro del cargador dice que cargó el mod',
+    conMod.loader.lastRun?.loaded.some((l) => l.startsWith('PlantEverything')) === true,
+    conMod.loader.lastRun?.loaded.join(', ')
+  )
+  check('y no se queja de nada', (conMod.loader.lastRun?.problems.length ?? 0) === 0,
+    conMod.loader.lastRun?.problems.join(' · '))
+
+  const apagado = await service.valheim.setModEnabled(manifest.id, MOD, false)
+  check('apagar un mod lo deja apuntado', apagado.mods.find((m) => m.id === MOD)?.enabled === false)
+  check(
+    'y lo saca de BepInEx/plugins, que es donde el cargador mira',
+    !(await exists(join(serverDir(manifest.id), 'BepInEx', 'plugins', MOD)))
+  )
+  const encendido = await service.valheim.setModEnabled(manifest.id, MOD, true)
+  check('encenderlo lo devuelve a su sitio', encendido.mods.find((m) => m.id === MOD)?.enabled === true)
+  check(
+    'con sus ficheros',
+    await exists(join(serverDir(manifest.id), 'BepInEx', 'plugins', MOD))
+  )
+
+  const sinMod = await service.valheim.removeMod(manifest.id, MOD)
+  check('quitarlo lo borra de la lista', !sinMod.mods.some((m) => m.id === MOD))
+  check(
+    'y del disco',
+    !(await exists(join(serverDir(manifest.id), 'BepInEx', 'plugins', MOD)))
+  )
+
+  const sinCargador = await service.valheim.removeLoader(manifest.id)
+  check('sin mods, se puede quitar también el cargador', !sinCargador.loader.installed)
+  check(
+    'y el servidor queda como vino de Steam',
+    !(await exists(join(serverDir(manifest.id), 'winhttp.dll'))) &&
+      !(await exists(join(serverDir(manifest.id), 'BepInEx')))
+  )
+
   // --- 8. Restauración ----------------------------------------------------------------
 
   console.log('\n== Restauración')
@@ -316,6 +426,17 @@ async function main(): Promise<void> {
     // La carpeta `datos` que creó la prueba está DENTRO de la instalación
     // compartida (el enlace solo se lleva el enlace): se limpia a mano.
     await rm(join(compartido, 'datos'), { recursive: true, force: true })
+    // Y lo que deja BepInEx, por si la prueba se cortó antes de quitarlo: la
+    // instalación compartida tiene que quedar como vino de Steam.
+    for (const resto of ['BepInEx', 'winhttp.dll', 'doorstop_config.ini', 'doorstop_libs',
+      '.doorstop_version', 'start_game_bepinex.sh', 'start_server_bepinex.sh', 'changelog.txt']) {
+      await rm(join(compartido, resto), { recursive: true, force: true })
+    }
+    for (const entrada of await readdir(compartido).catch(() => [])) {
+      if (/^preloader_.*\.log$/i.test(entrada)) {
+        await rm(join(compartido, entrada), { force: true })
+      }
+    }
     const sigue = await stat(compartido).catch(() => null)
     check('la instalación compartida sigue en su sitio', sigue !== null)
   }

@@ -577,10 +577,11 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
     case 'satisfactory':
       // Las partidas tienen su propia pestaña (la aporta el juego), no son
       // «mundos» del núcleo. Y el servidor no lee órdenes por la consola: todo
-      // lo que se puede mandar va por su API.
+      // lo que se puede mandar va por su API. Los mods sí los tiene: son los de
+      // ficsit.app, con SML de cargador.
       return {
         worlds: false,
-        content: false,
+        content: true,
         officialPlugins: false,
         memory: false,
         settings: true,
@@ -642,10 +643,11 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
       // Los mundos y la moderación los aporta el juego con sus propias pestañas
       // (las listas son ficheros de texto, no comandos). El servidor no lee
       // órdenes por la consola y solo dice el SteamID de quien entra, no su
-      // nombre, así que ni `commands` ni `playerNames`.
+      // nombre, así que ni `commands` ni `playerNames`. Los mods son los de
+      // Thunderstore, con BepInEx de cargador.
       return {
         worlds: false,
-        content: false,
+        content: true,
         officialPlugins: false,
         memory: false,
         settings: true,

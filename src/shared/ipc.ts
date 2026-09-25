@@ -113,7 +113,18 @@ export const SATISFACTORY_IPC = {
   setGameRules: 'satisfactory:rules:set',
 
   // Contraseña de los jugadores
-  setClientPassword: 'satisfactory:password:client'
+  setClientPassword: 'satisfactory:password:client',
+
+  // Mods de ficsit.app. Buscar es libre; instalar exige el servidor parado,
+  // porque la carpeta de mods se lee al arrancar y no se vuelve a mirar.
+  searchMods: 'satisfactory:mods:search',
+  listMods: 'satisfactory:mods:list',
+  addMod: 'satisfactory:mods:add',
+  removeMod: 'satisfactory:mods:remove',
+  setModEnabled: 'satisfactory:mods:enable',
+  modUpdates: 'satisfactory:mods:updates',
+  updateMod: 'satisfactory:mods:update',
+  removeLoader: 'satisfactory:mods:removeLoader'
 } as const
 
 /** Canales exclusivos de Valheim. */
@@ -129,7 +140,18 @@ export const VALHEIM_IPC = {
   // Moderación: las tres listas de texto (administradores, vetados, invitados)
   getList: 'valheim:moderation:get',
   addToList: 'valheim:moderation:add',
-  removeFromList: 'valheim:moderation:remove'
+  removeFromList: 'valheim:moderation:remove',
+
+  // Mods de Thunderstore, con BepInEx como cargador. Todo con el servidor
+  // parado: el cargador se engancha al arrancar el proceso.
+  searchMods: 'valheim:mods:search',
+  listMods: 'valheim:mods:list',
+  addMod: 'valheim:mods:add',
+  removeMod: 'valheim:mods:remove',
+  setModEnabled: 'valheim:mods:enable',
+  modUpdates: 'valheim:mods:updates',
+  updateMod: 'valheim:mods:update',
+  removeLoader: 'valheim:mods:removeLoader'
 } as const
 
 /** Canales exclusivos de Factorio. */

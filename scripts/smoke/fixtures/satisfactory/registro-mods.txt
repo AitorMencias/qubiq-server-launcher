@@ -1,0 +1,14 @@
+LogSatisfactoryModLoader: Display: Satisfactory Mod Loader v.3.12.0+827 pre-initializing...
+LogSatisfactoryModLoader: Display: Build Date: Jun  6 2026 16:29:21
+LogSatisfactoryModLoader: Display: SML configuration file is missing, saving new one
+LogSatisfactoryModLoader: Display: Successfully saved SML configuration
+LogSatisfactoryModLoader: Display: Version check passed successfully! Game Changelist: 502094
+LogSatisfactoryModLoader: Display: Pre-initialization finished!
+LogSatisfactoryModLoader: Display: List of loaded mods:
+LogSatisfactoryModLoader: Display: FactoryGame: 502094.0.0
+LogSatisfactoryModLoader: Display: SML: 3.12.0
+LogSatisfactoryModLoader: Display: DirectToSplitter: 1.3.1
+LogSatisfactoryModLoader: Display: Parsing ExecCmds
+LogSatisfactoryModLoader: Display: Performing mod loader initialization
+LogModNetworkHandler: Display: Registering message type SML:1
+LogSatisfactoryModLoader: Display: Initialization finished!

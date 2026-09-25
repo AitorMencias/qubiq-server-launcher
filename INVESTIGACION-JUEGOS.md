@@ -121,6 +121,7 @@ La pantalla de conexión y sus guías dan por hecho **un puerto TCP**. Cinco de 
 | Parada limpia | **Ctrl+C** (ver 2.3) |
 | Moderación | Listas de texto con SteamID: `adminlist.txt`, `bannedlist.txt`, `permittedlist.txt`. Sin RCON |
 | Jugadores | A2S y log **(a confirmar en prototipo)** |
+| Mods | **Thunderstore** (comunidad `valheim`), con **BepInEx** de cargador. Comprobado contra el servidor real (ANALISIS §19.23): el cargador se engancha con el `winhttp.dll` de al lado del ejecutable, sin tocar la línea de órdenes, y la parada con Ctrl+Break sigue guardando el mundo. ⚠ Se cae con `Could not run preloader!` si la ruta del servidor pasa de los 260 caracteres de Windows |
 
 **Por qué encaja:** la configuración cabe entera en el asistente básico. Nombre, contraseña,
 mundo, *preset* de dificultad (normal, casual, difícil, inmersivo…) y modificadores son justo el
@@ -141,6 +142,7 @@ editar listas; no se puede expulsar a alguien en caliente desde fuera del juego 
 | Configuración y control | **API HTTPS oficial** en el propio puerto 7777 |
 | Guardados (Windows) | `%LocalAppData%\FactoryGame\Saved\SaveGames\server` |
 | Parada limpia | Función `Shutdown` de la API |
+| Mods | **ficsit.app** (SMR), con **SML** de cargador. Comprobado contra el servidor real (ANALISIS §19.23): van a `FactoryGame/Mods/<referencia>/` y el servidor los carga sin tocar la línea de órdenes. Cada versión publica varias «dianas» y un servidor necesita la **`WindowsServer`**: hay mods que solo publican la de cliente. SML guarda su configuración en `FactoryGame/Configs`, no bajo `-UserDir` |
 
 **Por qué encaja:** es el más «programable» de todos. La API trae `HealthCheck` (sin
 autenticación), `QueryServerState` (jugadores conectados, tick rate, fase de la partida),
@@ -328,9 +330,11 @@ todavía; habría que pasarles la misma criba del apartado 1.
 **Valheim**
 - [Wiki: servidores dedicados](https://valheim.fandom.com/wiki/Dedicated_servers) · [Guía oficial de Iron Gate](https://www.valheimgame.com/support/a-guide-to-dedicated-servers/) · [Parámetros de arranque](https://www.survivalservers.com/wiki/Valheim_Server_Settings)
 - [Crossplay y códigos de acceso](https://connecthosting.net/help/games/valheim/valheim-crossplay-join-code) · [SteamDB 896660](https://steamdb.info/app/896660/info/)
+- Mods: [BepInExPack para Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/) · [API de Thunderstore](https://thunderstore.io/api/docs/)
 
 **Satisfactory**
 - [Wiki oficial: servidores dedicados](https://satisfactory.wiki.gg/wiki/Dedicated_servers) · [Wiki oficial: API HTTPS](https://satisfactory.wiki.gg/wiki/Dedicated_servers/HTTPS_API)
+- Mods: [ficsit.app](https://ficsit.app/) · [Documentación de modding y su API](https://docs.ficsit.app/)
 
 **Project Zomboid**
 - [Build 42.20 publicada](https://projectzomboid.com/blog/news/2026/07/project-zomboid-build-42-20-released/) · [Estado del multijugador B42](https://hostedgg.com/blog/project-zomboid-build-42-multiplayer-status)

@@ -248,15 +248,20 @@ la fase siguiente dejando un juego sin su forma de añadir contenido, no.
     juego, la lista de servidores, la cabecera del servidor y la del asistente. No se sustituye por un logo oficial (ANALISIS.md §13.1).
 11. **Documentación** en ANALISIS.md y README.
 
-**Deuda de las fases cerradas antes de esta regla.** Las fases 2 y 3 se dieron por hechas sin la
-parte de mods, así que la tienen pendiente y hay que saldarla antes de cerrar la 0.10.0:
+**Deuda de las fases cerradas antes de esta regla: saldada.** Las fases 2 y 3 se dieron por hechas
+sin la parte de mods; ya la tienen:
 
 | Juego | Cómo se amplía | Estado |
 |---|---|---|
-| Satisfactory (fase 2) | ficsit.app, con el gestor de mods del propio juego | **Pendiente** |
-| Valheim (fase 3) | BepInEx como cargador, Thunderstore como catálogo | **Pendiente** |
+| Satisfactory (fase 2) | ficsit.app, con SML de cargador | **Hecho** (ANALISIS §19.23) |
+| Valheim (fase 3) | Thunderstore, con BepInEx de cargador | **Hecho** (ANALISIS §19.23) |
 | Factorio (fase 4) | Portal de mods oficial | Hecho en su fase |
 | Project Zomboid (fase 5) | Steam Workshop | Hecho (ANALISIS §19.22) |
+
+Los cuatro tienen buscar o pegar la referencia, instalar con lo que el mod necesite, encender y
+apagar, avisar de versiones nuevas y quitar. Satisfactory y Valheim comparten pantalla
+(`CatalogModsPanel`) porque comparten forma —cargador y catálogo con buscador—; los otros dos no,
+porque uno va por enlaces del taller de Steam y el otro pide cuenta para descargar.
 
 ### Fase 2 — Satisfactory (0.5.0)
 
@@ -296,6 +301,9 @@ parte de mods, así que la tienen pendiente y hay que saldarla antes de cerrar l
 - **Aviso de RAM:** 8 GB mínimo, 16 GB con partidas grandes o más de 4 jugadores.
 - **A resolver:** aceptar el certificado autofirmado solo para esa conexión, y hasta dónde llega la
   moderación en la API.
+- **Mods (añadido después, ANALISIS §19.23):** ficsit.app con SML de cargador. Buscar, instalar con
+  sus dependencias, encender, apagar, actualizar y quitar. Solo se instalan los que publican versión
+  `WindowsServer`; los de cliente se marcan como tales en el buscador.
 
 ### Fase 3 — Valheim (0.6.0)
 
@@ -337,6 +345,10 @@ parte de mods, así que la tienen pendiente y hay que saldarla antes de cerrar l
 - **Moderación:** edición de `adminlist.txt`, `bannedlist.txt` y `permittedlist.txt`. El servidor
   las relee al vuelo, así que **vetar echa al jugador al momento**; los botones están en la
   pantalla principal, junto a quién está conectado.
+- **Mods (añadido después, ANALISIS §19.23):** Thunderstore con BepInEx de cargador. El cargador se
+  engancha con el `winhttp.dll` de al lado del ejecutable, sin tocar la línea de órdenes, y la
+  parada limpia con Ctrl+Break sigue funcionando con él puesto (comprobado). ⚠ La carpeta de datos
+  de la app no puede estar muy metida en el disco: BepInEx se queda en los 260 caracteres de Windows.
 
 ### Fase 4 — Factorio (0.7.0)
 

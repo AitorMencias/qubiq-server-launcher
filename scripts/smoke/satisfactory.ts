@@ -11,6 +11,7 @@ import {
   parseLine,
   satisfactoryAdapter
 } from '../../src/main/core/games/satisfactory/adapter'
+import * as mods from '../../src/main/core/games/satisfactory/mods'
 import { capabilitiesFor, gameInfo, serverPorts } from '../../src/shared/games'
 import { RELIABLE_PORT } from '../../src/shared/games/satisfactory/types'
 import type { SatisfactoryManifest } from '../../src/shared/types'
@@ -428,5 +429,134 @@ export async function satisfactorySmoke(): Promise<void> {
       'avisa de que la conexión directa no vale',
       info.joinWarning?.includes('Encryption token missing') === true
     )
+  })
+
+  // --- Mods de ficsit.app -------------------------------------------------------
+
+  await section('Satisfactory: mods de ficsit.app', async () => {
+    // Comparar versiones por texto pondría la 1.2.10 por debajo de la 1.2.2, y
+    // la app instalaría una versión vieja creyendo que es la última.
+    check('1.2.10 es posterior a 1.2.2', mods.compareVersions('1.2.10', '1.2.2') > 0)
+    check('2026.3.28 es posterior a 2026.3.26', mods.compareVersions('2026.3.28', '2026.3.26') > 0)
+    check('la misma versión empata', mods.compareVersions('3.12.0', '3.12.0') === 0)
+
+    // La versión del juego se guarda como la escribe su certificado.
+    check(
+      'saca el número de build de la versión del juego',
+      mods.buildNumber('anniversary-2026 (build 502094)') === 502094
+    )
+    check('sin versión, no hay build', mods.buildNumber(undefined) === null)
+
+    check('un mod que pide una build anterior vale', mods.fitsGame('>=491125', 502094))
+    check('uno que pide una posterior, no', !mods.fitsGame('>=600000', 502094))
+    // Sin saber la build —el servidor no ha arrancado nunca— no se inventa un
+    // aviso: vale más no decir nada que decir algo falso.
+    check('sin build del juego, no se juzga', mods.fitsGame('>=600000', null))
+    check('una condición rara no se juzga', mods.fitsGame('cualquier cosa', 502094))
+
+    // Elegir versión: la más nueva que tenga servidor Y le valga a la build.
+    const version = (
+      v: string,
+      game: string,
+      servidor = true
+    ): Parameters<typeof mods.pickBest>[0][number] => ({
+      version: v,
+      game_version: game,
+      required_on_remote: true,
+      targets: servidor
+        ? [
+            { targetName: 'Windows', link: '/w', size: 1, hash: 'a' },
+            { targetName: 'WindowsServer', link: '/s', size: 1, hash: 'b' }
+          ]
+        : [{ targetName: 'Windows', link: '/w', size: 1, hash: 'a' }]
+    })
+
+    const lista = [version('1.2.2', '>=383729'), version('1.3.1', '>=502094')]
+    check('elige la más nueva que le vale al juego', mods.pickBest(lista, 502094)?.version === '1.3.1')
+    check(
+      'con un juego más viejo, se queda con la que puede',
+      mods.pickBest(lista, 400000)?.version === '1.2.2'
+    )
+    check(
+      'un mod solo de cliente no tiene nada que instalar',
+      mods.pickBest([version('1.0.0', '>=1', false)], 502094) === null
+    )
+    // El catálogo va por delante del servidor cada vez que sale una versión del
+    // juego: negarse ahí dejaría sin mods a quien va al día.
+    check(
+      'si ninguna le vale, propone la más nueva en vez de negarse',
+      mods.pickBest([version('9.0.0', '>=900000')], 502094)?.version === '9.0.0'
+    )
+
+    // El `.uplugin` es lo que dice qué hay puesto de verdad en el disco.
+    const uplugin = await mods.readUplugin(FIXTURES)
+    check('lee la versión del .uplugin instalado', uplugin?.version === '3.12.0', uplugin?.version)
+    check('y su nombre legible', uplugin?.name === 'Satisfactory Mod Loader', uplugin?.name ?? '')
+
+    // Lo que SML escribe en el registro del servidor real: es lo único que
+    // confirma en la consola que los mods están cargados.
+    const registro = (await readFile(join(FIXTURES, 'registro-mods.txt'), 'utf8')).split(/\r?\n/)
+    const lineas = registro.filter((l) => l.length > 0).map((l) => parseLine(l))
+    check(
+      'anuncia el cargador con su versión',
+      lineas.some((l) => l.text === 'Cargador de mods SML 3.12.0 en marcha.' && l.hidden !== true)
+    )
+    check(
+      'y cada mod cargado',
+      lineas.some((l) => l.text === 'Mod cargado: DirectToSplitter 1.3.1' && l.hidden !== true)
+    )
+    check(
+      'sus líneas internas no se cuelan como mods',
+      !lineas.some((l) => l.text.startsWith('Mod cargado: SML configuration'))
+    )
+    // SML se cuenta a sí mismo y cuenta el juego base en esa lista; ninguno de
+    // los dos es un mod que el usuario haya puesto.
+    check(
+      'y el juego base tampoco se enseña como un mod',
+      !lineas.some((l) => l.text.startsWith('Mod cargado: FactoryGame'))
+    )
+    check(
+      'de la lista solo sale un mod de verdad',
+      lineas.filter((l) => l.text.startsWith('Mod cargado:')).length === 1,
+      lineas.filter((l) => l.text.startsWith('Mod cargado:')).map((l) => l.text).join(', ')
+    )
+
+    check('los mods van donde el servidor los busca', mods.MODS_DIR === 'FactoryGame/Mods')
+    check('y ahora el juego declara que tiene mods', capabilitiesFor(manifestoDePrueba(7777)).content)
+  })
+
+  // Contrato con ficsit.app: si su API cambia, esto lo dice.
+  await section('Satisfactory: la API de ficsit.app sigue contestando lo mismo', async () => {
+    const resultados = await mods.searchMods('snapon', 5)
+    check('el buscador filtra de verdad', resultados.length > 0 && resultados.length <= 5,
+      `${resultados.length} resultados`)
+    // ⚠ Ordenado por relevancia, no por popularidad: lo que se busca por su
+    // nombre tiene que salir EL PRIMERO. Con `popularity` salía el quinto.
+    check(
+      'y lo que se busca por su nombre sale el primero',
+      resultados[0]?.id === 'DirectToSplitter',
+      resultados.map((m) => m.id).join(', ')
+    )
+    check('cada resultado trae autor y descargas', resultados.every((m) => m.author.length > 0))
+
+    // El cargador tiene que seguir publicando versión de servidor: sin ella no
+    // hay mods posibles en Satisfactory.
+    const sml = await mods.resolveVersions([{ id: mods.LOADER_ID, range: '>=3.0.0' }])
+    const versiones = sml.get(mods.LOADER_ID) ?? []
+    check('SML sigue en el catálogo', versiones.length > 0, `${versiones.length} versiones`)
+    check(
+      'y publica versión para servidor de Windows',
+      versiones.some((v) => mods.targetFor(v) !== null)
+    )
+    const elegida = mods.pickBest(versiones, null)
+    check('con hash para comprobar la descarga', (elegida && mods.targetFor(elegida)?.hash.length === 64) === true)
+
+    // ⚠ Con un rango ancho devuelve TODAS las que valen, no la mejor. Si esto
+    // cambiara, la app instalaría una al azar.
+    check('un rango ancho devuelve varias versiones sin ordenar', versiones.length > 1)
+
+    // Y las dependencias hay que recorrerlas a mano: la API no las resuelve.
+    const conDependencias = versiones.some((v) => Array.isArray(v.dependencies))
+    check('las versiones dicen de qué dependen', conDependencias)
   })
 }

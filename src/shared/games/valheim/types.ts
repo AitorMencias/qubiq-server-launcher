@@ -14,6 +14,8 @@
  * No debe importar nada de Node ni de Electron.
  */
 
+import type { ModRef } from '../mods'
+
 /** El servidor dedicado de Valheim es esta aplicación de Steam. */
 export const VALHEIM_APP_ID = 896660
 
@@ -279,6 +281,17 @@ export interface ValheimData {
   buildId?: string
   /** Versión del juego tal como la escribe el servidor al arrancar. */
   gameVersion?: string
+  /**
+   * Los mods de Thunderstore que lleva el servidor, en el orden en que se
+   * añadieron. Falta en los servidores creados antes de que la app supiera de
+   * mods, y eso es «ninguno», no un manifiesto roto.
+   */
+  mods?: ModRef[]
+  /**
+   * Versión de BepInEx instalada. Es el cargador: sin él, el servidor arranca
+   * como si no hubiera ningún mod.
+   */
+  loaderVersion?: string
 }
 
 /** Lo que el asistente elige para un servidor de Valheim nuevo. */

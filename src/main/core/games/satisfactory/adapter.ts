@@ -48,6 +48,16 @@ const USER_DIR = 'datos'
 const SAVES_DIR = `${USER_DIR}/Saved/SaveGames`
 const CONFIG_DIR = `${USER_DIR}/Saved/Config/WindowsServer`
 
+/**
+ * Dónde escriben los mods su configuración.
+ *
+ * ⚠ **No cuelga de `-UserDir`, sino de la carpeta del juego**: SML la crea en
+ * `FactoryGame/Configs` la primera vez que arranca (comprobado con el servidor
+ * real). Entra en las copias porque son ajustes que el usuario ha tocado y que
+ * reinstalar el mod no devuelve.
+ */
+const MOD_CONFIG_DIR = 'FactoryGame/Configs'
+
 /** Lo que tarda como mucho en levantar la API desde que arranca el proceso. */
 const READY_TIMEOUT_MS = 180_000
 
@@ -375,6 +385,7 @@ export const satisfactoryAdapter: GameAdapter<SatisfactoryManifest, Satisfactory
     if (!(await exists(join(serverDir(manifest.id), SAVES_DIR)))) return []
     const entries = [SAVES_DIR]
     if (await exists(join(serverDir(manifest.id), CONFIG_DIR))) entries.push(CONFIG_DIR)
+    if (await exists(join(serverDir(manifest.id), MOD_CONFIG_DIR))) entries.push(MOD_CONFIG_DIR)
     return entries
   },
 
@@ -541,6 +552,23 @@ export function parseLine(raw: string): ParsedEvent {
 
   if (/Server startup time elapsed/.test(clean)) {
     return { level: 'info', text: 'Partida cargada.' }
+  }
+
+  // SML escribe la lista de lo que ha cargado, un mod por línea
+  // («LogSatisfactoryModLoader: Display: SML: 3.12.0», comprobado con el
+  // servidor real). Es lo único del registro que dice de verdad si los mods
+  // están puestos, así que se enseña traducido en vez de esconderse con el
+  // resto del ruido del motor.
+  //
+  // ⚠ En esa lista, SML se cuenta a sí mismo y cuenta **también el juego base**
+  // («FactoryGame: 502094.0.0»). Enseñarlo como un mod más confundiría: el
+  // juego no es un mod que el usuario haya puesto.
+  const mod = /^LogSatisfactoryModLoader:\s*Display:\s*([\w.+-]+):\s*(\d[\w.+-]*)$/.exec(clean)
+  if (mod) {
+    if (mod[1] === 'FactoryGame') return { level: 'info', text: clean, hidden: true }
+    return mod[1] === 'SML'
+      ? { level: 'info', text: `Cargador de mods SML ${mod[2]} en marcha.` }
+      : { level: 'info', text: `Mod cargado: ${mod[1]} ${mod[2]}` }
   }
 
   const useful = ALWAYS_SHOW.test(clean) || (USEFUL_CATEGORIES.test(clean) && !NOISE.test(clean))

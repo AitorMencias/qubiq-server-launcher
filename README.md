@@ -106,12 +106,12 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 774 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Project Zomboid, contra los ficheros reales de su servidor (su `servertest.ini` de 144 claves, su `SandboxVars.lua` de 300 opciones y su registro): aislamiento de la carpeta del usuario, Steam apagado, claves que gestiona la app, lectura del registro sin enseñar la IP de quien entra, editor de tablas Lua (ida y vuelta byte a byte, límites con coma decimal y nombres de cada valor), aplicar un preajuste de dificultad sobre el fichero comentado, que las reglas del modo básico existan de verdad en el juego, y los mods del taller (leer un `mod.info` real, la regla de las carpetas de versión medida contra el servidor, las tres claves que se le escriben y las salidas reales de SteamCMD al descargar, incluidas las que fallan con código 0). De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON, .properties y Lua, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
+| `npm run smoke` | 841 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro; y sus mods de ficsit.app, contra el `.uplugin` y el registro reales de SML (elegir versión según la build del juego, descartar los mods de solo cliente y traducir la lista de lo que ha cargado), con una sección de contrato contra la API de verdad. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación; y sus mods de Thunderstore, contra el `LogOutput.log` real de BepInEx (dónde acaba cada fichero de un paquete, identificadores y dependencias, y no confundir los errores de vídeo del propio juego con problemas de mods), con una sección de contrato contra la API de verdad. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Project Zomboid, contra los ficheros reales de su servidor (su `servertest.ini` de 144 claves, su `SandboxVars.lua` de 300 opciones y su registro): aislamiento de la carpeta del usuario, Steam apagado, claves que gestiona la app, lectura del registro sin enseñar la IP de quien entra, editor de tablas Lua (ida y vuelta byte a byte, límites con coma decimal y nombres de cada valor), aplicar un preajuste de dificultad sobre el fichero comentado, que las reglas del modo básico existan de verdad en el juego, y los mods del taller (leer un `mod.info` real, la regla de las carpetas de versión medida contra el servidor, las tres claves que se le escriben y las salidas reales de SteamCMD al descargar, incluidas las que fallan con código 0). De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON, .properties y Lua, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge`, `neoforge` |
 | `npm run e2e:custom` | Servidor a medida de verdad: monta un server pack de NeoForge 1.21.1 con su instalador oficial en una carpeta aparte, lo trae (comprueba que se **mueve**), arranca con su run.bat usando el Java de la app, pone la memoria en `user_jvm_args.txt`, para limpio sin quedarse en el `pause` y, con un script que se reinicia solo, comprueba que forzar el cierre mata también a Java |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
-| `npm run e2e:satisfactory` | **Con todos los servidores de Satisfactory parados** (solo puede haber uno a la vez). Satisfactory de verdad: instalar, reclamar el servidor sin abrir el juego, arrancar, detectar «listo» por su API, puertos, partidas, ajustes en caliente, copia con el servidor en marcha, parada limpia, restauración y **comprobar que no se ha tocado `%LOCALAPPDATA%\FactoryGame`**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\satisfactory` con un enlace; `-- --descargar` baja los 15,5 GB de cero |
-| `npm run e2e:valheim` | Valheim de verdad: instalar, arrancar generando el mundo, puertos UDP, moderación, copia en caliente esperando a que el servidor guarde, parada con Ctrl+Break, parar mientras arranca, mundos, restauración y **comprobar que no se ha tocado la carpeta de Valheim del usuario**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\valheim` con un enlace; `-- --descargar` baja los 2 GB de cero. No publica el servidor: arranca con `-public 0` y sin crossplay |
+| `npm run e2e:satisfactory` | **Con todos los servidores de Satisfactory parados** (solo puede haber uno a la vez). Satisfactory de verdad: instalar, reclamar el servidor sin abrir el juego, arrancar, detectar «listo» por su API, puertos, partidas, ajustes en caliente, copia con el servidor en marcha, parada limpia, **un mod real de ficsit.app que SML carga de verdad** (con su cargador, apagarlo, encenderlo y quitarlo), restauración y **comprobar que no se ha tocado `%LOCALAPPDATA%\FactoryGame`**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\satisfactory` con un enlace; `-- --descargar` baja los 15,5 GB de cero |
+| `npm run e2e:valheim` | Valheim de verdad: instalar, arrancar generando el mundo, puertos UDP, moderación, copia en caliente esperando a que el servidor guarde, parada con Ctrl+Break, parar mientras arranca, mundos, **un mod real de Thunderstore que BepInEx carga de verdad** (con su cargador, comprobando que la parada limpia sigue guardando el mundo con él puesto), restauración y **comprobar que no se ha tocado la carpeta de Valheim del usuario**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\valheim` con un enlace; `-- --descargar` baja los 2 GB de cero. No publica el servidor: arranca con `-public 0` y sin crossplay |
 | `npm run e2e:factorio` | Factorio de verdad: copiar el juego de una instalación del equipo y adelgazarlo (de 5,1 GB a ~246 MB), generar el mapa, arrancar, puerto UDP, moderación por RCON en caliente, copia con el servidor en marcha, parada con `/quit`, restauración y **comprobar que no se ha tocado `%APPDATA%\Factorio`**. `-- --rapido` usa la copia ya adelgazada del laboratorio; `-- --mods` prueba además buscar e instalar un mod real del portal, que necesita tu sesión de factorio.com. Son 34 comprobaciones. Termina con 2 si lo único que falla es que el portal no responde |
 | `npm run e2e:zomboid` | Project Zomboid de verdad: instalar, primer arranque que escribe la configuración y genera el mundo, puerto UDP (y comprobar que el segundo **no** se abre sin Steam), jugadores por RCON, ajustes en caliente, cuentas y niveles de acceso, reglas de la partida con el servidor parado, copia en caliente, parada con `quit`, **un mod real del taller que el servidor carga de verdad**, restauración y **comprobar que no se ha tocado `%USERPROFILE%\Zomboid`**. Guarda una copia del juego en `%LOCALAPPDATA%\qubiq-dev\e2e-zomboid-juego` y la **mueve** dentro de la instancia: **no se puede enlazar**, porque Zomboid no arranca si llega a su carpeta por un `mklink /J`. `-- --descargar` baja los 6,7 GB de cero. Arranca sin Steam: no se anuncia en ningún sitio |
 | `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones, viaje de ida y vuelta a una rama anterior y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%LOCALAPPDATA%\qubiq-dev\e2e-steam`); `-- --limpio` empieza de cero |
@@ -194,6 +194,7 @@ src/
 │       ├── games/
 │       │   ├── types.ts     El contrato de un juego (GameAdapter)
 │       │   ├── registry.ts  Registro de juegos
+│       │   ├── modFiles.ts  Descomprimir y repartir mods, y apuntar qué es de cada uno
 │       │   ├── minecraft/   Todo lo de Minecraft:
 │       │       ├── adapter.ts   Implementación del contrato
 │       │       ├── service.ts   Mundos, plugins/mods y server.properties
@@ -209,20 +210,23 @@ src/
 │       │   ├── satisfactory/ Todo lo de Satisfactory:
 │       │       ├── adapter.ts   Contrato: SteamCMD, reclamar, arrancar, sondear y parar por API
 │       │       ├── api.ts       Su API HTTPS, con el certificado autofirmado
-│       │       └── service.ts   Partidas y ajustes, todo por API
+│       │       ├── mods.ts      ficsit.app y SML: buscar, resolver dependencias e instalar
+│       │       └── service.ts   Partidas, ajustes y mods
 │       │   └── valheim/      Todo lo de Valheim:
 │       │       ├── adapter.ts   Contrato: SteamCMD, línea de órdenes, registro y Ctrl+Break
-│       │       └── service.ts   Mundos y listas de moderación (ficheros, servidor parado)
+│       │       ├── mods.ts      Thunderstore y BepInEx: catálogo, cargador y su registro
+│       │       └── service.ts   Mundos, listas de moderación y mods (ficheros, servidor parado)
 │       └── service.ts       Orquestador: lo común, y delega en el juego
 ├── preload/                 Superficie expuesta al renderer (nada de Node)
 └── renderer/src/            Interfaz React
     ├── App.tsx, ServerPanel.tsx…   Armazón común (botón grande, jugadores, consola, copias)
     ├── GameChooser.tsx, WizardParts.tsx  Elegir juego y las piezas del asistente básico
+    ├── CatalogModsPanel.tsx  Pestaña de mods de los juegos con cargador y catálogo
     └── games/
         ├── types.ts         Lo que aporta cada juego a la interfaz (GameUi)
         ├── minecraft/       Asistentes, Ajustes, Mundos, Plugins/Mods, plugins oficiales
-        ├── satisfactory/    Asistentes, Ajustes y Partidas
-        ├── valheim/         Asistentes, Ajustes, Mundos y Moderación
+        ├── satisfactory/    Asistentes, Ajustes, Partidas y Mods
+        ├── valheim/         Asistentes, Ajustes, Mundos, Moderación y Mods
         └── <juego>/icon.svg Icono propio de cada juego, ya dibujado para su fase
 
 resources/<juego>/           Ficheros que se empaquetan por juego (resources/minecraft/plugins/)
@@ -347,6 +351,35 @@ dice exactamente lo que se ha mirado (que tiene el puerto abierto), sin prometer
 reconoce»): Valheim tiene la primera y no la segunda, así que se lista a la gente pero con su
 identificador por delante y explicando qué es. **Vetar a alguien lo echa al momento**: el servidor
 relee sus listas al vuelo.
+
+**Cada juego se amplía a su manera, y solo dos comparten pantalla.** Satisfactory (ficsit.app, con
+SML) y Valheim (Thunderstore, con BepInEx) tienen la misma forma —un **cargador** que el juego base
+no trae y un **catálogo con buscador**—, así que comparten `CatalogModsPanel` y los tipos de
+`shared/games/mods.ts`. Project Zomboid y Factorio **no** están ahí: uno va pegando enlaces del
+taller de Steam y el otro pide cuenta para descargar. Si añades un juego con mods, mira primero si
+encaja de verdad en ese molde; forzarlo es peor que darle su pantalla.
+
+**Apagar un mod no es renombrarlo.** Los dos cargadores buscan por contenido, no por nombre: BepInEx
+recorre `BepInEx/plugins` entero buscando `.dll` y el servidor de Satisfactory mira todas las
+carpetas de `FactoryGame/Mods`. Un mod apagado tiene que **salir** de ahí, así que se aparta a
+`mods-apagados/` dentro de la instancia (fuera de la carpeta del servidor) y vuelve a su sitio al
+encenderlo. Por eso cada mod guarda en el manifiesto **qué rutas son suyas**: sin eso no se sabría
+qué apartar ni qué borrar.
+
+**La carpeta de datos de la app no puede estar muy metida en el disco, o Valheim se queda sin
+mods.** BepInEx carga las bibliotecas de Unity con las API de Mono, que se quedan en los 260
+caracteres de Windows. Con una ruta larga contesta `Could not run preloader!` en un
+`preloader_<fecha>.log` que nadie lee y **el servidor arranca sin un solo mod**, funcionando
+perfectamente por lo demás: es el peor fallo posible, el que no se nota. Se mide antes de instalar
+nada (`assertPathFits`) y se explica. Comprobado: el mismo servidor, movido a una ruta corta, carga
+sin tocar nada más.
+
+**El cargador de Valheim no cuenta por la consola qué mods ha cargado.** Por la tubería del proceso
+solo llegan las líneas del *preloader*; la lista (`Loading [PlantEverything 1.21.2]`) está solo en
+`BepInEx/LogOutput.log`, que la pestaña de mods lee. ⚠ Y ese fichero recoge **también** el registro
+del juego: un servidor sin pantalla escribe de serie quince errores de vídeo y de shaders, así que
+solo cuentan como problemas los de BepInEx y los de los propios mods, nunca los de `Unity Log`.
+SML, en Satisfactory, sí lo dice por la consola y no necesita nada de esto.
 
 **Los paneles de un juego se montan con las piezas de siempre, no con las tuyas.** Todo va dentro
 de `div.panel`, cada bloque en un `div.card` con su `h3`, cada campo en un `div.field` (etiqueta,

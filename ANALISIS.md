@@ -2357,7 +2357,128 @@ falten, pero no se ha visto el caso con mods reales—.
 
 ---
 
-### 19.23 Siguiente
+### 19.23 Los mods de Satisfactory y Valheim (deuda de las fases 2 y 3)
+
+Las fases 2 y 3 se cerraron antes de que la plantilla dijera que un juego **no está hecho hasta que
+se puede ampliar como lo amplía la gente**. Esto salda esa deuda: Satisfactory con ficsit.app y
+Valheim con Thunderstore, los dos con la misma forma —un cargador que el juego base no trae y un
+catálogo con buscador— y por eso con piezas compartidas.
+
+Es el tercer modelo de mods de la app, y los cuatro juegos que los tienen no se parecen:
+
+| Juego | De dónde salen | Cargador | Cómo se pide |
+|---|---|---|---|
+| Project Zomboid | Taller de Steam | ninguno | pegando el enlace (no hay buscador fuera de Steam) |
+| Factorio | Portal oficial | ninguno | buscador, pero **hay que identificarse** para descargar |
+| **Satisfactory** | **ficsit.app** | **SML** | **buscador libre, descarga libre** |
+| **Valheim** | **Thunderstore** | **BepInEx** | **buscador libre, descarga libre** |
+
+#### Lo que se averiguó contra los servidores reales
+
+Todo con los servidores de verdad del material de desarrollo, sin publicar nada en ninguna lista
+(Satisfactory no se anuncia, y Valheim se arrancó con `-public 0`). Los prototipos, en
+`%LOCALAPPDATA%\qubiq-dev`.
+
+**Satisfactory (ficsit.app):**
+
+| Hallazgo | Consecuencia |
+|---|---|
+| **El zip de ficsit ES la carpeta del mod**: en su raíz está el `.uplugin`, y dentro `Binaries/Win64` y `Content/Paks/WindowsServer` | Se descomprime tal cual en `FactoryGame/Mods/<referencia>/`. No hay que adivinar nada |
+| **Cada versión publica varias «dianas»**: `Windows` (el juego), `WindowsServer` y `LinuxServer`. **Hay mods que solo publican la de cliente** (DifficultyTuner) | Un servidor necesita `WindowsServer`. El buscador marca los que no la tienen como «Solo cliente» y no deja instalarlos, en vez de bajar 20 MB para nada |
+| **El servidor los carga sin tocar la línea de órdenes.** Comprobado arrancando el servidor real con SML 3.12.0 y SnapOn 1.3.1 dentro de `FactoryGame/Mods` | Instalar un mod no cambia cómo se arranca |
+| **SML escribe en el registro la lista de lo que ha cargado**: `LogSatisfactoryModLoader: Display: SML: 3.12.0`, y después un mod por línea | Es lo único que demuestra que están puestos, así que sale traducido en la consola («Mod cargado: SnapOn 1.3.1») en vez de esconderse con el ruido del motor. ⚠ En esa lista SML **cuenta también el juego base** (`FactoryGame: 502094.0.0`), que no se enseña: no es un mod que el usuario haya puesto |
+| **SML guarda su configuración en `FactoryGame/Configs`**, dentro de la carpeta del juego y **no** bajo `-UserDir` | Esa carpeta entra en las copias de seguridad: son ajustes que el usuario ha tocado y que reinstalar el mod no devuelve |
+| **`resolveModVersions` resuelve los rangos de semver** (`^3.12.0`) en el servidor. Lo que **no** hace es elegir: con un rango ancho (`>=0.0.0`) devuelve **todas** las que valen y **sin ordenar** | La app no necesita un intérprete de semver, pero sí ordenar ella. Si esto cambiara y devolviera una sola, la app seguiría funcionando; si dejara de resolver rangos, el smoke lo dice |
+| **Las dependencias no se resuelven solas**: esa consulta contesta solo por lo que se le pregunta | Se recorren a mano, en anchura y con tope. Es lo que evita instalar un mod y que el servidor no arranque por una biblioteca que faltaba |
+| El catálogo publica **sha256 de cada fichero** | Toda descarga se verifica, como el resto de la app |
+| ⚠ **Ordenar por popularidad pisa la relevancia.** Buscando «snapon» con `order_by:popularity` ese mod sale **el quinto**, detrás de cuatro que no se llaman así; con `order_by:search` sale el primero. Salió del recorrido de interfaz, no de las pruebas | Con texto se ordena por relevancia y con la caja vacía por popularidad, que es lo que sirve a quien no sabe qué buscar. El smoke fija que lo buscado por su nombre salga **el primero**, no solo que aparezca |
+
+**Valheim (Thunderstore + BepInEx):**
+
+| Hallazgo | Consecuencia |
+|---|---|
+| **BepInEx se engancha con el `winhttp.dll` que se deja junto a `valheim_server.exe`.** En Windows no hace falta ni cambiar la línea de órdenes ni usar el `start_server_bepinex.sh` del paquete | Instalar el cargador es volcar el contenido de `BepInExPack_Valheim/` en la raíz del servidor. Arrancar sigue siendo exactamente igual |
+| **No hay que tocarle la configuración.** Se dio por hecho que habría que apagarle la consola (`[Logging.Console] Enabled = true` viene de fábrica) porque parecía que robaría la salida del proceso. **Medido: es al revés.** Con la consola encendida sus mensajes **llegan a la consola de la app** y la salida del juego sigue llegando igual | El `BepInEx.cfg` se deja como viene. La ventana negra que se temía no existe: el `conhost.exe` que nace es de Valheim y sale igual sin cargador (comprobado arrancando con y sin `winhttp.dll`), y no tiene ventana (`MainWindowHandle = 0`) |
+| **La parada limpia sobrevive al cargador.** Ctrl+Break sigue guardando el mundo y saliendo con código 0 con BepInEx puesto | Era lo único que no se podía perder: en Valheim la parada limpia es lo que guarda la partida |
+| **El chainloader —el que dice qué mods ha cargado— NO escribe por la consola.** Por la tubería del proceso solo llegan las líneas del preloader; `Loading [PlantEverything 1.21.2]` está solo en `BepInEx/LogOutput.log` | La pestaña de mods **lee ese fichero** y enseña qué cargó el último arranque. Sin eso, un mod que no cargue no se nota hasta que alguien lo echa de menos dentro del juego |
+| ⚠ **Ese registro recoge también el del juego**, y un servidor sin pantalla escribe de serie quince errores de vídeo y de shaders | Solo se cuentan como problemas los errores **del cargador y de los mods**, nunca los de `Unity Log`. Lo contrario sería alarmar por lo que siempre ha estado ahí (pasó: la primera versión del e2e falló por eso) |
+| ⚠ **BepInEx se cae si la carpeta del servidor está muy metida en el disco.** Carga las bibliotecas de Unity con las API de Mono, que se quedan en los 260 caracteres de Windows: con una ruta larga contesta `Could not run preloader!` y **el servidor arranca sin un solo mod**. El mismo servidor, movido a una ruta corta, carga perfectamente | Se mide **antes** de instalar nada, con el fichero más hondo que trae el juego, y se explica en vez de dejar un servidor que arranca bien y no hace nada |
+| **Los paquetes vienen de tres formas**: el `.dll` suelto en la raíz (PlantEverything), dentro de un `plugins/` (Jotunn) o con un `BepInEx/` entero | Un mapa decide dónde va cada fichero. ⚠ La **configuración va suelta** en `BepInEx/config`, sin carpeta propia: cada mod la busca por su nombre de fichero, y metida en una subcarpeta arrancaría con los valores de fábrica sin decir nada |
+| **El buscador de Thunderstore va por `q=`, no por `search=`.** Con `search=` la API contesta 200 y devuelve el catálogo entero, como si no se hubiera filtrado | Es un fallo invisible: el usuario vería siempre los mismos mods buscara lo que buscara. El smoke lo comprueba buscando algo concreto y mirando que salga |
+| **Thunderstore no publica hash de sus ficheros** | No hay nada que comprobar contra el catálogo, así que se comprueba contra el contenido: un paquete que no se descomprime o que no trae `manifest.json` se rechaza sin tocar el servidor |
+| **Las dependencias vienen con la versión clavada** (`denikson-BepInExPack_Valheim-5.4.2350`), no con un rango | No hay nada que resolver: se pide esa. ⚠ Separarlas por el último guion rompería los nombres que llevan guiones (`Azumatt-AzuAntiDrift`): la versión son siempre tres números |
+
+#### Decisiones
+
+- **Una sola pantalla para los dos juegos** (`CatalogModsPanel`). Es la misma pregunta —qué hay
+  puesto, qué falta para que funcione y qué más se puede poner—, y lo que cambia (el nombre del
+  catálogo, lo que necesitan los jugadores, los ejemplos de búsqueda) entra por parámetros. Zomboid y
+  Factorio **no** se han metido ahí: uno va por enlaces del taller y el otro pide cuenta para
+  descargar, y forzarlos a este molde habría sido peor para los cuatro.
+- **El cargador se instala solo, con el primer mod.** Es una pieza técnica que el usuario no ha
+  pedido y sin la cual no hay mods; pedírsela aparte sería un paso que solo puede salir mal. Se
+  puede quitar, pero solo cuando no queda ningún mod: sin cargador, los que hubiera se quedarían en
+  el disco sin cargarse y sin decir por qué.
+- **Apagar un mod no es renombrarlo.** Los dos cargadores buscan por contenido —BepInEx recorre
+  `plugins/` entero buscando `.dll` y el servidor de Satisfactory mira todas las carpetas de `Mods`—,
+  así que un mod apagado sale de ahí y espera en la carpeta de la instancia (`mods-apagados/`), fuera
+  de la del servidor. Volver a encenderlo no cuesta otra descarga.
+- **Las dependencias se instalan y se dicen.** Se resuelven antes de descargar nada y, al terminar,
+  la pantalla nombra las que han entrado de paso: una lista que crece sola sin explicación es peor
+  que no tenerla.
+- **Nada se actualiza solo.** Un mod nuevo a mitad de partida puede dejarla sin poder cargarse, así
+  que hay un botón de buscar actualizaciones y actualizar es siempre decisión del usuario. Antes de
+  cada actualización se guarda una copia.
+- **Se dice lo que tienen que hacer los jugadores, y no es lo mismo en los dos juegos.**
+  Satisfactory **comprueba los mods al entrar** y deja fuera a quien no los tenga; Valheim deja
+  entrar igual, pero el juego se le portará mal. Las dos frases están en su pantalla.
+- **Los mods son de la comunidad, no del estudio ni de la app**, y la pantalla lo dice con el
+  catálogo nombrado.
+
+#### Piezas nuevas
+
+| Pieza | Dónde | Para qué |
+|---|---|---|
+| Tipos de mods con catálogo | `shared/games/mods.ts` | `ModRef`, `ModEntry`, `ModCatalogItem`, `ModLoaderInfo`, `ModsView`. Lo que de verdad es igual en los dos juegos, no un molde para los cuatro |
+| Reparto de ficheros | `core/games/modFiles.ts` | Descomprimir, repartir por la carpeta del servidor y **apuntar qué rutas son de cada mod**, que es lo que permite quitarlo o apartarlo después. Los dos juegos reparten los ficheros de un mod por varias carpetas |
+| `ModLoaderInfo.lastRun` | `shared/games/mods.ts` | Qué cargó el cargador la última vez. Lo aporta Valheim, cuyo chainloader no lo cuenta por la consola; SML sí y no lo necesita |
+| Pantalla común de mods | `renderer/src/CatalogModsPanel.tsx` | La pestaña de los dos juegos |
+| `mods.ts` de cada juego | `core/games/satisfactory/mods.ts`, `core/games/valheim/mods.ts` | Hablar con ficsit.app y con Thunderstore, y colocar lo que llega donde cada servidor lo busca |
+
+#### Cómo se ha comprobado
+
+- **`npm run smoke`**: 26 comprobaciones nuevas contra grabaciones reales (el `.uplugin` de SML, el
+  registro de SML del servidor real y el `LogOutput.log` de BepInEx) y dos secciones de contrato
+  contra las APIs de verdad, que avisan si ficsit o Thunderstore cambian. 841 correctas, 0 fallidas.
+- **`npm run e2e:satisfactory`**: instala SnapOn con su cargador en el servidor real, **arranca y
+  comprueba que SML dice en el registro que lo ha cargado**, para limpio, lo apaga, lo enciende y lo
+  quita. Todo correcto.
+- **`npm run e2e:valheim`**: lo mismo con PlantEverything y BepInEx, más la comprobación que no se
+  puede perder: **que la parada con Ctrl+Break sigue guardando el mundo con el cargador puesto**.
+  Todo correcto.
+- Las dos pruebas dejan la instalación compartida **como vino de Steam** (se borran `FactoryGame/Mods`,
+  `FactoryGame/Configs`, `BepInEx/`, `winhttp.dll` y los `preloader_*.log`), y siguen comprobando que
+  no se ha tocado la carpeta del juego del usuario.
+- **Recorrido de interfaz** (`ui/mods-panel.mjs`, capturas 290-291): la pestaña de los dos juegos, con
+  una búsqueda de verdad en cada catálogo, sin un solo error de consola. De ahí salieron tres
+  arreglos que las pruebas no podían ver: el orden del buscador de ficsit, un `<strong>` dentro de un
+  aviso que lo partía en tres líneas (`.alert strong` es de bloque) y una nota con `.help` suelta en
+  una tarjeta, que sale a tamaño normal en vez de pequeña. Las tres son trampas que ya estaban
+  escritas en el README.
+
+#### Lo que no se ha podido comprobar
+
+- **Entrar a jugar con mods** desde un cliente de verdad, que exige tener los dos juegos comprados y
+  una segunda máquina. Lo que sí está comprobado es que el servidor los carga y lo dice.
+- **Un mod con dependencias de verdad** en el servidor real: los dos de la prueba solo dependen de su
+  cargador. La resolución de dependencias está comprobada contra las dos APIs (Refined Power arrastra
+  cuatro), pero no instalada de punta a punta.
+- **Actualizar un mod** sobre un servidor real: se prueba el camino (quitar lo anterior, poner lo
+  nuevo, copia previa), pero haría falta esperar a que un autor publique una versión.
+
+---
+
+### 19.24 Siguiente
 
 **Ahora (uso privado):**
 
