@@ -92,6 +92,55 @@ export function GameChooser({ onChoose, onCancel }: Props): React.JSX.Element {
         })}
       </div>
 
+      {/* La guía de requisitos: lo mismo que las tarjetas, pero en columnas
+          para poder comparar de un vistazo. Todo medido en la fase de cada
+          juego, no copiado de sus webs. */}
+      <details className="card requirements-guide">
+        <summary>Comparar lo que pide cada juego</summary>
+        <div className="requirements-scroll">
+          <table className="requirements-table">
+            <thead>
+              <tr>
+                <th>Juego</th>
+                <th>Memoria</th>
+                <th>Descarga</th>
+                <th>Arranque</th>
+                <th>Para jugar desde fuera</th>
+                <th>Además</th>
+              </tr>
+            </thead>
+            <tbody>
+              {GAME_IDS.map((id) => {
+                const info = gameInfo(id)
+                const { card } = info
+                return (
+                  <tr key={id}>
+                    <td>
+                      <span className="row" style={{ gap: 8 }}>
+                        <GameIcon game={id} size={20} />
+                        {info.name}
+                      </span>
+                    </td>
+                    <td>
+                      {card.memoryGb.min}–{card.memoryGb.recommended} GB
+                    </td>
+                    <td>{card.download}</td>
+                    <td>{card.requirements.startup}</td>
+                    <td>{card.requirements.ports}</td>
+                    <td>{card.requirements.extra ?? '—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>
+          La memoria es la del servidor solo, sin contar Windows ni el propio juego si juegas en el
+          mismo equipo. Con varios servidores encendidos a la vez se suman: la app avisa antes de
+          arrancar uno más si no caben.
+        </p>
+      </details>
+
       <div className="row between wizard-nav">
         <button onClick={onCancel}>Cancelar</button>
         <button className="primary" disabled={selected === null} onClick={() => onChoose(selected!)}>

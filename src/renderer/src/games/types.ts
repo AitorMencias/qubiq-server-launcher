@@ -94,6 +94,16 @@ export interface GameUi {
    */
   ConfigSearch?: ComponentType<GameConfigSearchProps>
 
+  /**
+   * Avisos del juego en la pantalla principal, debajo del botón grande.
+   *
+   * Lo estrena Rust con el borrado mensual: es lo único de un servidor que
+   * caduca solo en una fecha fija, y enterarse dentro de Configuración sería
+   * enterarse tarde. Se pinta si el juego lo trae y decide él cuándo no enseña
+   * nada.
+   */
+  Notices?: ComponentType<GameConfigContext>
+
   /** Qué ajustes del juego proteger antes de abrir un puerto en el router. */
   routerSafetyNote: ReactNode
 }

@@ -1,0 +1,1069 @@
+{
+ "vanilla": [
+  {
+   "enviado": {
+    "Identifier": 101,
+    "Message": "status",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "hostname: Servidor de prueba\nversion : 2633 secure (secure mode enabled, connected to Steam3)\nmap     : Procedural Map\nplayers : 0 (4 max) (0 queued) (0 joining)\n\nid name ping connected addr owner violation kicks entityId \r\n",
+    "Identifier": 101,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 102,
+    "Message": "playerlist",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[]",
+    "Identifier": 102,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 103,
+    "Message": "serverinfo",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "{\r\n  \"Hostname\": \"Servidor de prueba\",\r\n  \"MaxPlayers\": 4,\r\n  \"Players\": 0,\r\n  \"Queued\": 0,\r\n  \"Joining\": 0,\r\n  \"ReservedSlots\": 0,\r\n  \"EntityCount\": 42537,\r\n  \"GameTime\": \"04/26/1983 09:01:17\",\r\n  \"Uptime\": 178,\r\n  \"Map\": \"Procedural Map\",\r\n  \"Framerate\": 244.0,\r\n  \"Memory\": 1103,\r\n  \"MemoryUsageSystem\": 4163,\r\n  \"Collections\": 89,\r\n  \"NetworkIn\": 0,\r\n  \"NetworkOut\": 0,\r\n  \"Restarting\": false,\r\n  \"SaveCreatedTime\": \"09/26/2026 13:00:13\",\r\n  \"Version\": 2633,\r\n  \"Protocol\": \"2633.288.1\"\r\n}",
+    "Identifier": 103,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 104,
+    "Message": "global.playerlist",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[]",
+    "Identifier": 104,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 105,
+    "Message": "banlistex",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 105,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 106,
+    "Message": "server.hostname",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "server.hostname: \"Servidor de prueba\"",
+    "Identifier": 106,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 107,
+    "Message": "server.worldsize",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "server.worldsize: \"3000\"",
+    "Identifier": 107,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 108,
+    "Message": "server.seed",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "server.seed: \"12345\"",
+    "Identifier": 108,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 109,
+    "Message": "server.level",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "server.level: \"Procedural Map\"",
+    "Identifier": 109,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 110,
+    "Message": "server.maxplayers",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "server.maxplayers: \"4\"",
+    "Identifier": 110,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 111,
+    "Message": "global.say Hola desde la prueba",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "{\r\n  \"Channel\": 2,\r\n  \"Message\": \"Hola desde la prueba\",\r\n  \"UserId\": \"0\",\r\n  \"Username\": \"SERVER\",\r\n  \"Color\": \"#eee\",\r\n  \"Time\": 1790427645\r\n}",
+    "Identifier": -1,
+    "Type": "Chat",
+    "Stacktrace": null
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 111,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 112,
+    "Message": "banid 76561197960287930 \"Prueba\" \"motivo de prueba\"",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Banned User: 76561197960287930 - \"Prueba\" for \"motivo de prueba\"",
+    "Identifier": 112,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 113,
+    "Message": "banlistex",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "1 76561197960287930 \"Prueba\" \"motivo de prueba\" -1\n",
+    "Identifier": 113,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 114,
+    "Message": "unban 76561197960287930",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Unbanned User: 76561197960287930",
+    "Identifier": 114,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 115,
+    "Message": "banlistex",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Checking for new Steam Item Definitions..",
+    "Identifier": 0,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 115,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 116,
+    "Message": "kick 76561197960287930 \"no está\"",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Player not found",
+    "Identifier": 116,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 117,
+    "Message": "ownerid 76561197960287930 \"Prueba\" \"fase7\"",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Added owner Prueba, steamid 76561197960287930",
+    "Identifier": 117,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 118,
+    "Message": "removeowner 76561197960287930",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Removed Owner: 76561197960287930",
+    "Identifier": 118,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 119,
+    "Message": "server.writecfg",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Config Saved",
+    "Identifier": 119,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 120,
+    "Message": "orden-que-no-existe",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 121,
+    "Message": "server.save",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Invalidate Network Cache took 0.01 seconds",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[RustNav] Saving navmesh to path: server/qubiq/proceduralmap.3000.12345.288.navmesh...",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[RustNav] Successfully saved navmesh (29194 pending tiles) in 49.8256 ms",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Saved 30,047 ents, cache(0.15), write(0.01), disk(0.01).",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Saving complete",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "RCON: IP 127.0.0.1 attempted to connect with incorrect password.",
+    "Identifier": 0,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 122,
+    "Message": "quit",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Invalidate Network Cache took 0.00 seconds",
+    "Identifier": 122,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[RustNav] Saving navmesh to path: server/qubiq/proceduralmap.3000.12345.288.navmesh...",
+    "Identifier": 122,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[RustNav] Successfully saved navmesh (26151 pending tiles) in 71.4891 ms",
+    "Identifier": 122,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Saved 30,047 ents, cache(0.14), write(0.01), disk(0.01).",
+    "Identifier": 122,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Saving complete",
+    "Identifier": 122,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Config Saved",
+    "Identifier": 122,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "cierre": 1006
+  }
+ ],
+ "oxide": [
+  {
+   "enviado": {
+    "Identifier": 101,
+    "Message": "status",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "hostname: Servidor de prueba\nversion : 2633 secure (secure mode enabled, connected to Steam3)\nmap     : Procedural Map\nplayers : 0 (4 max) (0 queued) (0 joining)\n\nid name ping connected addr owner violation kicks entityId \r\n",
+    "Identifier": 101,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 102,
+    "Message": "playerlist",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[]",
+    "Identifier": 102,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 103,
+    "Message": "serverinfo",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "{\r\n  \"Hostname\": \"Servidor de prueba\",\r\n  \"MaxPlayers\": 4,\r\n  \"Players\": 0,\r\n  \"Queued\": 0,\r\n  \"Joining\": 0,\r\n  \"ReservedSlots\": 0,\r\n  \"EntityCount\": 671,\r\n  \"GameTime\": \"04/26/1983 10:40:42\",\r\n  \"Uptime\": 31,\r\n  \"Map\": \"Procedural Map\",\r\n  \"Framerate\": 240.0,\r\n  \"Memory\": 658,\r\n  \"MemoryUsageSystem\": 2595,\r\n  \"Collections\": 89,\r\n  \"NetworkIn\": 0,\r\n  \"NetworkOut\": 0,\r\n  \"Restarting\": false,\r\n  \"SaveCreatedTime\": \"09/26/2026 13:03:04\",\r\n  \"Version\": 2633,\r\n  \"Protocol\": \"2633.288.1\"\r\n}",
+    "Identifier": 103,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 104,
+    "Message": "global.playerlist",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[]",
+    "Identifier": 104,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 105,
+    "Message": "banlistex",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 105,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 106,
+    "Message": "server.hostname",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "server.hostname: \"Servidor de prueba\"",
+    "Identifier": 106,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 107,
+    "Message": "server.worldsize",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "server.worldsize: \"1000\"",
+    "Identifier": 107,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 108,
+    "Message": "server.seed",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "server.seed: \"777\"",
+    "Identifier": 108,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 109,
+    "Message": "server.level",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "server.level: \"Procedural Map\"",
+    "Identifier": 109,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 110,
+    "Message": "server.maxplayers",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "server.maxplayers: \"4\"",
+    "Identifier": 110,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 111,
+    "Message": "global.say Hola desde la prueba",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "{\r\n  \"Channel\": 2,\r\n  \"Message\": \"Hola desde la prueba\",\r\n  \"UserId\": \"0\",\r\n  \"Username\": \"SERVER\",\r\n  \"Color\": \"#eee\",\r\n  \"Time\": 1790429706\r\n}",
+    "Identifier": -1,
+    "Type": "Chat",
+    "Stacktrace": null
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 111,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 112,
+    "Message": "banid 76561197960287930 \"Prueba\" \"motivo de prueba\"",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Banned User: 76561197960287930 - \"Prueba\" for \"motivo de prueba\"",
+    "Identifier": 112,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 113,
+    "Message": "banlistex",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "1 76561197960287930 \"Prueba\" \"motivo de prueba\" -1\n",
+    "Identifier": 113,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 114,
+    "Message": "unban 76561197960287930",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Checking for new Steam Item Definitions..",
+    "Identifier": 0,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Unbanned User: 76561197960287930",
+    "Identifier": 114,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 115,
+    "Message": "banlistex",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 115,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 116,
+    "Message": "kick 76561197960287930 \"no está\"",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Player not found",
+    "Identifier": 116,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 117,
+    "Message": "ownerid 76561197960287930 \"Prueba\" \"fase7\"",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Added owner Prueba, steamid 76561197960287930",
+    "Identifier": 117,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 118,
+    "Message": "removeowner 76561197960287930",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Removed Owner: 76561197960287930",
+    "Identifier": 118,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 119,
+    "Message": "server.writecfg",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Config Saved",
+    "Identifier": 119,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 120,
+    "Message": "orden-que-no-existe",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 121,
+    "Message": "server.save",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Invalidate Network Cache took 0.00 seconds",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 122,
+    "Message": "oxide.version",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[RustNav] Saving navmesh to path: server/qubiq/proceduralmap.1000.777.288.navmesh...",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[RustNav] Successfully saved navmesh (0 pending tiles) in 2.8935 ms",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Saved 343 ents, cache(0.01), write(0.00), disk(0.01).",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Saving complete",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 121,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Oxide.Rust Version: 2.0.7726\nOxide.Rust Branch: master",
+    "Identifier": 122,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 122,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 123,
+    "Message": "oxide.plugins",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Listing 2 plugins:\n  01 \"Gather Manager\" (2.2.78) by Mughisi (0.03s / 108 KB) - GatherManager.cs\n  02 \"Kits\" (4.4.9) by k1lly0u (0.00s / 12 KB) - Kits.cs",
+    "Identifier": 123,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 123,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 124,
+    "Message": "oxide.unload GatherManager",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Unloaded plugin Gather Manager v2.2.78 by Mughisi",
+    "Identifier": 124,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 124,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 125,
+    "Message": "oxide.plugins",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Listing 2 plugins:\n  01 \"Kits\" (4.4.9) by k1lly0u (0.00s / 12 KB) - Kits.cs\n  02 GatherManager - Unloaded",
+    "Identifier": 125,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 125,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 126,
+    "Message": "oxide.load GatherManager",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 126,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 127,
+    "Message": "oxide.grant user 76561197960287930 gathermanager.canmodify",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Permission 'gathermanager.canmodify' doesn't exist",
+    "Identifier": 127,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 127,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 128,
+    "Message": "gather.rate dispenser Wood 2",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "GatherManager was compiled successfully in 267ms",
+    "Identifier": 0,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Loaded plugin Gather Manager v2.2.78 by Mughisi",
+    "Identifier": 0,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 129,
+    "Message": "plugins",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Listing 2 plugins:\n  01 \"Gather Manager\" (2.2.78) by Mughisi (0.02s / 24 KB) - GatherManager.cs\n  02 \"Kits\" (4.4.9) by k1lly0u (0.00s / 12 KB) - Kits.cs",
+    "Identifier": 129,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "",
+    "Identifier": 129,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "RCON: IP 127.0.0.1 attempted to connect with incorrect password.",
+    "Identifier": 0,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "enviado": {
+    "Identifier": 130,
+    "Message": "quit",
+    "Name": "QubiQ"
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Unloaded plugin Gather Manager v2.2.78 by Mughisi",
+    "Identifier": 130,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Unloaded plugin Kits v4.4.9 by k1lly0u",
+    "Identifier": 130,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Shutting down compiler because framework shutting down",
+    "Identifier": 130,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Compiler shutdown completed",
+    "Identifier": 130,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Invalidate Network Cache took 0.00 seconds",
+    "Identifier": 130,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[RustNav] Saving navmesh to path: server/qubiq/proceduralmap.1000.777.288.navmesh...",
+    "Identifier": 130,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "[RustNav] Successfully saved navmesh (0 pending tiles) in 1.9983 ms",
+    "Identifier": 130,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Saved 343 ents, cache(0.00), write(0.00), disk(0.00).",
+    "Identifier": 130,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Saving complete",
+    "Identifier": 130,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  },
+  {
+   "recibido": {
+    "Message": "Config Saved",
+    "Identifier": 130,
+    "Type": "Generic",
+    "Stacktrace": ""
+   }
+  }
+ ]
+}

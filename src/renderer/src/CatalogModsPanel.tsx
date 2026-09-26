@@ -9,21 +9,24 @@ import {
 
 /**
  * Pestaña de mods de los juegos que tienen **cargador y catálogo con buscador**:
- * Satisfactory (ficsit.app, con SML) y Valheim (Thunderstore, con BepInEx).
+ * Satisfactory (ficsit.app, con SML), Valheim (Thunderstore, con BepInEx) y
+ * Rust (uMod, con Oxide).
  *
- * Es común a los dos porque la pantalla es la misma pregunta: qué hay puesto,
+ * Es común a los tres porque la pantalla es la misma pregunta: qué hay puesto,
  * qué falta para que funcione y qué más se puede poner. Lo que cambia —cómo se
- * llama el catálogo, qué necesitan los jugadores, qué se busca— entra por
- * parámetros. Project Zomboid y Factorio tienen la suya: uno va por enlaces del
- * taller de Steam y el otro pide cuenta para descargar, y forzarlos a esta
- * pantalla habría sido peor para los cuatro.
+ * llama el catálogo, qué necesitan los jugadores, qué se busca, si se puede
+ * tocar en caliente— entra por parámetros. Project Zomboid y Factorio tienen la
+ * suya: uno va por enlaces del taller de Steam y el otro pide cuenta para
+ * descargar, y forzarlos a esta pantalla habría sido peor para todos.
  *
  * Tres cosas que esta pantalla no esconde:
  *
  * 1. **Sin el cargador no hay mods.** Se instala solo con el primero, y se dice.
- * 2. **Cambiar mods exige el servidor parado.**
- * 3. **Los jugadores necesitan lo mismo que el servidor.** Un servidor con mods
- *    no lo es a medias: quien no los tenga, no entra.
+ * 2. **Cambiar mods exige el servidor parado**, salvo en el juego cuyo cargador
+ *    los carga en caliente (Oxide): ahí lo único que exige pararlo es poner o
+ *    quitar el propio cargador.
+ * 3. **Lo que necesitan los jugadores**: en Satisfactory y Valheim, lo mismo
+ *    que el servidor; en Rust, nada, porque los plugins solo corren en él.
  */
 
 export interface ModsApi {
@@ -47,8 +50,22 @@ interface Props {
   catalog: { name: string; url: string }
   /** Qué tienen que hacer los jugadores para poder entrar. */
   playersNote: ReactNode
+  /** El titular de esa nota. De serie, que necesitan los mismos mods. */
+  playersTitle?: string
   /** Ejemplos de lo que se puede buscar, que es lo que arranca al que no sabe. */
   searchPlaceholder: string
+  /** Cómo se llaman en este juego: «mod» o «plugin». */
+  noun?: { one: string; many: string }
+  /**
+   * El cargador los carga y descarga en caliente (Oxide), así que añadir,
+   * quitar o apagar vale con el servidor en marcha. Poner o quitar el propio
+   * cargador sigue exigiendo pararlo.
+   */
+  liveChanges?: boolean
+  /** Algo más que enseñar debajo de lo instalado (abrir la carpeta…). */
+  extra?: ReactNode
+  /** El botón de lo que no se puede instalar. De serie, «Solo cliente». */
+  unavailableLabel?: string
 }
 
 export function CatalogModsPanel({
@@ -58,10 +75,18 @@ export function CatalogModsPanel({
   loaderId,
   catalog,
   playersNote,
-  searchPlaceholder
+  playersTitle = 'Los jugadores necesitan los mismos mods',
+  searchPlaceholder,
+  noun = { one: 'mod', many: 'mods' },
+  liveChanges = false,
+  extra,
+  unavailableLabel = 'Solo cliente'
 }: Props): React.JSX.Element {
   const id = state.manifest.id
-  const parado = state.status === 'stopped' || state.status === 'crashed'
+  const stopped = state.status === 'stopped' || state.status === 'crashed'
+  // Lo que se puede tocar ahora: los mods, si el cargador los carga en
+  // caliente; el cargador en sí, solo parado.
+  const parado = stopped || (liveChanges && state.status === 'running')
 
   const [view, setView] = useState<ModsView | null>(null)
   const [updates, setUpdates] = useState<Record<string, string>>({})
@@ -145,7 +170,7 @@ export function CatalogModsPanel({
       setNotice(
         cuantas === 0
           ? 'Todo está al día.'
-          : `${cuantas} con versión nueva. Actualizar es cosa tuya: un mod nuevo puede cambiar la partida.`
+          : `${cuantas} con versión nueva. Actualizar es cosa tuya: un ${noun.one} nuevo puede cambiar la partida.`
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -171,28 +196,45 @@ export function CatalogModsPanel({
         <div className="alert info">
           <strong>Con el servidor arrancado solo se puede mirar</strong>
           <p>
-            Los mods se cargan al arrancar y no se vuelven a mirar. Para añadir, quitar o apagar
-            alguno, para antes el servidor.
+            Los {noun.many} se cargan al arrancar y no se vuelven a mirar. Para añadir, quitar o
+            apagar alguno, para antes el servidor.
+          </p>
+        </div>
+      )}
+
+      {liveChanges && !stopped && (
+        <div className="alert info">
+          <strong>Se puede cambiar con el servidor en marcha</strong>
+          <p>
+            {cargador?.name ?? 'El cargador'} carga y descarga los {noun.many} al momento: añadir,
+            apagar o quitar uno vale sin reiniciar. Lo que sí exige parar el servidor es poner o
+            quitar {cargador?.name ?? 'el cargador'}.
           </p>
         </div>
       )}
 
       <div className="alert info">
-        <strong>Los jugadores necesitan los mismos mods</strong>
+        <strong>{playersTitle}</strong>
         <p>{playersNote}</p>
       </div>
 
       {/* --- El cargador ------------------------------------------------- */}
 
       <div className="card">
-        <h3>Cargador de mods</h3>
-        {cargador?.installed ? (
+        <h3>Cargador de {noun.many}</h3>
+        {cargador?.problem && (
+          <div className="alert warn" style={{ marginBottom: 12 }}>
+            <strong>{cargador.name} no está funcionando ahora mismo</strong>
+            <p>{cargador.problem}</p>
+          </div>
+        )}
+        {cargador?.installed || (cargador?.problem && cargador.version) ? (
           <div className="row between">
             <span>
               <strong>{cargador.name}</strong>
               <p className="hint" style={{ margin: 0 }}>
                 {cargador.version ? `Versión ${cargador.version}. ` : ''}
-                Es lo que hace que el servidor cargue los mods.
+                Es lo que hace que el servidor cargue los {noun.many}.
               </p>
               {/* Lo que pasó de verdad la última vez. Solo lo cuenta el juego
                   cuyo cargador no lo dice por la consola (Valheim). */}
@@ -200,7 +242,7 @@ export function CatalogModsPanel({
                 <p className="hint" style={{ margin: 0 }}>
                   {cargador.lastRun.loaded.length > 0
                     ? `En el último arranque cargó ${cargador.lastRun.loaded.length}: ${cargador.lastRun.loaded.join(', ')}.`
-                    : 'En el último arranque no cargó ningún mod.'}
+                    : `En el último arranque no cargó ningún ${noun.one}.`}
                 </p>
               )}
             </span>
@@ -208,7 +250,8 @@ export function CatalogModsPanel({
               {updates[loaderId] && (
                 <button
                   className="primary"
-                  disabled={!parado || busy !== null}
+                  disabled={!stopped || busy !== null}
+                  title={stopped ? undefined : `Para el servidor para cambiar ${cargador.name}`}
                   onClick={() =>
                     void run(
                       loaderId,
@@ -223,12 +266,13 @@ export function CatalogModsPanel({
               {(view?.mods.length ?? 0) === 0 && (
                 <button
                   className="danger"
-                  disabled={!parado || busy !== null}
+                  disabled={!stopped || busy !== null}
+                  title={stopped ? undefined : `Para el servidor para quitar ${cargador.name}`}
                   onClick={() =>
                     void run(
                       'loader',
                       () => api.removeLoader(id),
-                      'Servidor sin mods, como vino de Steam.'
+                      `Servidor sin ${noun.many}, como vino de Steam.`
                     )
                   }
                 >
@@ -239,8 +283,9 @@ export function CatalogModsPanel({
           </div>
         ) : (
           <p className="hint" style={{ marginBottom: 0 }}>
-            Todavía no está puesto. Se instala solo con el primer mod que añadas: sin él, el
-            servidor no miraría siquiera la carpeta de mods.
+            Todavía no está puesto. Se instala solo con el primer {noun.one} que añadas: sin él, el
+            servidor no miraría siquiera la carpeta de {noun.many}.
+            {liveChanges && !stopped && ' Para ponerlo hay que parar el servidor.'}
           </p>
         )}
 
@@ -290,7 +335,7 @@ export function CatalogModsPanel({
                   <div className="help" style={{ margin: 0 }}>
                     Versión {mod.version} · {modSizeLabel(mod.sizeBytes)}
                     {mod.enabled ? '' : ' · apagado'}
-                    {mod.dependency && ' · lo necesita otro mod'}
+                    {mod.dependency && ` · lo necesita otro ${noun.one}`}
                   </div>
                   {mod.problem && (
                     <div className="help" style={{ margin: 0 }}>
@@ -328,6 +373,7 @@ export function CatalogModsPanel({
             </div>
           ))
         )}
+        {extra}
       </div>
 
       {/* --- El catálogo -------------------------------------------------- */}
@@ -336,7 +382,7 @@ export function CatalogModsPanel({
         <h3>Añadir de {catalog.name}</h3>
         <p className="hint">
           Busca por nombre o por lo que hace. Con la caja vacía salen los más usados. Lo que
-          necesite un mod para funcionar se instala con él.
+          necesite un {noun.one} para funcionar se instala con él.
         </p>
 
         <div className="row" style={{ marginBottom: 14 }}>
@@ -355,7 +401,7 @@ export function CatalogModsPanel({
         </div>
 
         {results?.length === 0 && (
-          <p className="hint">No hay ningún mod que se llame así ni que hable de eso.</p>
+          <p className="hint">No hay ningún {noun.one} que se llame así ni que hable de eso.</p>
         )}
 
         {results?.map((mod) => (
@@ -378,8 +424,19 @@ export function CatalogModsPanel({
             </div>
             <button
               style={{ flexShrink: 0 }}
-              disabled={!parado || busy !== null || instalados.has(mod.id) || !mod.forServer}
-              title={parado ? undefined : 'Para el servidor para poder instalar mods'}
+              disabled={
+                !parado ||
+                // El primero trae el cargador, y el cargador solo se pone parado.
+                (!stopped && !cargador?.installed) ||
+                busy !== null ||
+                instalados.has(mod.id) ||
+                !mod.forServer
+              }
+              title={
+                parado && (stopped || cargador?.installed)
+                  ? undefined
+                  : `Para el servidor para poder instalar ${noun.many}`
+              }
               onClick={() => void install(mod)}
             >
               {instalados.has(mod.id)
@@ -387,15 +444,15 @@ export function CatalogModsPanel({
                 : busy === mod.id
                   ? 'Instalando…'
                   : !mod.forServer
-                    ? 'Solo cliente'
+                    ? unavailableLabel
                     : 'Instalar'}
             </button>
           </div>
         ))}
 
         <p className="help" style={{ marginBottom: 0 }}>
-          Los mods los hace gente de la comunidad y se descargan de {catalog.name} ({catalog.url}).
-          Ni el estudio del juego ni esta aplicación responden de lo que hagan.
+          Los {noun.many} los hace gente de la comunidad y se descargan de {catalog.name} (
+          {catalog.url}). Ni el estudio del juego ni esta aplicación responden de lo que hagan.
         </p>
       </div>
     </div>

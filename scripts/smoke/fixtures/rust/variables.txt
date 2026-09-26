@@ -1,0 +1,225 @@
+>> find server.pve
+Variables:
+ server.pve               (Generated) Enables PvE mode — players cannot damage other players; they can still be killed by NPCs and the environment (False)
+ server.pvebulletdamagemultiplier (Generated) Additional bullet damage multiplier applied only when players shoot NPCs or animals, stacks with bulletdamage (1)
+
+Commands:
+
+>> find decay.scale
+Variables:
+ decay.scale              (Generated) Multiplier applied to all decay damage per tick; 1.0 = normal, 2.0 = double decay rate, 0.0 = no decay (1)
+
+Commands:
+
+>> find server.radiation
+Variables:
+ server.radiation         (Generated) Enables radiation zones at monuments; disabling removes all radiation hazards from the map (True)
+
+Commands:
+
+>> find server.stability
+Variables:
+ server.stability         (Generated) Enables structural stability simulation; when disabled buildings will not collapse even if their supports are destroyed (True)
+
+Commands:
+
+>> find craft.instant
+Variables:
+ craft.instant            (Generated) When enabled, all crafting completes instantly with no time delay; useful for testing crafting recipes or quickly equipping items in development (False)
+
+Commands:
+
+>> find fps.limit
+Variables:
+ fps.limit                 (240)
+
+Commands:
+
+>> find server.saveinterval
+Variables:
+ server.saveinterval      (Generated) How often (in seconds) the server automatically saves the game world to disk; default is every 600 seconds (10 minutes) (600)
+
+Commands:
+
+>> find server.tags
+Variables:
+ server.tags              Comma-separated server browser tag values (see wiki) ()
+
+Commands:
+
+>> find server.url
+Variables:
+ server.url               (Generated) Server website URL displayed in the server browser; leave empty to show no link ()
+
+Commands:
+
+>> find server.headerimage
+Variables:
+ server.headerimage       (Generated) URL of the banner/header image shown at the top of this server's page in the server browser ()
+
+Commands:
+
+>> find server.idlekick
+Variables:
+ server.idlekick          (Generated) Minutes of in-game inactivity before a player is automatically kicked; set to 0 to disable idle kick (30)
+ server.idlekickadmins    (Generated) Minutes of inactivity before admin players are idle-kicked; 0 disables idle kick specifically for admins regardless of idlekickmode (0)
+ server.idlekickmode      (Generated) Controls who is subject to the idle kick: 0 = nobody, 1 = non-admin players only, 2 = all players including admins (1)
+
+Commands:
+
+>> find server.itemdespawn
+Variables:
+ server.itemdespawn       (Generated) Seconds before items dropped on the ground despawn; default is 300 seconds (5 minutes) (300)
+ server.itemdespawn_container_max_multiplier (Generated) Upper cap on the loot container despawn multiplier; at default 24 the maximum lifetime is 24 x 5 min = 2 hours (24)
+ server.itemdespawn_container_scale (Generated) Multiplier applied to the base item despawn time for items sitting inside loot containers; default 2x extends their lifetime (2)
+ server.itemdespawn_quick (Generated) Fast-despawn time in seconds used for short-lived dropped items such as empty casings or small debris; default 30 seconds (30)
+
+Commands:
+
+>> find chat.localchat
+Variables:
+ chat.localchat            (False)
+ chat.localchatrange      (Generated) Maximum distance in metres within which local chat messages are visible to nearby players; messages from beyond this range are not received (100)
+
+Commands:
+
+>> find server.pvebulletdamagemultiplier
+Variables:
+ server.pvebulletdamagemultiplier (Generated) Additional bullet damage multiplier applied only when players shoot NPCs or animals, stacks with bulletdamage (1)
+
+Commands:
+
+>> find server.gamemode
+Variables:
+ server.gamemode          (Generated) Short name of the game mode to activate on this server (e.g. 'softcore', 'hardcore'); applies convar overrides defined by that game mode's prefab ()
+
+Commands:
+
+>> find moderatorid
+Variables:
+
+Commands:
+ global.moderatorid(  ) (Generated) Adds the specified Steam64 ID as a server moderator with optional name and reason; grants admin flag to the player if connected
+
+>> find ownerid
+Variables:
+
+Commands:
+ global.ownerid(  ) (Generated) Adds the specified Steam64 ID as a server owner (auth level 2) with optional name and reason; requires the caller to also be auth level 2
+
+>> find removemoderator
+Variables:
+
+Commands:
+ global.removemoderator(  ) (Generated) Removes moderator status from the specified Steam64 ID; removes admin flag from the player if currently connected
+
+>> find users
+Variables:
+ creative.allusers        Apply creative mode to the entire server (False)
+ decay.upkeep_lock_min_users If a code lock has <= this number of users it won't count its users towards group upkeep tax (2)
+
+Commands:
+ global.banlist(  ) List of banned users (sourceds compat)
+ global.banlistex(  ) List of banned users - shows reasons and usernames
+ global.bans(  ) List of banned users
+ global.listid(  ) List of banned users, by ID (sourceds compat)
+ global.sleepingusers(  ) Show user info for players on server.
+ global.sleepingusersinrange(  ) Show user info for sleeping players on server in range of the player.
+ global.users(  ) Show user info for players on server.
+ global.usersinrange(  ) Show user info for players on server in range of the player.
+ global.usersinrangeofplayer(  ) Show user info for players on server in range of the supplied player (eg. Jim 50)
+ entity.deleteby(  ) Destroy all entities created by provided users (separate users by space)
+ entity.deletebytextblock(  ) Destroy all entities created by users in the provided text block (can use with copied results from ent auth)
+
+>> find banlist
+Variables:
+
+Commands:
+ global.banlist(  ) List of banned users (sourceds compat)
+ global.banlistex(  ) List of banned users - shows reasons and usernames
+ global.unban(  ) (Generated) Removes the ban for the specified Steam64 ID from the server banlist, allowing the player to reconnect
+ app.appban(  ) (Generated) Bans a player by Steam ID from the server via the app layer, adding them to the banlist and kicking them if connected
+ app.appunban(  ) (Generated) Removes a ban for the specified Steam ID from the server banlist, allowing the player to reconnect
+
+>> find server.official
+Variables:
+ server.official          (Generated) Marks this as an official Facepunch server; only set by Facepunch — do not enable on community servers (False)
+
+Commands:
+
+>> find server.encryption
+Variables:
+ server.encryption        (Generated) Network encryption mode; 2 = enabled (recommended), 0 = disabled (2)
+
+Commands:
+
+>> find server.secure
+Variables:
+
+Commands:
+
+>> find server.eac
+Variables:
+ server.eac_gameplay_data Whether or not to send additional analytics to EAC (True)
+
+Commands:
+
+>> find app.port
+Variables:
+ app.port                 (Generated) UDP port number the server listens on; default is 28015; must be open in firewall for players to connect (-1)
+
+Commands:
+
+>> find server.logoimage
+Variables:
+ server.logoimage         (Generated) URL of the logo image shown for this server in the server browser ()
+
+Commands:
+
+>> find server.favoritesEndpoint
+Variables:
+
+Commands:
+
+>> find server.motd
+Variables:
+ server.motd               ()
+
+Commands:
+
+>> find server.maxteamsize
+Variables:
+
+Commands:
+
+>> find relationshipmanager.maxteamsize
+Variables:
+ relationshipmanager.maxteamsize (Generated) Maximum number of players allowed in a single team; 0 = teams disabled; changing this at runtime updates all active teams (8)
+
+Commands:
+
+>> find server.tickrate
+Variables:
+ server.tickrate          (Generated) Number of server simulation ticks per second; higher values improve responsiveness but increase CPU usage (10)
+
+Commands:
+
+>> find server.planttick
+Variables:
+ server.planttick          (60)
+ server.planttickscale    (Generated) Multiplier for plant growth tick speed; values above 1.0 make plants grow faster, values below 1.0 slow growth (1)
+
+Commands:
+
+>> find spawn.max_rate
+Variables:
+ spawn.max_rate           (Generated) Maximum spawn rate scalar applied to NPC/resource population spawning; the spawn tick rate scales up to this value as player count increases (1)
+
+Commands:
+
+>> find server.respawnresetrange
+Variables:
+ server.respawnresetrange (Generated) Radius in metres around a player's death point — any sleeping bag or bed within this range is put on a respawn cooldown to prevent spawn-camping (50)
+
+Commands:
+

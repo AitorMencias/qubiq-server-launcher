@@ -3,9 +3,9 @@
 Crea y gestiona tu servidor de juegos en tres clics.
 
 Aplicación de escritorio para Windows que descarga, configura, arranca y modera servidores de
-**Minecraft**, **Satisfactory**, **Valheim**, **Factorio**, **Project Zomboid** y **Enshrouded** sin
-que el usuario tenga que instalar Java, editar ficheros de configuración ni tocar la línea de
-comandos. Van llegando más juegos por fases.
+**Minecraft**, **Satisfactory**, **Valheim**, **Factorio**, **Project Zomboid**, **Enshrouded** y
+**Rust** sin que el usuario tenga que instalar Java, editar ficheros de configuración ni tocar la
+línea de comandos. Los siete juegos de la hoja de ruta multijuego ya están.
 
 > NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
 > Herramienta no oficial: no está asociada a los estudios de los juegos que gestiona.
@@ -34,6 +34,7 @@ MVP funcional. Seis juegos, con todas sus distribuciones instalándose, arrancan
 | Factorio | ✅ | ✅ | Hace falta tener el juego: se copia del equipo o se baja con tu cuenta de Steam |
 | Project Zomboid | ✅ | ✅ | SteamCMD (6,7 GB); consola, RCON, moderación y mods del taller. Sin Steam, no se anuncia en ningún sitio |
 | Enshrouded | ✅ | ✅ | SteamCMD (8,8 GB); permisos por contraseña de rol y mods con Shroudtopia. **Sale siempre en la lista del juego: no se puede evitar** |
+| Rust | ✅ | ✅ | SteamCMD (5,5 GB); todo por WebRCON, borrado mensual avisado o programado, plugins de uMod con Oxide. **Sale siempre en la lista del juego** |
 
 Funciones disponibles:
 
@@ -80,6 +81,13 @@ Funciones disponibles:
   la de Administrador manda), dificultad con los cuatro preajustes del juego y sus 37 ajustes uno a
   uno, varios mundos y mods con el cargador Shroudtopia. La app avisa de lo que este juego **no**
   deja hacer: ni esconderse de la lista pública ni echar a nadie desde fuera
+- **Rust** — se instala de Steam, el asistente dice lo que pesa cada tamaño de mapa (memoria y
+  minutos del primer arranque, medidos), y se modera, se manda y se para por su consola remota. El
+  **borrado mensual** se explica, se avisa el día que toca y se hace de un botón —o solo, si se
+  programa—, con copia antes, semilla nueva y los planos si se quiere. Plugins de uMod con Oxide,
+  **en caliente**, y Oxide se repone solo tras cada actualización en cuanto sale el suyo
+- **Varios servidores a la vez** — antes de arrancar uno más, la app suma lo que usan los que están
+  en marcha y avisa si no cabe. El selector de juego compara lo que pide cada uno en una tabla
 
 ---
 
@@ -112,7 +120,7 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 974 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, frecuencia de las copias automáticas (límites y recomendación), reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro; y sus mods de ficsit.app, contra el `.uplugin` y el registro reales de SML (elegir versión según la build del juego, descartar los mods de solo cliente y traducir la lista de lo que ha cargado), con una sección de contrato contra la API de verdad. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación; y sus mods de Thunderstore, contra el `LogOutput.log` real de BepInEx (dónde acaba cada fichero de un paquete, identificadores y dependencias, y no confundir los errores de vídeo del propio juego con problemas de mods), con una sección de contrato contra la API de verdad. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Project Zomboid, contra los ficheros reales de su servidor (su `servertest.ini` de 144 claves, su `SandboxVars.lua` de 300 opciones y su registro): aislamiento de la carpeta del usuario, Steam apagado, claves que gestiona la app, lectura del registro sin enseñar la IP de quien entra, editor de tablas Lua (ida y vuelta byte a byte, límites con coma decimal y nombres de cada valor), aplicar un preajuste de dificultad sobre el fichero comentado, que las reglas del modo básico existan de verdad en el juego, y los mods del taller (leer un `mod.info` real, la regla de las carpetas de versión medida contra el servidor, las tres claves que se le escriben y las salidas reales de SteamCMD al descargar, incluidas las que fallan con código 0). De Enshrouded, contra las grabaciones reales de su servidor: que **ninguna línea de la consola enseñe la IP pública** que él escribe en su registro, que tocar un ajuste obligue a poner el preajuste en «Custom» (con cualquier otro los ignora en silencio, y está medido), que la lista de vetados se escriba con el nombre que usa el servidor (`bannedAccounts`) y no con el que dice su propio README (`bans`), que los cuatro preajustes de dificultad digan ajuste a ajuste lo que el servidor aplica de verdad, que los 37 ajustes de la pantalla sean claves que el juego reconoce, su consulta de Steam, las dos reglas de los roles que el servidor trata como error interno, y la salida de su cargador de mods. De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON, .properties y Lua, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
+| `npm run smoke` | 1095 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, frecuencia de las copias automáticas (límites y recomendación), reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro; y sus mods de ficsit.app, contra el `.uplugin` y el registro reales de SML (elegir versión según la build del juego, descartar los mods de solo cliente y traducir la lista de lo que ha cargado), con una sección de contrato contra la API de verdad. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación; y sus mods de Thunderstore, contra el `LogOutput.log` real de BepInEx (dónde acaba cada fichero de un paquete, identificadores y dependencias, y no confundir los errores de vídeo del propio juego con problemas de mods), con una sección de contrato contra la API de verdad. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Project Zomboid, contra los ficheros reales de su servidor (su `servertest.ini` de 144 claves, su `SandboxVars.lua` de 300 opciones y su registro): aislamiento de la carpeta del usuario, Steam apagado, claves que gestiona la app, lectura del registro sin enseñar la IP de quien entra, editor de tablas Lua (ida y vuelta byte a byte, límites con coma decimal y nombres de cada valor), aplicar un preajuste de dificultad sobre el fichero comentado, que las reglas del modo básico existan de verdad en el juego, y los mods del taller (leer un `mod.info` real, la regla de las carpetas de versión medida contra el servidor, las tres claves que se le escriben y las salidas reales de SteamCMD al descargar, incluidas las que fallan con código 0). De Enshrouded, contra las grabaciones reales de su servidor: que **ninguna línea de la consola enseñe la IP pública** que él escribe en su registro, que tocar un ajuste obligue a poner el preajuste en «Custom» (con cualquier otro los ignora en silencio, y está medido), que la lista de vetados se escriba con el nombre que usa el servidor (`bannedAccounts`) y no con el que dice su propio README (`bans`), que los cuatro preajustes de dificultad digan ajuste a ajuste lo que el servidor aplica de verdad, que los 37 ajustes de la pantalla sean claves que el juego reconoce, su consulta de Steam, las dos reglas de los roles que el servidor trata como error interno, y la salida de su cargador de mods. De Rust, contra las grabaciones reales de su servidor (registro, consola remota, consulta de Steam y la ayuda de cada variable que da el propio servidor): que **ninguna línea enseñe la IP pública ni la contraseña de la consola remota**, que se tiren las líneas que el servidor escribe dos veces, que la consola remota recoja todas las respuestas de una orden y distinga el silencio de una orden que no existe, que **la sesión haga todas las órdenes por una sola conexión** (Rust admite cuatro por dirección y no suelta las cerradas), la línea de órdenes (consola remota en 127.0.0.1 y nada negativo), `server.cfg`, `users.cfg` y `bans.cfg`, que los valores de serie de los ajustes sean los del servidor, las fechas del borrado mensual con el cambio de hora, qué borra un borrado (los planos, solo si se pide), cuándo vale una Oxide para la build instalada y la cabecera y las dependencias de un plugin. De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON, .properties y Lua, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge`, `neoforge` |
 | `npm run e2e:custom` | Servidor a medida de verdad: monta un server pack de NeoForge 1.21.1 con su instalador oficial en una carpeta aparte, lo trae (comprueba que se **mueve**), arranca con su run.bat usando el Java de la app, pone la memoria en `user_jvm_args.txt`, para limpio sin quedarse en el `pause` y, con un script que se reinicia solo, comprueba que forzar el cierre mata también a Java |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
@@ -121,6 +129,7 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run e2e:factorio` | Factorio de verdad: copiar el juego de una instalación del equipo y adelgazarlo (de 5,1 GB a ~246 MB), generar el mapa, arrancar, puerto UDP, moderación por RCON en caliente, copia con el servidor en marcha, parada con `/quit`, restauración y **comprobar que no se ha tocado `%APPDATA%\Factorio`**. `-- --rapido` usa la copia ya adelgazada del laboratorio; `-- --mods` prueba además buscar e instalar un mod real del portal, que necesita tu sesión de factorio.com. Son 34 comprobaciones. Termina con 2 si lo único que falla es que el portal no responde |
 | `npm run e2e:zomboid` | Project Zomboid de verdad: instalar, primer arranque que escribe la configuración y genera el mundo, puerto UDP (y comprobar que el segundo **no** se abre sin Steam), jugadores por RCON, ajustes en caliente, cuentas y niveles de acceso, reglas de la partida con el servidor parado, copia en caliente, parada con `quit`, **un mod real del taller que el servidor carga de verdad**, restauración y **comprobar que no se ha tocado `%USERPROFILE%\Zomboid`**. Guarda una copia del juego en `%LOCALAPPDATA%\qubiq-dev\e2e-zomboid-juego` y la **mueve** dentro de la instancia: **no se puede enlazar**, porque Zomboid no arranca si llega a su carpeta por un `mklink /J`. `-- --descargar` baja los 6,7 GB de cero. Arranca sin Steam: no se anuncia en ningún sitio |
 | `npm run e2e:enshrouded` | Enshrouded de verdad: instalar, comprobar el fichero de configuración que se le escribe, arrancar, un solo puerto UDP (y que **no** abre el siguiente), su consulta de Steam, **la trampa del preajuste medida en vivo** (se toca un ajuste, se arranca y el propio servidor dice por consola que aplica «Custom»), que un veto puesto desde el juego sobreviva a que la app reescriba el fichero, copia en caliente, parada con Ctrl+Break, parar mientras arranca, mundos, **un mod real que Shroudtopia carga de verdad** (con su cargador, apagarlo, encenderlo y quitarlo) y restauración. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\enshrouded` con un enlace; `-- --descargar` baja los 8,8 GB de cero. ⚠ **Esta prueba publica el servidor**: Enshrouded no se puede arrancar sin anunciarse |
+| `npm run e2e:rust` | Rust de verdad, con un mapa de 1000 m para que no tarde: instalar, `server.cfg`, arrancar, **ni IP ni contraseña ni líneas dobladas en la consola**, puertos (la consola remota solo en 127.0.0.1, Rust+ cerrado), su consulta de Steam, la consola de la app, ajustes preguntados al servidor, **una sola conexión a la consola remota tras medio minuto de sondeo**, moderación en caliente y con el servidor parado, copia en caliente, parada con `quit`, parar mientras genera el mapa sin matarlo, **Oxide con un plugin de uMod, otro en caliente y quitarlo dejando los DLL idénticos a los de Steam**, borrado con el servidor en marcha y restaurar una copia de antes del borrado con su semilla. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\rust` con un enlace; `-- --descargar` baja los 5,5 GB de cero. ⚠ **Esta prueba publica el servidor**: Rust no se puede arrancar sin anunciarse |
 | `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones, viaje de ida y vuelta a una rama anterior y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%LOCALAPPDATA%\qubiq-dev\e2e-steam`); `-- --limpio` empieza de cero |
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
@@ -223,11 +232,18 @@ src/
 │       │       ├── adapter.ts   Contrato: SteamCMD, línea de órdenes, registro y Ctrl+Break
 │       │       ├── mods.ts      Thunderstore y BepInEx: catálogo, cargador y su registro
 │       │       └── service.ts   Mundos, listas de moderación y mods (ficheros, servidor parado)
-│       │   └── enshrouded/   Todo lo de Enshrouded:
+│       │   ├── enshrouded/   Todo lo de Enshrouded:
 │       │       ├── adapter.ts   Contrato: SteamCMD, registro, Ctrl+Break y consulta de Steam
 │       │       ├── config.ts    Su JSON: se genera entero y se conservan los vetados del juego
 │       │       ├── mods.ts      Shroudtopia desde GitHub y los mods que trae el usuario
 │       │       └── service.ts   Ajustes, roles, mundos, vetados y mods (servidor parado)
+│       │   └── rust/         Todo lo de Rust:
+│       │       ├── adapter.ts   Contrato: SteamCMD, línea de órdenes, registro y parada por WebRCON
+│       │       ├── config.ts    server.cfg (solo el bloque de la app), users.cfg y bans.cfg
+│       │       ├── rcon.ts      La sesión WebRCON de cada servidor y cómo leer lo que contesta
+│       │       ├── wipe.ts      Qué ficheros son el mapa y qué borra un borrado
+│       │       ├── mods.ts      Oxide (poner, reponer tras actualizar, quitar) y plugins de uMod
+│       │       └── service.ts   Ajustes, borrado (y su vigilante), moderación, Oxide y plugins
 │       └── service.ts       Orquestador: lo común, y delega en el juego
 ├── preload/                 Superficie expuesta al renderer (nada de Node)
 └── renderer/src/            Interfaz React
@@ -240,6 +256,7 @@ src/
         ├── satisfactory/    Asistentes, Ajustes, Partidas y Mods
         ├── valheim/         Asistentes, Ajustes, Mundos, Moderación y Mods
         ├── enshrouded/      Asistentes, Ajustes, Roles, Mundos, Vetados y Mods
+        ├── rust/            Asistentes, Ajustes, Borrado (y su aviso), Moderación y Plugins
         └── <juego>/icon.svg Icono propio de cada juego, ya dibujado para su fase
 
 resources/<juego>/           Ficheros que se empaquetan por juego (resources/minecraft/plugins/)
@@ -586,6 +603,38 @@ con esta versión»; sin ella, el fallo no se notaría.
 `shroudtopia.json` **no** impide que el cargador lo cargue: medido, sigue saliendo `Loading mod` y
 solo se salta `Activating`, así que el `Load()` del mod ya ha corrido. Hay que sacar el fichero de
 `mods/`, la misma regla que en Satisfactory y Valheim.
+
+**A la consola remota de Rust, una sola conexión por servidor, siempre.** Rust admite cuatro
+conexiones WebRCON por dirección y **no suelta las cerradas** (medido: cuatro minutos después se
+seguían rechazando). Conectar para cada orden, como hacía el cliente de la fase 1, lo dejaba sin
+consola —y sin parada— en medio minuto. Todo va por `WebRconSession` (`rustRcon` en
+`games/rust/rcon.ts`). Y **no compruebes el puerto de la consola con una conexión de prueba**
+(`isPortInUse`) con el servidor en marcha: también ocupa sitio. Para saber si escucha, `netstat`.
+
+**Rust no lee la entrada estándar, y su línea de órdenes se come el guion.** Todo lo que se le
+manda va por WebRCON. Y `+app.port -1` llega como `1`: lo negativo va en `server.cfg`, en el bloque
+de la app, que es lo único que la app escribe ahí. Todo lo demás va en la línea de órdenes, que
+manda sobre `server.cfg` (medido).
+
+**Rust escribe un tercio de sus líneas dos veces.** Es suyo, no de la tubería (en su `-logfile`
+pasa igual). `LaunchSpec.dropEchoes` las filtra en el supervisor; cada línea absorbe un solo eco,
+así que lo que se repite de verdad sigue saliendo.
+
+**La IP pública y la contraseña de RCON salen en el registro de Rust.** La primera en «IP address
+from external API»; la segunda, en su «Command Line» (el propio Rust la tapa, pero la regla está
+por si deja de hacerlo). `parseLine` las borra hasta del texto guardado, y con cuidado de no tomar
+por dirección una versión de cuatro números («v1.0.32.0»).
+
+**El borrado mensual de Rust lo hace el juego, no la app.** El parche sube la versión de guardado
+que va en el nombre del mapa (`proceduralmap.3000.12345.288.sav`) y el servidor actualizado ya no
+lo encuentra. La app avisa, guarda la copia, actualiza y borra lo mismo que borraría el parche;
+los planos (`player.blueprints.17.db`) llevan otra versión y solo se van si se pide. Si cambias qué
+se borra, cambia también el smoke, que lo comprueba con los nombres reales.
+
+**Oxide tiene que ser de la build exacta de Rust, y cada actualización lo quita.** Sustituye siete
+DLL del juego. Vale si salió **después** de la build instalada, mirando `timebuildupdated` de
+Steam y no `timeupdated`, que Facepunch retoca horas después. Quitarlo es borrar lo que añadió y
+validar con SteamCMD, que devuelve los DLL originales (sha1 comprobado en la e2e).
 
 **La consulta de Steam de Valheim solo responde en el puerto de consulta.** Ni publicado contesta
 en el de juego. Y no te fíes de su campo `version`, que dice siempre «1.0.0.0»: la versión de

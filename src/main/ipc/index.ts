@@ -6,6 +6,7 @@ import { registerValheimIpc } from './valheim'
 import { registerFactorioIpc } from './factorio'
 import { registerZomboidIpc } from './zomboid'
 import { registerEnshroudedIpc } from './enshrouded'
+import { registerRustIpc } from './rust'
 
 /**
  * Puente entre el núcleo y la interfaz.
@@ -21,4 +22,5 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   registerFactorioIpc()
   registerZomboidIpc()
   registerEnshroudedIpc()
+  registerRustIpc()
 }

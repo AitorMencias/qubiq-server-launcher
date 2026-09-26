@@ -13,8 +13,8 @@
  *    de la opción («Construir en las basesLevantar, quitar…»).
  * 3. **Y sin margen**, que el de serie de `.help` la separa de más.
  *
- * Enshrouded tiene casillas en cuatro pantallas (roles, ajustes, etiquetas y el
- * asistente avanzado), así que vale la pena tenerlo en un sitio.
+ * La estrenó Enshrouded, que tiene casillas en cuatro pantallas; Rust la usa en
+ * sus ajustes y en el borrado, así que vive con las piezas comunes.
  */
 
 interface Props {

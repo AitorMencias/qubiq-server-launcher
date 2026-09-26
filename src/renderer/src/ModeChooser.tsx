@@ -29,7 +29,7 @@ const MODES: ModeCard[] = [
     title: 'Básico',
     tagline: 'Te guiamos paso a paso',
     points: [
-      'Una pregunta por pantalla: modo de juego, dificultad, mundo y cómo os conectáis',
+      'Una pregunta por pantalla: el nombre, cuánta gente sois, lo que pida el juego y cómo os conectáis',
       'Lo técnico lo ponemos nosotros: versión, memoria y puerto',
       'Después, solo un botón para encender y apagar, tus jugadores y la consola'
     ],
@@ -42,7 +42,7 @@ const MODES: ModeCard[] = [
     points: [
       'Eliges versión concreta, memoria y puerto',
       'La misma pantalla, con toda la configuración desbloqueada y ficha técnica',
-      'Copias con intervalo y retención, semillas de mundo y ajustes avanzados'
+      'Copias con intervalo y retención, semillas y todos los ajustes del juego'
     ]
   }
 ]

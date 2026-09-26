@@ -238,6 +238,14 @@ export interface SteamBranch {
   needsPassword: boolean
   /** Cuándo se publicó, en segundos Unix. Sirve para ordenarlas. */
   timeUpdated: number
+  /**
+   * Cuándo se subió la build, en segundos Unix, si Steam lo dice.
+   *
+   * No es lo mismo que `timeUpdated`: esa cambia también cuando el estudio
+   * retoca la rama sin subir nada (en Rust, medido, 2 h 20 min después de la
+   * build). Para saber si algo salió DESPUÉS del parche —Oxide— vale esta.
+   */
+  timeBuildUpdated?: number
 }
 
 /**
@@ -267,7 +275,10 @@ export function branchesFromAppInfo(stdout: string, appId: number): SteamBranch[
         ? { description: description.trim() }
         : {}),
       needsPassword: vdfGet(node, 'pwdrequired') === '1',
-      timeUpdated: Number(vdfGet(node, 'timeupdated') ?? 0)
+      timeUpdated: Number(vdfGet(node, 'timeupdated') ?? 0),
+      ...(typeof vdfGet(node, 'timebuildupdated') === 'string'
+        ? { timeBuildUpdated: Number(vdfGet(node, 'timebuildupdated')) }
+        : {})
     })
   }
 

@@ -233,6 +233,14 @@ accesible, y el parche fuerza un mapa nuevo. La app tendría que avisar, actuali
 más técnico. Encaja peor con la promesa del modo básico, aunque técnicamente es de los más cómodos
 gracias a WebRCON.
 
+> **Medido en la fase 7** (ANALISIS.md §19.27): la memoria y el primer arranque dependen del mapa
+> (2000 m → 3,2 GB y 109 s; 3000 → 4,2 GB y 171 s; 4000 → 5,6 GB y 306 s; después, 13 s). Los
+> puertos de la tabla de arriba no son exactos: la consola remota va en el **siguiente** al de juego
+> (TCP) y la consulta de Steam en el de **después** (UDP), y Rust+ abre otro TCP (juego + 67). No se
+> puede dejar de publicar, no lee la entrada estándar y su WebRCON admite **cuatro conexiones por
+> dirección sin soltar las cerradas**, así que hay que hablarle por una sola. De mods, Oxide con el
+> catálogo de uMod.
+
 ### Factorio — viabilidad **media** (técnicamente excelente, comercialmente con condiciones)
 
 | | |

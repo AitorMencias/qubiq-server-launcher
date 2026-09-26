@@ -11,6 +11,7 @@ import { ConfirmDelete } from './ConfirmDelete'
 import { VersionCard } from './VersionCard'
 import { D20Loader } from './D20Loader'
 import { GameIcon } from './GameIcon'
+import { LoadNotice } from './LoadNotice'
 
 /**
  * Pantalla de un servidor, igual en los dos modos.
@@ -253,6 +254,15 @@ export function ServerPanel({
       {topbar}
 
       <PowerCard state={state} diagnosis={diagnosis} progress={progress} error={error} onRun={run} />
+
+      <div className="main-notices">
+        {/* Antes de arrancar, si ya hay otros en marcha y no caben todos. */}
+        <LoadNotice state={state} />
+
+        {/* Lo que el juego tiene que decir sin esperar a que se abra
+            Configuración: en Rust, que llega el borrado del mes. */}
+        {gameUi.Notices && <gameUi.Notices state={state} mode={mode} onRefresh={onRefresh} />}
+      </div>
 
       <div className="tabs">
         <button

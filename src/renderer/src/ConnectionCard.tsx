@@ -223,7 +223,7 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
             <div className="row">
               <input
                 className="grow"
-                placeholder="algo.joinmc.link"
+                placeholder={gameInfo(manifest.game).tunnelAddressExample}
                 value={tunnelAddress}
                 onChange={(e) => setTunnelAddress(e.target.value)}
                 onBlur={() => void saveTunnelAddress()}

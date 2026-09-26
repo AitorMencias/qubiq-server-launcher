@@ -38,6 +38,7 @@ import { createValheimService } from './games/valheim/service'
 import { createFactorioService } from './games/factorio/service'
 import { createZomboidService } from './games/zomboid/service'
 import { createEnshroudedService } from './games/enshrouded/service'
+import { createRustService, type RustHost } from './games/rust/service'
 
 /**
  * Orquestador del núcleo (§5).
@@ -67,7 +68,7 @@ const RESTART_REQUEST_FILE = 'hardcore-restart.request'
 /** Margen antes de volver a arrancar, para que el proceso anterior suelte todo. */
 const RESTART_DELAY_MS = 3_000
 
-class LauncherService extends EventEmitter implements GameHost {
+class LauncherService extends EventEmitter implements GameHost, RustHost {
   private readonly supervisors = new Map<string, ServerSupervisor>()
   /** Instancias con una instalación en curso. */
   private readonly installing = new Set<string>()
@@ -96,8 +97,14 @@ class LauncherService extends EventEmitter implements GameHost {
   /** Operaciones exclusivas de Enshrouded (ajustes, mundos, vetados y mods). */
   readonly enshrouded = createEnshroudedService(this)
 
+  /** Operaciones exclusivas de Rust (ajustes, borrado, moderación, Oxide y plugins). */
+  readonly rust = createRustService(this)
+
   async initialize(): Promise<void> {
     await ensureBaseDirs()
+    // El borrado programado de Rust mira cada diez minutos si ha salido el
+    // parche del mes. Solo hace algo en los servidores que lo tienen pedido.
+    this.rust.startWatcher()
   }
 
   // --- Ajustes de la aplicación ---------------------------------------------
@@ -372,6 +379,20 @@ class LauncherService extends EventEmitter implements GameHost {
     return [...this.supervisors.values()].some((s) => s.isRunning)
   }
 
+  isRunning(id: string): boolean {
+    return this.supervisors.get(id)?.isRunning ?? false
+  }
+
+  /** Los identificadores de todos los servidores, de cualquier juego. */
+  async listInstanceIds(): Promise<string[]> {
+    return (await instances.listInstances()).map((manifest) => manifest.id)
+  }
+
+  /** Una línea de sistema en la consola, para lo que hace la app por su cuenta. */
+  logSystem(id: string, text: string): void {
+    this.systemLog(id, text)
+  }
+
   /**
    * Progreso de algo largo que no es una instalación.
    *
@@ -596,6 +617,13 @@ class LauncherService extends EventEmitter implements GameHost {
         this.emit('progress', { instanceId: id, phase: 'restore', progress: null, detail })
       }
     })
+
+    // Lo restaurado puede depender de algo del manifiesto (en Rust, la semilla
+    // del mapa): el juego dice qué hay que poner al día.
+    const changes = await game.afterRestore?.(manifest)
+    if (changes && Object.keys(changes).length > 0) {
+      await instances.updateInstance(id, { data: changes }, game)
+    }
   }
 
   async deleteBackup(id: string, fileName: string): Promise<void> {

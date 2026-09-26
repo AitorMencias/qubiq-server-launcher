@@ -4,7 +4,17 @@ import type { Dirent } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { BackupInfo, InstanceManifest } from '@shared/types'
+import { GAMES, theSave, type GameInfo } from '@shared/games'
 import { backupsDir, serverDir, ensureDir, systemTarPath } from '../paths'
+
+/**
+ * «el mapa», «el mundo», «la partida»: cómo se llama lo que se guarda en ese
+ * juego. «la partida» si el juego no está en el catálogo (el falso del smoke).
+ */
+function saveOf(manifest: InstanceManifest): string {
+  const noun = (GAMES as Record<string, GameInfo | undefined>)[manifest.game]?.save
+  return noun ? theSave(noun) : 'la partida'
+}
 
 const execFileAsync = promisify(execFile)
 
@@ -110,7 +120,7 @@ export async function createBackup(options: CreateBackupOptions): Promise<Backup
   // Sin partida no hay copia que valga: guardar solo la configuración de una
   // instancia recién creada llenaría el historial de ruido inútil.
   if (entries.length === 0) {
-    throw new Error('No hay nada que guardar todavía: la partida aún no se ha generado.')
+    throw new Error(`No hay nada que guardar todavía: ${saveOf(manifest)} aún no se ha generado.`)
   }
 
   const dir = backupsDir(id)
@@ -119,7 +129,7 @@ export async function createBackup(options: CreateBackupOptions): Promise<Backup
   const name = await freeName(dir)
   const zipPath = join(dir, name)
 
-  onProgress?.('Comprimiendo la partida')
+  onProgress?.(`Comprimiendo ${saveOf(manifest)}`)
   await runTar([
     '-c',
     '-a',
@@ -254,7 +264,7 @@ export async function restoreBackup(
   // Una partida vacía no se puede copiar, y eso no debe bloquear la restauración.
   await saveCurrent().catch(() => undefined)
 
-  onProgress?.('Retirando la partida actual')
+  onProgress?.(`Retirando ${saveOf(manifest)} de ahora`)
   for (const folder of targets) {
     await rm(join(serverDir(id), folder), { recursive: true, force: true })
   }

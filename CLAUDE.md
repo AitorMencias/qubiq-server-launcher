@@ -46,11 +46,10 @@ sus datos compartidos (nombre, condiciones, capacidades, puertos) en `src/shared
 5. Al cerrar: marcar el estado en la hoja de ruta, añadir el apartado §19.x en ANALISIS.md y
    actualizar README (comandos, número de comprobaciones del smoke, reglas nuevas).
 
-**Decisiones pendientes ahora mismo:**
-- Selector de juego (fase 2): tras elegir juego, ¿preguntar el modo (A) o usar el de la barra lateral
-  (B)? Bocetos en `%LOCALAPPDATA%\qubiq-dev\bocetos`.
-- Grabar WebRCON de Rust y A2S de Valheim con servidor real exige publicarlo en la lista de Steam con
-  la IP del usuario: preguntar antes (como tarde en las fases 3 y 7).
+**Estado:** las fases 0 a 7 de la hoja de ruta están hechas (la 7, Rust, cierra con la revisión
+general de la 0.10.0). No hay decisiones pendientes; lo siguiente está en ANALISIS.md §19.29.
+Rust, Enshrouded y Valheim publicado se anuncian solos en la lista de Steam: arrancarlos para probar
+sigue exigiendo preguntar antes, salvo lo ya autorizado para su fase.
 
 ## Pruebas
 
@@ -61,6 +60,7 @@ sus datos compartidos (nombre, condiciones, capacidades, puertos) en `src/shared
 | `npm run e2e -- paper` y `npm run e2e:restart` | Al tocar núcleo, supervisor o Minecraft. **Minecraft no puede empeorar** |
 | `npm run e2e:custom` | Al tocar servidores a medida (`games/minecraft/custom/`), arranque con cmd o cierre forzado del supervisor |
 | `npm run e2e:steam` | Al tocar SteamCMD, parada o puertos. Caché en `%LOCALAPPDATA%\qubiq-dev\e2e-steam` |
+| `npm run e2e:rust` | Al tocar Rust o la sesión WebRCON. **Publica el servidor** (Rust se anuncia siempre) |
 | Recorrido de interfaz | Al tocar la interfaz: ver `%LOCALAPPDATA%\qubiq-dev\LEEME.md` (Playwright, capturas y comparación píxel a píxel) |
 
 Las grabaciones reales de protocolos (SteamCMD, RCON y A2S de Zomboid) están en
@@ -71,7 +71,8 @@ Antes de llevar una grabación al repo hay que quitar las rutas con el nombre de
 
 `%LOCALAPPDATA%\qubiq-dev\` (índice en su `LEEME.md`):
 - `steam/`: SteamCMD y los servidores de **Valheim, Satisfactory, Enshrouded, Project Zomboid y Rust
-  ya instalados** (~35 GB), más los prototipos de la fase 1. Zomboid tiene su carpeta de usuario
+  ya instalados** (~35 GB), más los prototipos de cada fase (los de Rust: `rust-fase7.mjs` y los
+  `rust-rcon-*.mjs` que midieron el límite de conexiones de su consola remota). Zomboid tiene su carpeta de usuario
   aislada en `steam/pz-home` (por defecto escribiría en `%USERPROFILE%\Zomboid`, la del juego real).
 - `ui/`: recorrido de la interfaz con datos aislados.
 - `verificacion-migracion/`: script para probar cambios de esquema del manifiesto sobre copias.

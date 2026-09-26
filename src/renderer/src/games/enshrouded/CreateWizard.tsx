@@ -11,7 +11,7 @@ import {
   type EnshroudedRole
 } from '@shared/games/enshrouded/types'
 import { D20Loader } from '../../D20Loader'
-import { CheckRow } from './CheckRow'
+import { CheckRow } from '../../CheckRow'
 import { RolesEditor } from './RolesEditor'
 import { rolesFor } from './roles'
 import { suggestPassword } from './BasicWizard'

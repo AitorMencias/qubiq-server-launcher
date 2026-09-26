@@ -38,6 +38,14 @@ export interface LaunchSpec {
    * matar solo al intermediario dejaría el servidor vivo y sin control.
    */
   killTree?: boolean
+  /**
+   * El servidor escribe cada línea dos veces y hay que tirar la repetida.
+   *
+   * Lo estrena Rust: medido, un tercio de sus líneas salen dos veces seguidas
+   * (o con otra en medio), y no es la tubería, porque en su propio fichero de
+   * registro pasa igual. Sin esto la consola sale doblada.
+   */
+  dropEchoes?: boolean
 }
 
 /**
@@ -84,6 +92,12 @@ export type StopStrategy = (
 ) & {
   /** Cuánto se espera a que cierre solo. Por defecto 60 s. */
   graceMs?: number
+  /**
+   * Lo que se dice en la consola si se pide parar mientras el servidor aún
+   * arranca y el juego no atiende la orden hasta terminar (Rust, generando el
+   * mapa). Sin esto parecería que el botón no hace nada.
+   */
+  whileStarting?: string
 }
 
 /** Lo que se extrae de una línea del registro del servidor. */
@@ -252,6 +266,16 @@ export interface GameAdapter<
 
   /** Versión y variante que se anotan en la copia. */
   backupMeta(manifest: M): { version: string; variant?: string }
+
+  /**
+   * Qué cambiar en el manifiesto después de restaurar, cuando lo restaurado
+   * depende de algo que el manifiesto guarda.
+   *
+   * Lo estrena Rust: el mapa se busca por su tamaño y su semilla, que están en
+   * el manifiesto. Una copia de antes de un borrado trae el mapa de la semilla
+   * anterior, y sin esto el servidor no lo encontraría y generaría otro.
+   */
+  afterRestore?(manifest: M): Promise<Partial<M['data']> | void>
 
   /**
    * Deja la partida consistente en disco y, si el juego lo permite, suspende el

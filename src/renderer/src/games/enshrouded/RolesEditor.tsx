@@ -4,7 +4,7 @@ import {
   roleLabel,
   type EnshroudedRole
 } from '@shared/games/enshrouded/types'
-import { CheckRow } from './CheckRow'
+import { CheckRow } from '../../CheckRow'
 
 /**
  * Los roles de un servidor de Enshrouded: contraseña y permisos de cada uno.

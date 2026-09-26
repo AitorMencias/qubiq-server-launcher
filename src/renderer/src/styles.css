@@ -446,6 +446,17 @@ select:focus {
   margin-bottom: 6px;
 }
 
+/* La negrita suelta es el título del aviso; dentro de un párrafo es solo una
+   palabra resaltada y va en línea. Sin esto, «Diles que se conecten a
+   <strong>dirección</strong>» partía la frase en tres líneas (recorrido de la
+   fase 7: pasaba en Conexión, Zomboid, Valheim y Rust). */
+.alert p strong,
+.alert p b {
+  display: inline;
+  margin: 0;
+  color: var(--text);
+}
+
 /* Una ruta de disco, para que se lea entera y se distinga del texto. */
 .mono-path {
   font-family: 'Cascadia Mono', Consolas, monospace;
@@ -1602,4 +1613,58 @@ button.link:hover:not(:disabled) {
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid var(--border);
+}
+
+/*
+ * La guía de requisitos del selector de juego: una tabla para comparar los
+ * siete de un vistazo. Plegada de serie, porque las tarjetas ya dicen lo
+ * importante; con scroll propio para que no ensanche la pantalla.
+ */
+.requirements-guide {
+  margin-top: 18px;
+}
+.requirements-guide summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.requirements-scroll {
+  overflow-x: auto;
+  margin: 14px 0 10px;
+}
+.requirements-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.requirements-table th,
+.requirements-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.requirements-table th {
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.requirements-table td:first-child {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/*
+ * Avisos de la pantalla principal, entre el botón grande y las pestañas: el de
+ * memoria antes de arrancar otro servidor y los del juego (el borrado de Rust).
+ * Vacío no ocupa nada; con algo dentro, con el margen del resto de la pantalla.
+ */
+.main-notices:empty {
+  display: none;
+}
+.main-notices {
+  padding: 14px 20px 0;
+}
+.main-notices .alert {
+  max-width: 820px;
+  margin: 0 auto 12px;
 }

@@ -28,6 +28,16 @@ import {
   presetInfo as enshroudedPresetInfo
 } from './enshrouded/types'
 import {
+  DEFAULT_GAME_PORT as RUST_DEFAULT_PORT,
+  MAX_PLAYERS as RUST_MAX_PLAYERS,
+  MEMORY_MIN_GB as RUST_MEMORY_MIN_GB,
+  MEMORY_RECOMMENDED_GB as RUST_MEMORY_RECOMMENDED_GB,
+  queryPortFor as rustQueryPortFor,
+  rustPlusPortFor,
+  worldSizeInfo as rustWorldSizeInfo,
+  worldSizeLabel as rustWorldSizeLabel
+} from './rust/types'
+import {
   DEFAULT_GAME_PORT as VALHEIM_DEFAULT_PORT,
   MAX_PLAYERS as VALHEIM_MAX_PLAYERS,
   MEMORY_MIN_GB as VALHEIM_MEMORY_MIN_GB,
@@ -127,6 +137,18 @@ export interface GameCard {
   downloadMeasured: boolean
   /** Lo que conviene saber antes de elegirlo. */
   highlights: { text: string; tone: 'neutral' | 'good' | 'warn' }[]
+  /**
+   * La guía de requisitos (revisión de la 0.10.0): lo que se compara entre
+   * juegos en la tabla del selector. Todo medido en las fases de cada uno.
+   */
+  requirements: {
+    /** Lo que tarda en quedar listo para entrar. */
+    startup: string
+    /** Qué hay que abrir para jugar desde fuera, con los puertos de serie. */
+    ports: string
+    /** Lo que pide además, si pide algo. */
+    extra?: string
+  }
 }
 
 export interface GameInfo {
@@ -199,7 +221,12 @@ export const GAMES: Record<GameId, GameInfo> = {
       memoryGb: { min: 2, recommended: 4 },
       download: '≈ 1 GB',
       downloadMeasured: false,
-      highlights: [{ text: 'Plugins y mods', tone: 'neutral' }]
+      highlights: [{ text: 'Plugins y mods', tone: 'neutral' }],
+      requirements: {
+        startup: 'depende de los mods: de segundos a un par de minutos',
+        ports: 'uno TCP (25565)',
+        extra: 'Java: lo baja la app sola'
+      }
     },
     agreements: [
       { id: 'minecraft-eula', label: 'el EULA de Minecraft', url: 'https://aka.ms/MinecraftEULA' }
@@ -225,7 +252,11 @@ export const GAMES: Record<GameId, GameInfo> = {
       highlights: [
         { text: 'Se configura sin abrir el juego', tone: 'good' },
         { text: 'Solo uno a la vez', tone: 'warn' }
-      ]
+      ],
+      requirements: {
+        startup: 'unos 6 segundos',
+        ports: 'el 7777 por TCP y UDP, y el 8888 por TCP'
+      }
     },
     // El servidor se descarga de Steam de forma anónima: lo que se acepta es el
     // acuerdo de Steam, no un EULA del juego.
@@ -271,7 +302,11 @@ export const GAMES: Record<GameId, GameInfo> = {
         { text: 'Se juega desde fuera sin abrir puertos', tone: 'good' },
         { text: 'El más ligero de todos', tone: 'good' },
         { text: 'No se modera en caliente', tone: 'warn' }
-      ]
+      ],
+      requirements: {
+        startup: '35 s con un mundo nuevo, 12 s después',
+        ports: 'dos UDP (2456 y 2457), o ninguno con crossplay'
+      }
     },
     // Igual que Satisfactory: el servidor se baja de Steam de forma anónima, y
     // lo que se acepta es el acuerdo de Steam.
@@ -322,7 +357,12 @@ export const GAMES: Record<GameId, GameInfo> = {
         { text: 'Arranca en un segundo', tone: 'good' },
         { text: 'Con mods y con Space Age', tone: 'neutral' },
         { text: 'Hace falta tener el juego', tone: 'warn' }
-      ]
+      ],
+      requirements: {
+        startup: 'un segundo',
+        ports: 'uno UDP (34197)',
+        extra: 'tener Factorio en tu cuenta de Steam'
+      }
     },
     // El juego se descarga de Steam con la cuenta del usuario (no hay servidor
     // dedicado anónimo), así que lo que se acepta sigue siendo el acuerdo de Steam.
@@ -368,7 +408,11 @@ export const GAMES: Record<GameId, GameInfo> = {
         { text: 'Se modera y se manda como en Minecraft', tone: 'good' },
         { text: 'Cientos de reglas de partida', tone: 'neutral' },
         { text: 'Tarda un minuto largo en arrancar', tone: 'warn' }
-      ]
+      ],
+      requirements: {
+        startup: 'unos 40 segundos (minuto y medio la primera vez)',
+        ports: 'uno UDP (16261), dos con Steam encendido'
+      }
     },
     // Como Valheim y Satisfactory: el servidor se baja de Steam de forma
     // anónima, así que lo que se acepta es el acuerdo de Steam.
@@ -417,7 +461,12 @@ export const GAMES: Record<GameId, GameInfo> = {
         // Medido: no hay forma de apagarlo. Va el último, como en los demás,
         // pero es lo que más cambia la decisión de crearlo o no.
         { text: 'Sale siempre en la lista pública', tone: 'warn' }
-      ]
+      ],
+      requirements: {
+        startup: 'entre 2 y 4 segundos',
+        ports: 'uno UDP (15637)',
+        extra: 'sale siempre en la lista pública del juego'
+      }
     },
     // Como Valheim, Satisfactory y Zomboid: el servidor se baja de Steam de
     // forma anónima, así que lo que se acepta es el acuerdo de Steam.
@@ -450,6 +499,59 @@ export const GAMES: Record<GameId, GameInfo> = {
       'Enshrouded no deja echar a nadie desde fuera del juego: su propio servidor dice que el ' +
       'expulsar de un dedicado «no está implementado». Lo que sí se puede es quitar un veto desde ' +
       'aquí, y vetar desde dentro del juego con la contraseña de Administrador (pestaña Social).'
+  },
+
+  rust: {
+    id: 'rust',
+    name: 'Rust',
+    card: {
+      tagline: 'Sobrevivir, construir una base y defenderla. Cada mes, mapa nuevo.',
+      players: `Hasta ${RUST_MAX_PLAYERS} en un PC de casa`,
+      memoryGb: { min: RUST_MEMORY_MIN_GB, recommended: RUST_MEMORY_RECOMMENDED_GB },
+      download: '5,5 GB',
+      downloadMeasured: true,
+      highlights: [
+        { text: 'Se modera en caliente', tone: 'good' },
+        { text: 'Plugins con Oxide', tone: 'neutral' },
+        { text: 'Mapa nuevo cada mes', tone: 'warn' },
+        // Medido: no hay ninguna variable para quedar fuera de la lista.
+        { text: 'Sale siempre en la lista pública', tone: 'warn' }
+      ],
+      requirements: {
+        startup: 'de 2 a 5 minutos la primera vez (genera el mapa), unos 13 s después',
+        ports: 'dos UDP (28015 y 28017), y uno TCP más con Rust+',
+        extra: 'sale siempre en la lista pública; mapa nuevo cada mes'
+      }
+    },
+    // Como los demás juegos de Steam: el servidor se baja de forma anónima, así
+    // que lo que se acepta es el acuerdo de Steam.
+    agreements: [
+      {
+        id: 'steam-subscriber',
+        label: 'el Acuerdo de Suscriptor de Steam',
+        url: 'https://store.steampowered.com/subscriber_agreement/'
+      }
+    ],
+    disclaimer: 'Herramienta no oficial. No está asociada a Facepunch Studios ni a Rust.',
+    joinHint: 'En Rust: pulsa F1 y escribe «client.connect» seguido de esta dirección.',
+    joinSteps: [
+      'Abre Rust y espera a estar en el menú principal.',
+      'Pulsa F1 para abrir la consola del juego.',
+      'Escribe «client.connect» y la dirección con su puerto, por ejemplo: client.connect 192.168.1.20:28015',
+      'Pulsa Intro. Después sale en «Historial» dentro de la lista de servidores, para la próxima vez.'
+    ],
+    joinWarning:
+      'Si el servidor acaba de cambiar de mes y no se ha actualizado, Rust no te deja entrar: dice ' +
+      'que la versión no coincide. Pasa el primer jueves de cada mes; mira Configuración → Borrado.',
+    tunnelAddressExample: 'algo.gl.at.ply.gg',
+    save: { singular: 'mapa', plural: 'mapas', feminine: false },
+    backupScope:
+      'Se guardan el mapa con todo lo construido, los jugadores, los administradores y los vetados, ' +
+      'y los plugins con su configuración. El juego no hace falta: se vuelve a descargar de Steam.',
+    moderationHint:
+      'En Rust se modera por el identificador de Steam, aunque la lista enseña el nombre. Echar y ' +
+      'vetar surten efecto al momento; los administradores y los vetados están en Configuración → ' +
+      'Moderación.'
   }
 }
 
@@ -575,6 +677,29 @@ export function serverPorts(manifest: InstanceManifest): ServerPort[] {
       // aparte del de consulta, y el servidor no abre ningún otro: medido con
       // netstat en la fase 6.
       return [{ port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' }]
+    case 'rust': {
+      // Medido con netstat: juego y consulta por UDP. La consola remota (el de
+      // en medio, TCP) no se lista nunca: la app la abre solo en 127.0.0.1.
+      // Rust+ solo si está encendido, que es cuando abre su puerto TCP.
+      const ports: ServerPort[] = [
+        { port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' },
+        {
+          port: rustQueryPortFor(manifest.port),
+          protocol: 'udp',
+          label: 'Consulta de Steam',
+          tunnelType: 'UDP'
+        }
+      ]
+      if (manifest.data.rustPlus) {
+        ports.push({
+          port: rustPlusPortFor(manifest.port),
+          protocol: 'tcp',
+          label: 'Rust+ (app del móvil)',
+          tunnelType: 'TCP'
+        })
+      }
+      return ports
+    }
     case 'valheim':
       // Todo por UDP, y el de consulta es siempre el siguiente al de juego.
       // Con crossplay no hace falta abrir ninguno, pero se siguen listando:
@@ -727,6 +852,27 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
         externalCheck: true,
         crossplay: false
       }
+    case 'rust':
+      // El que más se parece a Zomboid en lo que se puede hacer: consola (por
+      // WebRCON, no por la entrada estándar, que no la lee), nombres de quien
+      // está dentro con su identificador de Steam, y moderación completa en
+      // caliente. Los plugins son los de Oxide, con el catálogo de uMod.
+      return {
+        worlds: false,
+        content: true,
+        officialPlugins: false,
+        memory: false,
+        settings: true,
+        reinstall: true,
+        versions: true,
+        commands: true,
+        playerIds: true,
+        playerNames: true,
+        moderation: true,
+        // Se anuncia siempre, así que Steam sabe si está en la lista.
+        externalCheck: true,
+        crossplay: false
+      }
     case 'valheim':
       // Los mundos y la moderación los aporta el juego con sus propias pestañas
       // (las listas son ficheros de texto, no comandos). El servidor no lee
@@ -775,6 +921,10 @@ export function versionLabel(manifest: InstanceManifest): string {
       return manifest.data.gameVersion
         ? `Project Zomboid ${manifest.data.gameVersion}`
         : 'Project Zomboid'
+    case 'rust':
+      // La versión de red («2633»), que es la que tiene que coincidir con la
+      // del juego de quien entra.
+      return manifest.data.gameVersion ? `Rust ${manifest.data.gameVersion}` : 'Rust'
     case 'factorio':
       // En Factorio la versión no es un detalle: el cliente tiene que ir en la
       // misma, así que se enseña siempre que se sepa.
@@ -798,10 +948,34 @@ export function summaryLabel(manifest: InstanceManifest): string {
       return `Enshrouded · ${enshroudedPresetInfo(manifest.data.preset).label}`
     case 'zomboid':
       return `Project Zomboid · ${zomboidPresetInfo(manifest.data.preset).name}`
+    case 'rust':
+      return `Rust · mapa ${rustWorldSizeLabel(manifest.data.worldSize).toLowerCase()}`
     case 'factorio':
       return manifest.data.spaceAge
         ? `Factorio · ${manifest.data.saveName} · Space Age`
         : `Factorio · ${manifest.data.saveName}`
+  }
+}
+
+/**
+ * Memoria que va a usar este servidor en marcha, en GB, según cómo está
+ * configurado y no solo según el juego.
+ *
+ * Es lo que se suma para avisar antes de arrancar un servidor más con otros ya
+ * en marcha (§ revisión de la 0.10.0): el equipo es el mismo para todos. En los
+ * juegos con la memoria a mano (Minecraft, Zomboid) es la que tienen puesta; en
+ * Rust, la medida para su tamaño de mapa; en el resto, la mínima de su tarjeta.
+ */
+export function memoryNeedGb(manifest: InstanceManifest): number {
+  switch (manifest.game) {
+    case 'minecraft':
+      return manifest.data.memoryMb / 1024
+    case 'zomboid':
+      return manifest.data.memoryMb / 1024
+    case 'rust':
+      return rustWorldSizeInfo(manifest.data.worldSize)?.memoryGb ?? RUST_MEMORY_RECOMMENDED_GB
+    default:
+      return GAMES[manifest.game].card.memoryGb.min
   }
 }
 
@@ -820,5 +994,7 @@ export function defaultPortFor(game: GameId): number {
       return ZOMBOID_DEFAULT_PORT
     case 'enshrouded':
       return ENSHROUDED_DEFAULT_PORT
+    case 'rust':
+      return RUST_DEFAULT_PORT
   }
 }

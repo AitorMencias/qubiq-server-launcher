@@ -254,6 +254,44 @@ export const ENSHROUDED_IPC = {
   loaderUpdate: 'enshrouded:mods:loaderUpdate'
 } as const
 
+/** Canales exclusivos de Rust. */
+export const RUST_IPC = {
+  // Ajustes: van en la línea de órdenes, así que valen desde el siguiente arranque.
+  getConfig: 'rust:config:get',
+  setConfig: 'rust:config:set',
+
+  // El mapa y el borrado mensual.
+  getMap: 'rust:map:get',
+  wipePreview: 'rust:map:wipePreview',
+  setWipePlan: 'rust:map:setPlan',
+  dismissWipeNotice: 'rust:map:dismiss',
+  wipe: 'rust:map:wipe',
+
+  // Jugadores y moderación: en caliente por la consola remota, o en sus
+  // ficheros con el servidor parado.
+  listPlayers: 'rust:players:list',
+  listAdmins: 'rust:admins:list',
+  setAdmin: 'rust:admins:set',
+  removeAdmin: 'rust:admins:remove',
+  makeAdmin: 'rust:admins:fromPlayer',
+  listBans: 'rust:bans:list',
+  ban: 'rust:bans:add',
+  unban: 'rust:bans:remove',
+  kick: 'rust:players:kick',
+
+  // Oxide y los plugins de uMod.
+  listPlugins: 'rust:plugins:list',
+  searchPlugins: 'rust:plugins:search',
+  addPlugin: 'rust:plugins:add',
+  removePlugin: 'rust:plugins:remove',
+  setPluginEnabled: 'rust:plugins:enable',
+  pluginUpdates: 'rust:plugins:updates',
+  updatePlugin: 'rust:plugins:update',
+  installOxide: 'rust:oxide:install',
+  removeOxide: 'rust:oxide:remove',
+  openPluginsFolder: 'rust:plugins:openFolder'
+} as const
+
 /** Eventos que el núcleo empuja hacia la interfaz. */
 export const EVENTS = {
   log: 'event:log',

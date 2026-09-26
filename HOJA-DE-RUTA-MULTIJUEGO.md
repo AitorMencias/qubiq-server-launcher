@@ -481,6 +481,29 @@ descargar sin cuenta de pago, así que el fichero lo trae el usuario.
 
 ### Fase 7 — Rust (0.10.0)
 
+> **Estado: hecha** (pendiente de publicar como 0.10.0). Detalle, hallazgos del servidor real,
+> decisiones y verificación en [ANALISIS.md §19.27](ANALISIS.md) y la revisión general en §19.28.
+> Decidido por el usuario: arrancar Rust sin restricciones para medir y probar (se anuncia siempre),
+> **Oxide + uMod** de cargador y catálogo (no Carbon), y el borrado **avisa y guía; programarlo es
+> opcional** y se decide al crear el servidor o desde el propio aviso. Cambios respecto a este plan:
+> - **Rust no se puede dejar de publicar** (no hay variable para ello: revisado en su ensamblado),
+>   igual que Enshrouded. Se dice en la tarjeta, en el asistente y antes de abrir el router.
+> - **El peso, medido:** 2000 m → 3,2 GB y 109 s la primera vez; 3000 m → 4,2 GB y 171 s; 4000 m →
+>   5,6 GB y 306 s. Después arranca en unos 13 s. El asistente lo dice por tamaño de mapa.
+> - **La consola remota de la fase 1 no valía para Rust:** admite cuatro conexiones por dirección y
+>   **no suelta las cerradas**, así que «conectar, mandar y cerrar» lo dejaba sin consola —ni
+>   parada— en medio minuto. Todo va por **una sesión WebRCON persistente** por servidor.
+> - **No lee la entrada estándar**: la consola de la app, la moderación, las copias y la parada van
+>   por WebRCON. Y la consola remota se ata a 127.0.0.1 (de serie la abre a toda la red).
+> - **El borrado del mes lo hace el propio juego** al actualizar (cambia la versión de guardado del
+>   mapa). La app añade el aviso, la copia, la semilla nueva, los planos y el botón o el programado.
+> - **Oxide sustituye DLL del juego**: tiene que ser de la build exacta y cada actualización lo
+>   quita. La app lo repone solo si ya ha salido el de ese mes, y si no lo deja «pendiente» y lo
+>   dice. Quitarlo devuelve los DLL de Steam validando (medido: idénticos).
+> - **Los plugins cargan en caliente**: añadir, apagar o quitar vale con el servidor en marcha.
+> - **Revisión 0.10.0:** aviso de memoria antes de arrancar un servidor más con otros en marcha,
+>   tabla de requisitos por juego en el selector y textos comunes sin forma de Minecraft (§19.28).
+
 - **Asistente:** nombre, descripción, tamaño y semilla del mapa, jugadores y conexión. El asistente
   avisa del peso real: RAM, tiempo de arranque y disco **(a medir)**.
 - **Control:** WebRCON para parar, guardar, ver jugadores, expulsar y banear.
@@ -502,7 +525,7 @@ descargar sin cuenta de pago, así que el fichero lo trae el usuario.
 | Abstracción con forma de Minecraft | Cada juego nuevo obliga a rehacer la capa | Contrato diseñado contra dos juegos a la vez y juego `dummy` en las pruebas |
 | Migración del manifiesto | Servidores existentes que no abren | Copia `instance.v1.json`, prueba contra copias reales, migración idempotente |
 | Pruebas `e2e` que descargan varios GB | Pruebas lentísimas | `e2e` por juego y bajo demanda, con caché de instalación entre ejecuciones |
-| Varios servidores pesados en el mismo PC | Equipo sin RAM | Aviso de RAM por juego y de lo que ya está en marcha antes de arrancar otro |
+| Varios servidores pesados en el mismo PC | Equipo sin RAM | **Hecho en la 0.10.0:** aviso de RAM por juego (en Rust, por tamaño de mapa) y de lo que ya está en marcha antes de arrancar otro (§19.28) |
 | Parches de los juegos que cambian ficheros o puertos | Configuración que deja de aplicarse | `smoke` de contrato por juego, como ya se hace con las APIs de Minecraft |
 | Antivirus que bloquean SteamCMD | La instalación falla sin explicación | Diagnóstico con mensaje claro, como los de Minecraft |
 | Marcas registradas | Problemas de imagen o de avisos legales | Aviso «no oficial» por juego, igual que el de Mojang, y sin logos oficiales |

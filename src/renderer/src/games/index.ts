@@ -6,6 +6,7 @@ import { valheimUi } from './valheim'
 import { factorioUi } from './factorio'
 import { zomboidUi } from './zomboid'
 import { enshroudedUi } from './enshrouded'
+import { rustUi } from './rust'
 
 /** Registro de juegos de la interfaz: el equivalente a `main/core/games/registry.ts`. */
 export const GAME_UI: Record<GameId, GameUi> = {
@@ -14,7 +15,8 @@ export const GAME_UI: Record<GameId, GameUi> = {
   valheim: valheimUi,
   factorio: factorioUi,
   zomboid: zomboidUi,
-  enshrouded: enshroudedUi
+  enshrouded: enshroudedUi,
+  rust: rustUi
 }
 
 export function uiFor(game: GameId | InstanceManifest): GameUi {

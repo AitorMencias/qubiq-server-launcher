@@ -26,6 +26,13 @@ export interface ModLoaderInfo {
   /** La última publicada, si es distinta de la instalada. */
   update?: string
   /**
+   * Por qué el cargador no va a funcionar ahora mismo, dicho para el usuario.
+   *
+   * Lo estrena Oxide en Rust: cada actualización del juego lo quita, y hasta
+   * que sale la Oxide de ese mes el servidor arranca sin plugins.
+   */
+  problem?: string
+  /**
    * Qué hizo el cargador la última vez que arrancó el servidor.
    *
    * Lo aporta el juego cuyo cargador **no cuenta esto por la consola**: BepInEx

@@ -7,6 +7,7 @@ import {
   FACTORIO_IPC,
   ZOMBOID_IPC,
   ENSHROUDED_IPC,
+  RUST_IPC,
   EVENTS,
   type MemoryInfo,
   type SystemMemory
@@ -68,6 +69,16 @@ import type {
   EnshroudedRole,
   EnshroudedWorld
 } from '../shared/games/enshrouded/types'
+import type {
+  RustAdmin,
+  RustBan,
+  RustConfigChanges,
+  RustConfigView,
+  RustMapView,
+  RustPlayer,
+  RustWipeOptions,
+  RustWipePlan
+} from '../shared/games/rust/types'
 import type { EditableConfig } from '../shared/editableConfig'
 
 /** Ajustes del servidor de Satisfactory, con lo pendiente de un reinicio. */
@@ -587,6 +598,74 @@ const enshrouded = {
 }
 
 
+const rust = {
+  /** Ajustes: van en la línea de órdenes, así que valen desde el siguiente arranque. */
+  config: {
+    get: (id: string): Promise<RustConfigView> => ipcRenderer.invoke(RUST_IPC.getConfig, id),
+    set: (id: string, changes: RustConfigChanges): Promise<RustConfigView> =>
+      ipcRenderer.invoke(RUST_IPC.setConfig, id, changes)
+  },
+
+  /** El mapa y el borrado mensual. */
+  map: {
+    get: (id: string): Promise<RustMapView> => ipcRenderer.invoke(RUST_IPC.getMap, id),
+    wipePreview: (id: string, blueprints: boolean): Promise<string[]> =>
+      ipcRenderer.invoke(RUST_IPC.wipePreview, id, blueprints),
+    setPlan: (id: string, plan: Partial<RustWipePlan>): Promise<RustMapView> =>
+      ipcRenderer.invoke(RUST_IPC.setWipePlan, id, plan),
+    dismiss: (id: string): Promise<RustMapView> =>
+      ipcRenderer.invoke(RUST_IPC.dismissWipeNotice, id),
+    wipe: (id: string, options: RustWipeOptions): Promise<RustMapView> =>
+      ipcRenderer.invoke(RUST_IPC.wipe, id, options)
+  },
+
+  /**
+   * Moderación: con el servidor en marcha va por su consola remota y surte
+   * efecto al momento; parado, se escribe en sus ficheros.
+   */
+  moderation: {
+    players: (id: string): Promise<RustPlayer[]> => ipcRenderer.invoke(RUST_IPC.listPlayers, id),
+    admins: (id: string): Promise<RustAdmin[]> => ipcRenderer.invoke(RUST_IPC.listAdmins, id),
+    setAdmin: (
+      id: string,
+      steamId: string,
+      name: string,
+      level: RustAdmin['level']
+    ): Promise<RustAdmin[]> => ipcRenderer.invoke(RUST_IPC.setAdmin, id, steamId, name, level),
+    removeAdmin: (id: string, steamId: string): Promise<RustAdmin[]> =>
+      ipcRenderer.invoke(RUST_IPC.removeAdmin, id, steamId),
+    makeAdmin: (id: string, player: string): Promise<RustAdmin[]> =>
+      ipcRenderer.invoke(RUST_IPC.makeAdmin, id, player),
+    bans: (id: string): Promise<RustBan[]> => ipcRenderer.invoke(RUST_IPC.listBans, id),
+    ban: (id: string, player: string, reason: string): Promise<RustBan[]> =>
+      ipcRenderer.invoke(RUST_IPC.ban, id, player, reason),
+    unban: (id: string, steamId: string): Promise<RustBan[]> =>
+      ipcRenderer.invoke(RUST_IPC.unban, id, steamId),
+    kick: (id: string, player: string, reason?: string): Promise<void> =>
+      ipcRenderer.invoke(RUST_IPC.kick, id, player, reason)
+  },
+
+  /** Oxide y los plugins de uMod. Con Oxide puesto, los plugins valen en caliente. */
+  plugins: {
+    list: (id: string): Promise<ModsView> => ipcRenderer.invoke(RUST_IPC.listPlugins, id),
+    search: (id: string, text: string): Promise<ModCatalogItem[]> =>
+      ipcRenderer.invoke(RUST_IPC.searchPlugins, id, text),
+    add: (id: string, name: string): Promise<ModInstallResult> =>
+      ipcRenderer.invoke(RUST_IPC.addPlugin, id, name),
+    remove: (id: string, name: string): Promise<ModsView> =>
+      ipcRenderer.invoke(RUST_IPC.removePlugin, id, name),
+    setEnabled: (id: string, name: string, enabled: boolean): Promise<ModsView> =>
+      ipcRenderer.invoke(RUST_IPC.setPluginEnabled, id, name, enabled),
+    updates: (id: string): Promise<Record<string, string>> =>
+      ipcRenderer.invoke(RUST_IPC.pluginUpdates, id),
+    update: (id: string, name: string): Promise<ModsView> =>
+      ipcRenderer.invoke(RUST_IPC.updatePlugin, id, name),
+    installOxide: (id: string): Promise<ModsView> => ipcRenderer.invoke(RUST_IPC.installOxide, id),
+    removeOxide: (id: string): Promise<ModsView> => ipcRenderer.invoke(RUST_IPC.removeOxide, id),
+    openFolder: (id: string): Promise<string> => ipcRenderer.invoke(RUST_IPC.openPluginsFolder, id)
+  }
+}
+
 const api = {
   settings: {
     get: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.getSettings),
@@ -653,6 +732,7 @@ const api = {
   factorio,
   zomboid,
   enshrouded,
+  rust,
 
   on: {
     log: (handler: (id: string, line: LogLine) => void) =>

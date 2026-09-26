@@ -15,7 +15,7 @@ import {
   type EnshroudedSettings,
   type SettingInfo
 } from '@shared/games/enshrouded/types'
-import { CheckRow } from './CheckRow'
+import { CheckRow } from '../../CheckRow'
 
 /**
  * Ajustes de un servidor de Enshrouded.

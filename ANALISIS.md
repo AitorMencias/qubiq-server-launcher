@@ -2686,7 +2686,180 @@ salto de una copia que se solapa con la siguiente.
 
 ---
 
-### 19.26 Siguiente
+### 19.27 Rust (Fase 7)
+
+Sexto juego nuevo y el que cierra la hoja de ruta. Es el más pesado de la app y el único con fecha
+de caducidad: el primer jueves de cada mes Facepunch publica un parche que obliga a actualizar y que
+empieza un mapa nuevo (el *wipe*). A cambio, todo se gobierna desde fuera por su consola remota.
+
+**Decidido por el usuario al empezar la fase:** arrancar el servidor sin restricciones para medirlo
+y probarlo (sabiendo que se anuncia siempre con la IP de casa); **Oxide con el catálogo de uMod**
+como forma de ampliarlo (no Carbon); y que el borrado **avise y guíe**, con la opción de
+programarlo decidida tanto al crear el servidor como desde el propio aviso cuando llega el día.
+
+#### Lo que se averiguó contra el servidor real
+
+Todo con el protocolo 2633 (build `25454815`) y el prototipo `rust-fase7.mjs` del material de
+desarrollo.
+
+| Hallazgo | Consecuencia |
+|---|---|
+| **No hay forma de no publicarse.** Ninguna variable del ensamblado lo permite: en cuanto arranca se da de alta en Steam | Es el caso de Enshrouded. Se dice en la tarjeta del selector, en el paso de conexión del asistente, en el avanzado y en la nota del router |
+| **«Listo» es `Server startup complete`.** Antes genera el mapa: **109 s y 3,2 GB con 2000 m, 171 s y 4,2 GB con 3000, 306 s y 5,6 GB con 4000** (pico de memoria del proceso, servidor vacío). Con el mapa ya hecho, 13 s | El asistente enseña esas cifras por tamaño, y el aviso de memoria se calcula con la del mapa elegido, no con una genérica |
+| **No lee la entrada estándar.** `quit` por ahí no hace nada en dos minutos | Todo va por WebRCON, como Factorio con su RCON: la consola de la app, la moderación, las copias y la parada |
+| **`quit` por WebRCON guarda y sale en menos de un segundo, con código -1** | La parada limpia es esa. El código -1 con «Server Shutting Down (quit)» detrás se diagnostica como cierre normal |
+| **Mandado mientras genera el mapa, `quit` espera a que termine** (90 s con 2000 m) y entonces guarda y sale | Se espera, con un plazo de gracia de 15 minutos: matarlo a medias podría dejar el `.map` roto. La consola lo explica (`StopStrategy.whileStarting`) |
+| **Una orden devuelve varios mensajes** con su mismo `Identifier` (`server.save` da cuatro) y **una que no existe no devuelve ninguno** | El cliente recoge hasta que el servidor calla 250 ms, y el silencio es un error propio que se explica («Rust no avisa cuando no conoce una orden») |
+| **La consola remota se abre en `0.0.0.0`** si no se le dice otra cosa | `+rcon.ip 127.0.0.1`: solo la usa la app, y así no queda a la vista de la red de casa. No se lista nunca entre los puertos a abrir |
+| **Escribe la IP pública del equipo** («IP address from external API») | `parseLine` la esconde y la borra hasta del texto guardado, la primera regla de todas. Con cuidado de no tomar por dirección una versión de cuatro números («Oxide.Compiler v1.0.32.0») |
+| **Escribe un tercio de sus líneas dos veces**, casi siempre seguidas y nunca a más de un segundo. No es la tubería: en su `-logfile` pasa igual | Filtro de ecos común (`runtime/echoes.ts`, `LaunchSpec.dropEchoes`): cada línea absorbe un solo eco, así que dos guardados seguidos siguen saliendo |
+| **La línea de órdenes manda sobre `server.cfg`**, pero **se come el guion de los negativos**: `+app.port -1` lo lee como `1` y deja algo escuchando en el puerto 1 | Todo va en la línea de órdenes salvo apagar Rust+, que va en un bloque propio al final de `server.cfg` sin tocar lo del usuario |
+| **Rust+ (la app del móvil) abre un puerto TCP propio** y se registra con Facepunch | Apagado de serie: un puerto menos que abrir. Encenderlo en avanzado lo añade a la guía del router |
+| **El mapa se busca por tamaño, semilla y versión de guardado** (`proceduralmap.3000.12345.288.sav`), y **los planos llevan otra versión** (`player.blueprints.17.db`) | El borrado del mes **lo hace el propio juego**: el parche sube la versión del mapa y el servidor no encuentra el anterior. Un borrado desde la app borra lo mismo que ese parche; los planos solo si se pide |
+| **Escribe solo dentro de su carpeta** (comprobado con fotos de `AppData`, `LocalLow` y `Documents` antes y después) | No hay que aislar nada, al revés que Valheim, Satisfactory o Zomboid |
+
+#### La trampa de la fase: la consola remota que se cierra sola
+
+La e2e se paró en seco la primera vez: la app no veía a los jugadores, la consola decía «contraseña
+incorrecta» y la parada tampoco funcionaba. Con los mismos argumentos desde fuera, todo iba. Buscando
+en el ensamblado salieron `rcon.maxconnectionsperip`, `rcon.connectioncooldown` y
+`rcon.maxpasswordfailures`, y midiendo:
+
+| Prueba | Resultado |
+|---|---|
+| Una sola conexión, 30 órdenes seguidas | Las 30 bien |
+| Conexiones sueltas (conectar, mandar, cerrar) | **Las cuatro primeras bien; a partir de ahí, todas rechazadas** |
+| Esperar tras el rechazo | A los 10 s entra una; a los 4 minutos se siguen rechazando |
+| Con `+rcon.connectioncooldown 0` | Igual: no es la espera entre conexiones, es el límite |
+
+**Rust admite cuatro conexiones por dirección y no suelta las cerradas**: el cliente cierra, el
+servidor nunca contesta al cierre y la conexión se queda ocupando su sitio. El cliente de la fase 1
+(una conexión por orden) más el sondeo de cada 5 s lo dejaban sin consola en medio minuto. La
+solución es **una sesión persistente por servidor** (`net/webrconSession.ts`): el sondeo, la consola,
+la moderación, las copias y la parada van por la misma, y cada respuesta se reconoce por su
+`Identifier`. Tampoco se prueba nunca el puerto con una conexión a pelo, que también ocupa sitio.
+La e2e comprueba que, con el sondeo en marcha medio minuto, hay **una sola** conexión abierta.
+
+#### Oxide y uMod
+
+| Hallazgo | Consecuencia |
+|---|---|
+| **Oxide sustituye siete DLL del juego** (`Assembly-CSharp.dll` entre ellos) ya parcheados, y añade catorce ficheros suyos | Tiene que ser de la build exacta. uMod dice cuándo salió cada Oxide y Steam cuándo se subió la build (`timebuildupdated`, no `timeupdated`, que Facepunch retoca 2 h 20 min después): vale si salió después |
+| **Cada actualización de Rust lo quita** | Tras actualizar se repone solo si ya ha salido el de ese mes; si no, queda **pendiente** y la pantalla de plugins lo dice. El servidor funciona mientras, sin plugins |
+| **Quitarlo es borrar lo que añadió y validar con SteamCMD**: 14 s y los 250 ficheros de `Managed` **idénticos** a los originales (sha1) | Es lo que hace «Quitar»; la e2e lo comprueba con el sha1 de `Assembly-CSharp.dll` |
+| **Carga los plugins en caliente**: dejar un `.cs` en `oxide/plugins` lo compila y lo carga; sacarlo, lo descarga | Añadir, apagar (sacar el fichero) y quitar valen con el servidor en marcha. Solo poner o quitar Oxide exige pararlo. `CatalogModsPanel` gana `liveChanges` para decirlo |
+| **uMod da el `sha1` de cada plugin** y coincide con el del fichero | Se comprueba siempre sobre los bytes descargados, antes de dejarlo donde Oxide lo compilaría |
+| **Las dependencias no están en el catálogo**, pero Oxide entiende `// Requires: Otro` en el propio `.cs` | Se leen de ahí y se instalan con él, marcadas como dependencia |
+| **Con Oxide, el servidor sale marcado como modificado**: `^o` en las palabras clave de su consulta de Steam | Se dice en la pantalla, porque cambia en qué pestaña de la lista del juego aparece |
+| **La primera vez se baja su compilador** (`Oxide.Compiler.exe`) de internet | Esa línea se traduce; sin conexión en el primer arranque, los plugins no cargarían |
+| `umod.org/games/rust.json` **no es JSON**: es una página que redirige con `<meta refresh>` | Se pide `assets.umod.org/games/rust.json` directamente |
+
+Los jugadores **no necesitan nada**: los plugins solo corren en el servidor. Es la primera pantalla
+de catálogo donde eso es así, y el título del aviso lo dice en vez de repetir el de los otros juegos.
+
+#### El borrado mensual
+
+- **Cuándo:** el primer jueves a las 19:00 de Londres, que son las 20:00 en España todo el año
+  (cambian de hora a la vez). `forcedWipeOf` lo calcula con el horario de verano británico y el
+  smoke lo fija para octubre y noviembre de 2026 y marzo y abril de 2027.
+- **El aviso** sale en la pantalla principal (hueco nuevo `GameUi.Notices`) dos días antes y el
+  mismo día hasta tres después, con tres botones: hacerlo ahora, que la app lo haga sola cada mes, y
+  «Ahora no», que lo quita hasta el mes siguiente. Es donde se decide si no se decidió al crear.
+- **Hacerlo:** avisa a quien esté dentro, para, guarda una copia, actualiza si hay versión nueva,
+  borra el mapa (y los planos si se pide), pone semilla nueva si toca, y vuelve a arrancar si estaba
+  en marcha. Se lleva también los mapas de meses pasados, que el juego ya no carga.
+- **Programado:** un vigilante mira cada diez minutos (y al minuto de abrir la app) si ya es la hora
+  y si Steam tiene la build nueva; si la tiene, hace lo mismo. Si la app estaba cerrada, lo hace al
+  abrirla, dentro de los tres días.
+- **Restaurar una copia de antes del borrado** devuelve el mapa **y su semilla**: el contrato gana
+  `afterRestore`, y Rust apunta el tamaño y la semilla del mapa restaurado. Sin eso el servidor no lo
+  encontraría y generaría otro.
+
+#### Decisiones
+
+- **Rust+ apagado de serie.** Es un puerto TCP más abierto a internet y un registro con Facepunch;
+  quien lo use lo enciende en avanzado y la guía del router lo incluye.
+- **Moderación con el servidor parado también.** En marcha va por la consola remota y
+  `server.writecfg`; parado, se escriben `users.cfg` y `bans.cfg`, que el servidor lee al arrancar
+  (la e2e veta con él parado y luego le pregunta por su consola: el veto está).
+- **La lista de jugadores enseña nombres, pero todo va por SteamID**: el servicio lo busca en
+  `playerlist` en el momento de moderar, así que dos jugadores con el mismo nombre no se confunden
+  con quien ya se fue.
+- **Plugins puestos a mano:** se listan, se pueden quitar, y apagarlos los adopta en el manifiesto.
+
+**El icono ya estaba dibujado** desde la fase 0 (§13.1): esta fase solo lo importa en `rustUi.icon`.
+
+#### Cómo se ha comprobado
+
+- **`npm run smoke`**: 1095 correctas, 0 fallidas (**121 nuevas**, contra grabaciones reales en
+  `scripts/smoke/fixtures/rust/`): registro, consola remota, consulta de Steam y la ayuda que da el
+  propio servidor de cada variable. Las que más valen: que ninguna línea enseñe una IP ni la
+  contraseña, que la sesión haga trece órdenes (tres a la vez) por **una sola** conexión, que la
+  línea de órdenes no lleve negativos, que los valores de serie de los ajustes sean los que dice el
+  servidor, las fechas del borrado con el cambio de hora y que un borrado no se lleve los planos.
+- **`npm run e2e:rust`**: **71 comprobaciones**, todas en verde con el servidor real (mapa de 1000 m
+  para que no tarde). Instalar reutilizando la instalación compartida por un `mklink /J` (a Rust no
+  le molesta), arrancar en 42 s, **ni IP ni contraseña ni líneas dobladas** en la consola, puertos
+  (la consola remota solo en 127.0.0.1, Rust+ cerrado), consulta de Steam, consola de la app,
+  ajustes aplicados preguntándoselos al servidor, **una sola conexión tras medio minuto de
+  sondeo**, moderación en caliente y en frío, copia en caliente en 1 s, parada en 0,3 s, **parar
+  mientras genera el mapa sin matarlo** (26 s), Oxide con un plugin, **otro en caliente**, apagar
+  uno en caliente, quitar Oxide con los DLL idénticos a los de Steam, borrado con el servidor en
+  marcha (vuelve a arrancar solo con la semilla nueva) y **restaurar una copia de antes del
+  borrado, con su semilla**.
+- **Recorrido de interfaz** (Playwright, datos aislados, sin arrancar nada): el selector con los
+  siete juegos y la tabla de requisitos, el asistente básico paso a paso, el avanzado, y las
+  pantallas de un servidor ya creado en los dos modos con el reloj movido al jueves del borrado para
+  ver el aviso (`harness-reloj.cjs`). Sin errores de consola. De ahí salieron tres arreglos: el
+  aviso de la pantalla principal iba pegado a los bordes, una unidad en una fila salía a tamaño
+  normal, y **una negrita dentro de un párrafo de un aviso partía la frase en líneas**, un fallo que
+  ya estaba en Conexión, Zomboid y Valheim y se arregla para todos en la hoja de estilos.
+- `typecheck`, `e2e paper`, `e2e:restart` y `e2e:steam` en verde (§19.28).
+
+#### Lo que no se ha podido comprobar
+
+- **Nada con jugadores dentro**: hacen falta clientes del juego. Las líneas de entrada, salida y
+  chat se reconocen por la forma de siempre del registro de Rust y **no deciden nada** (quién está
+  dentro se le pregunta al servidor); `playerlist` con alguien dentro está en el smoke como
+  sintético. Echar y vetar a alguien conectado, tampoco.
+- **Un borrado forzado de verdad**: habría que esperar al jueves. Lo que hace el parche está medido
+  por los nombres de los ficheros; el vigilante está en el smoke con fechas fijas y la e2e hace el
+  borrado de la app, pero no con una build nueva de Steam.
+- **Oxide «pendiente» de verdad** (actualizar Rust antes de que salga su Oxide): está en el smoke
+  con las horas reales de la build de septiembre; en vivo no se ha dado.
+- **Rust+** encendido: no hay móvil emparejado con el que probarlo.
+
+---
+
+### 19.28 Revisión general de la 0.10.0
+
+Con los siete juegos, la revisión que la hoja de ruta dejaba para el final.
+
+**Textos con forma de Minecraft.** Revisadas todas las pantallas comunes. Quedaban tres: el ejemplo
+de dirección de túnel de Conexión (`algo.joinmc.link`, de Minecraft, ahora sale del juego:
+`tunnelAddressExample`), la pantalla de elegir modo («modo de juego, dificultad, mundo», «semillas de
+mundo») y los mensajes de las copias («Comprimiendo la partida» sale ahora como «el mapa», «el
+mundo» o «la partida» según el juego).
+
+**Varios servidores a la vez.** Era la mitigación pendiente de la tabla de riesgos. `memoryNeedGb`
+dice lo que usa cada servidor según su configuración (Minecraft y Zomboid, la memoria puesta; Rust,
+la medida para su mapa; los demás, la mínima de su tarjeta), y antes de arrancar uno con otros en
+marcha, `LoadNotice` suma y avisa si no cabe o va justo, nombrando los que están encendidos. Avisa,
+nunca bloquea.
+
+**Guía de requisitos por juego.** Cada tarjeta lleva ahora sus requisitos medidos (arranque, puertos
+y lo que pide además), y el selector de juego tiene una tabla plegada que los compara todos:
+memoria, descarga, arranque, puertos para jugar desde fuera y lo demás.
+
+**Probado:** `typecheck`, `smoke` (1095), `e2e paper`, `e2e:restart` y `e2e:steam` en verde; el
+recorrido del selector con la tabla (no ensancha la pantalla) y el de la pantalla de un servidor.
+
+**Sin probar:** el aviso de memoria con servidores de verdad en marcha a la vez (solo se ha visto
+que no sale cuando no hay ninguno).
+
+---
+
+### 19.29 Siguiente
 
 **Ahora (uso privado):**
 

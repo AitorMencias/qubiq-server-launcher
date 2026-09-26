@@ -5,6 +5,7 @@ import { createInterface } from 'node:readline'
 import type { Diagnosis, LogLine, ServerStatus } from '@shared/types'
 import type { LiveStatus, ParsedEvent, StopStrategy, SupervisorHandle } from '../games/types'
 import { DEFAULT_STOP_GRACE_MS, requestStop } from './stop'
+import { EchoFilter } from './echoes'
 
 /**
  * Supervisión del proceso de un servidor, de cualquier juego (§7).
@@ -55,6 +56,8 @@ export interface StartOptions {
   verbatimArguments?: boolean
   /** Ver `LaunchSpec.killTree`. */
   killTree?: boolean
+  /** Ver `LaunchSpec.dropEchoes`. */
+  dropEchoes?: boolean
   /** Cómo se para sin perder partida. */
   stop: StopStrategy
   /** Cómo se interpreta cada línea del registro. */
@@ -89,6 +92,8 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
   private autoRestartEnabled = false
   /** Lo propio del juego del arranque en curso. */
   private options: StartOptions | null = null
+  /** Para los juegos que escriben cada línea dos veces (`dropEchoes`). */
+  private readonly echoes = new EchoFilter()
 
   constructor(readonly instanceId: string) {
     super()
@@ -133,6 +138,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     this.currentPlayerCount = null
     this.currentJoinCode = null
     this.recent.length = 0
+    this.echoes.reset()
     this.setStatus('starting')
 
     this.options = options
@@ -220,11 +226,14 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     const child = this.child
     if (!child) return
 
+    const strategy = this.options?.stop
+    const wasStarting = this.currentStatus === 'starting'
+
     this.stopRequested = true
     this.setStatus('stopping')
     this.pushLog('system', 'Guardando la partida y cerrando el servidor...')
+    if (wasStarting && strategy?.whileStarting) this.pushLog('system', strategy.whileStarting)
 
-    const strategy = this.options?.stop
     const graceMs = strategy?.graceMs ?? DEFAULT_STOP_GRACE_MS
     const closed = new Promise<void>((resolve) => child.once('close', () => resolve()))
 
@@ -346,6 +355,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
 
   private handleLine(raw: string): void {
     if (raw.trim().length === 0) return
+    if (this.options?.dropEchoes && !this.echoes.accept(raw)) return
 
     this.recent.push(raw)
     if (this.recent.length > RECENT_LINES) this.recent.shift()

@@ -53,7 +53,8 @@ export function gameSaveMinutes(manifest: InstanceManifest): number | null {
     case 'enshrouded':
       return 5 // Medido: guarda cada 5 minutos y no se le puede pedir antes.
     default:
-      // Minecraft, Factorio, Zomboid y Satisfactory guardan cuando se les pide.
+      // Minecraft, Factorio, Zomboid, Satisfactory y Rust guardan cuando se les
+      // pide (Rust con `server.save` por su consola remota).
       return null
   }
 }

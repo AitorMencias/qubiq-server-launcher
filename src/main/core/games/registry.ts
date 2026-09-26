@@ -6,6 +6,7 @@ import { valheimAdapter } from './valheim/adapter'
 import { factorioAdapter } from './factorio/adapter'
 import { zomboidAdapter } from './zomboid/adapter'
 import { enshroudedAdapter } from './enshrouded/adapter'
+import { rustAdapter } from './rust/adapter'
 
 /**
  * Registro de juegos del núcleo.
@@ -27,6 +28,7 @@ registerGame(valheimAdapter as unknown as GameAdapter)
 registerGame(factorioAdapter as unknown as GameAdapter)
 registerGame(zomboidAdapter as unknown as GameAdapter)
 registerGame(enshroudedAdapter as unknown as GameAdapter)
+registerGame(rustAdapter as unknown as GameAdapter)
 
 export function isKnownGame(id: string): boolean {
   return games.has(id)

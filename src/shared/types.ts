@@ -9,6 +9,7 @@ import type { ValheimCreateOptions, ValheimData } from './games/valheim/types'
 import type { FactorioCreateOptions, FactorioData } from './games/factorio/types'
 import type { ZomboidCreateOptions, ZomboidData } from './games/zomboid/types'
 import type { EnshroudedCreateOptions, EnshroudedData } from './games/enshrouded/types'
+import type { RustCreateOptions, RustData } from './games/rust/types'
 
 /**
  * Nivel de detalle de la interfaz.
@@ -39,6 +40,7 @@ export type GameId =
   | 'factorio'
   | 'zomboid'
   | 'enshrouded'
+  | 'rust'
 
 /**
  * Condiciones que el usuario acepta de forma explícita al crear un servidor.
@@ -102,6 +104,11 @@ export interface EnshroudedManifest extends ManifestBase {
   data: EnshroudedData
 }
 
+export interface RustManifest extends ManifestBase {
+  game: 'rust'
+  data: RustData
+}
+
 /**
  * Unión discriminada por `game`: quien lea `data` tiene que mirar antes de qué
  * juego es el servidor, y así no puede colarse un campo de un juego en otro.
@@ -113,6 +120,7 @@ export type InstanceManifest =
   | FactorioManifest
   | ZomboidManifest
   | EnshroudedManifest
+  | RustManifest
 
 /**
  * Cambios que se pueden pedir sobre un manifiesto. `data` se fusiona con lo que
@@ -128,6 +136,7 @@ export type ManifestChanges = Partial<
     | Partial<FactorioData>
     | Partial<ZomboidData>
     | Partial<EnshroudedData>
+    | Partial<RustData>
 }
 
 export type ServerStatus =
@@ -229,6 +238,11 @@ export interface EnshroudedCreateRequest extends CreateRequestBase {
   options: EnshroudedCreateOptions
 }
 
+export interface RustCreateRequest extends CreateRequestBase {
+  game: 'rust'
+  options: RustCreateOptions
+}
+
 export type CreateInstanceRequest =
   | MinecraftCreateRequest
   | SatisfactoryCreateRequest
@@ -236,6 +250,7 @@ export type CreateInstanceRequest =
   | FactorioCreateRequest
   | ZomboidCreateRequest
   | EnshroudedCreateRequest
+  | RustCreateRequest
 
 // --- Copias de seguridad (§12) ----------------------------------------------
 
