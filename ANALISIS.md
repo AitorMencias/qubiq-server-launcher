@@ -2478,7 +2478,174 @@ Todo con los servidores de verdad del material de desarrollo, sin publicar nada 
 
 ---
 
-### 19.24 Siguiente
+### 19.24 Enshrouded (Fase 6)
+
+Quinto juego nuevo, y el más cómodo de todos los de Steam: un solo puerto UDP, toda la
+configuración en un JSON, arranque en tres segundos, parada en medio, y los guardados ya salen
+dentro de la carpeta del servidor sin tener que pelearse con ninguna carpeta del usuario —la trampa
+que aparecía en Valheim, Satisfactory y Project Zomboid aquí no existe—.
+
+A cambio trae dos problemas que no tiene ningún otro juego de la app: **no se puede dejar de
+publicar** y **el propio fabricante documenta mal su fichero de configuración**.
+
+#### Lo que se averiguó contra el servidor real
+
+Todo con la versión 0.9.0.0 (build `b466cef1500d760b8ba3dda230001923c40d0e12`) instalada de forma
+anónima, con el prototipo `ens-fase6.mjs` del material de desarrollo. **El usuario autorizó
+expresamente arrancarlo**, porque en este juego arrancar es publicarse.
+
+| Hallazgo | Consecuencia |
+|---|---|
+| **Enshrouded no tiene «no publicar».** No hay `-public 0` ni casilla: en cuanto arranca se conecta a Steam, se registra y sale en la lista de servidores del juego. Su propio registro escribe `[online] Public ipv4: …` con la IP de casa | Es el caso de Rust, no el de Valheim. Se dice en la tarjeta del selector de juego (etiqueta de aviso), en el paso de conexión del asistente y en el asistente avanzado, **antes** de crear nada. Lo único que impide que entre cualquiera son las contraseñas de los roles, así que los cuatro nacen con una |
+| **Y escribe la IP pública en el registro.** Igual que Valheim con crossplay | `parseLine` la esconde y se la borra **hasta al texto que guarda**, con esa regla la primera de todas. El smoke lo comprueba contra el registro real |
+| **«Listo» es `[Session] finished transition from 'Lobby' to 'Host_Online'`**, y llega en 2-4 s | Es el juego que antes arranca de toda la app |
+| **Ctrl+Break funciona y es rapidísimo**: escribe `Trigger gameflow shutdown, exit: Ctrl_Break`, guarda (`[server] Saved`) y sale con código 0 en medio segundo | La vía de la fase 1 vale tal cual, como se preveía |
+| **Pero solo cuando ya está listo.** Mandado durante el arranque, el proceso muere con `0xC000013A` (3221225786) sin guardar: todavía no tiene manejador puesto | El `retryEveryMs` de Valheim también hace falta aquí, y `diagnoseExit` traduce ese código concreto en vez de soltar un número |
+| **Un solo puerto UDP**, el que diga `queryPort`. Medido con `netstat` lanzándolo en el 15650: abre ese y ninguno más (el siguiente no) | `serverPorts()` pide abrir uno. La guía del router y la de playit salen con uno solo |
+| **La consulta de Steam contesta siempre** y solo en ese puerto | De ahí salen «¿responde?» y cuántos jugadores hay (`poll`), que es exacto y no depende de que no cambie el formato del registro. Grabada en `fixtures/enshrouded/a2s.json` |
+| **El servidor reescribe su `enshrouded_server.json` al arrancar**: conserva lo que entiende, completa lo que falta con sus valores de serie y **borra las claves que no conoce** (probado metiéndole una inventada) | La app no guarda nada suyo ahí: el manifiesto manda y el fichero se genera en cada arranque |
+| **Pero hay algo que escribe él y la app no sabe: los vetados.** Se ponen desde dentro del juego | Antes de generar el fichero **se lee el que haya y se conserva su lista de vetados**. Sin eso, arrancar el servidor borraría los vetos puestos jugando |
+| **Arranca por un enlace de directorio** (`mklink /J`), al revés que Project Zomboid | La `e2e:enshrouded` puede enlazar la instalación compartida en vez de copiar 8,8 GB, como hacen las de Valheim y Satisfactory |
+| **Guarda solo cada 5 minutos**, medido dejándolo arrancado un cuarto de hora: guardados a los 303 s y a los 603 s | La copia en caliente espera a uno, como en Valheim, y después a que la carpeta **deje de moverse**, que es la lección de Zomboid: el aviso de guardado llega antes de que los ficheros terminen de escribirse, y copiar ahí da un `tar.exe: (null)` que no explica nada |
+
+#### La trampa de la fase: un preajuste que ignora los ajustes
+
+Estaba en la investigación como «si `gameSettingsPreset` no es `Custom`, el servidor ignora en
+silencio los valores de `gameSettings`». **Confirmado, y es peor de lo que parecía**: el fichero se
+queda con los valores puestos, así que mirándolo parece que están aplicados.
+
+Se midió arrancando tres veces con el mismo `gameSettings` (`playerHealthFactor: 2`,
+`enableStarvingDebuff: true`, `curseModifier: "Easy"`) y cambiando solo el preajuste:
+
+| `gameSettingsPreset` | Lo que aplica el servidor |
+|---|---|
+| `"Default"` | `1`, `false`, `"Normal"` — **los ignora** |
+| `"Custom"` | `40000000` (= 2), `true`, `"Easy"` — los aplica |
+| `"Hard"` | los del preajuste, no los del fichero |
+
+Por eso la app **pone `Custom` ella misma** en cuanto un ajuste se aparta del preajuste, y lo hace en
+el servicio y no solo al escribir el fichero, para que lo que enseña la pantalla y lo que se aplica
+no puedan divergir. La pantalla lo avisa antes de guardar, y el mensaje al guardar lo explica.
+
+**Y de aquí salió el mejor hallazgo de la fase**: el servidor **vuelca por consola los ajustes que
+de verdad aplica** (`[server] Game Settings 'Hard'` y un JSON detrás). Con eso:
+
+- se pudieron **medir los cuatro preajustes** arrancándolo una vez con cada uno, en vez de copiar sus
+  valores de una wiki. Están en `EFFECTIVE_PRESETS` y el smoke los compara ajuste a ajuste contra la
+  grabación: si Keen cambia lo que hace «Difícil», salta;
+- la app puede **partir de los valores reales de un preajuste** cuando el usuario pasa a «A mi
+  manera», en vez de dejarle los de Normal y que la partida cambie sin avisar;
+- la consola traduce esa línea a «Dificultad en uso: Custom», que es la forma de ver desde fuera que
+  lo que se tocó se está aplicando.
+
+Los decimales salen en **hexadecimal IEEE-754** cuando no son exactos (`3fc00000` = 1,5) y las
+duraciones son objetos `{value}` en nanosegundos.
+
+#### El fabricante documenta mal su propio fichero
+
+El `enshrouded_server_readme.txt` que viene con el servidor dice que la lista de vetados se llama
+`bans` y que cada entrada lleva `accountIDHash` (una cadena) y `banDate` (un número). **Nada de eso
+es verdad en el servidor real.** Metiéndole las dos formas a la vez y arrancándolo:
+
+```
+bannedAccounts -> [{"accountId":0,"displayName":"alguien","characterName":"Alguien","banDate":{"value":1790341348}}]
+bans           -> undefined
+```
+
+La clave es `bannedAccounts`, el identificador es `accountId` **y es un número**, y la fecha va
+dentro de un objeto. Con los nombres del README, el servidor borra la lista entera al reescribir el
+fichero y la moderación no haría absolutamente nada, sin un solo mensaje. El smoke tiene una
+comprobación dedicada a que se escriba `bannedAccounts` y **no** `bans`.
+
+Las dos reglas de los roles salen del mismo sitio —de las cadenas del ejecutable, no del README—:
+`Only one user group can be without password` y `user groups passwords must be unique`. El servidor
+las trata como error interno, así que las corta la app antes de crear nada.
+
+#### Decisiones
+
+- **Los cuatro roles nacen con contraseña**, también los dos que el asistente básico no pregunta. Un
+  rol sin contraseña es al que va a parar quien entre sin escribir ninguna, y como este juego se
+  anuncia siempre, eso sería dejar el servidor abierto a quien pase por ahí. Quien lo quiera así
+  puede vaciar la contraseña en Configuración → Roles, con el aviso al lado.
+- **El asistente básico pregunta dos contraseñas, no una.** Es la pregunta rara de este juego y no
+  se puede esconder: en Enshrouded no hay contraseña del servidor, hay una por rol, y la que usas
+  decide lo que puedes hacer dentro. Se preguntan las dos que importan (Administrador y Amigo) ya
+  rellenas con una sorteada; las otras dos, en avanzado.
+- **Se añade la pestaña Mundos**, que no estaba en el plan, por el mismo motivo que en Valheim:
+  cambiar de mundo es cambiar una carpeta y ya estaba servido. Con una diferencia que se dice en
+  pantalla: aquí el nombre **no decide el terreno**, porque Enshrouded tiene un mapa hecho a mano.
+- **Los jugadores se cuentan, no se listan.** El registro tiene líneas de entrada y salida
+  (`[online] Added peer`, `[server] Player '…' logged in with Permissions`), pero no se han podido
+  grabar con clientes reales, así que no deciden nada: cuántos hay se le pregunta al servidor por su
+  consulta de Steam. Las capacidades declaran `playerIds: false` y `playerNames: false`, y la
+  pantalla cuenta en vez de listar, como en Satisfactory.
+- **Moderar es quitar vetos, y nada más.** Lo dice el propio ejecutable: `Dedicated server kick not
+  implemented`. Echar y vetar se hacen **desde dentro del juego** con la contraseña de
+  Administrador, en la pestaña Social. La pantalla de Vetados lo explica en vez de enseñar botones
+  que no funcionarían, y sí deja quitar un veto, que es lo único que se puede hacer desde fuera.
+
+**El icono ya estaba dibujado** desde la fase 0 (linterna sobre niebla, violeta; §13.1): esta fase
+solo lo importa en `enshroudedUi.icon`, y el componente común lo coloca solo en el selector de
+juego, la lista de servidores y las cabeceras.
+
+#### Los mods: era la incógnita, y sí hay forma
+
+La hoja de ruta lo dejaba abierto: «si al mirarlo resulta que no hay ninguna forma establecida, se
+dice». **La hay**, aunque no la de Satisfactory y Valheim.
+
+| Hallazgo | Consecuencia |
+|---|---|
+| Enshrouded **no tiene mods oficiales ni taller**. Keen Games dice que llegarán. La comunidad usa dos cargadores: **Shroudtopia** y **EML** | Se elige Shroudtopia porque es el único que se puede instalar sin intervención del usuario: es MIT y publica sus binarios en **GitHub**, que no pide cuenta. EML solo está en Nexus Mods |
+| **Se engancha con un `winmm.dll`** al lado del ejecutable, exactamente igual que BepInEx con su `winhttp.dll` en Valheim. Probado en el servidor dedicado real | No hay que tocar la línea de órdenes, y **la parada con Ctrl+Break sigue saliendo con código 0** con el cargador puesto |
+| **Lo cuenta todo por la consola** (`[shroudtopia][INFO] Registered mod: …`), al revés que BepInEx, que solo lo escribe en su propio fichero | Aquí no hace falta leer ningún registro aparte: lo traduce `parseLine` |
+| **Y avisa de lo que se rompe**: `(basics) class NoResourceCostAddress not found`. El cargador se engancha a direcciones de memoria del juego, así que una actualización de Enshrouded puede dejar un mod a medias **sin tumbar el servidor** | Esa línea se traduce a «el mod X no encaja con esta versión». Es el fallo que no se notaría |
+| **Los mods viven en Nexus Mods, cuya API no deja descargar sin cuenta de pago** | No hay buscador, y se dice. El usuario baja el fichero y lo trae; la app reconoce el paquete (`.dll` suelto o `.zip` con su `mod.json`), lo deja donde el cargador lo busca, lo enciende, lo apaga y lo quita. **No encaja en `CatalogModsPanel`**, que es cargador *más* catálogo: tiene su propia pantalla |
+| **`"active": false` en `shroudtopia.json` NO apaga un mod.** Medido: el cargador sigue diciendo `Loading mod`, y solo se salta `Activating`. O sea que el `Load()` del mod ya ha corrido | Apagar un mod es **sacar su fichero de `mods/`**, la misma regla que en los otros dos juegos. Se aparta a `mods-apagados/` de la instancia |
+| El paquete del cargador trae **cinco mods de ejemplo** dentro, uno de ellos quita el coste de construir | **No se copian.** Meterle a alguien mods que no ha pedido le cambia la partida sin avisar. Se le dice cuáles trae y él decide. La `e2e` comprueba que no se cuela ninguno |
+
+#### Cómo se ha comprobado
+
+- **`npm run smoke`**: 961 correctas, 0 fallidas (120 nuevas). Las de Enshrouded van contra
+  grabaciones reales: su registro, su consulta de Steam, el fichero que él mismo reescribe, el
+  volcado de los cuatro preajustes y la salida del cargador de mods. Las que más valen: que ninguna
+  línea de la consola enseñe una IP, que tocar un ajuste obligue a `Custom`, que se escriba
+  `bannedAccounts` y no `bans`, y que los 37 ajustes de la pantalla sean claves que el juego
+  reconoce de verdad.
+- **`npm run e2e:enshrouded`**: 76 comprobaciones, todas en verde con el servidor real. Instalar
+  (20 s reutilizando la instalación compartida por un enlace: **a Enshrouded no le molesta el
+  `mklink /J` que se lleva por delante a Zomboid**), el fichero de configuración que se le escribe,
+  arrancar en 4 s, **que ninguna línea de la consola enseñe una IP**, un solo puerto UDP y que no
+  abre el siguiente, su consulta de Steam con nombre y plazas, **la trampa del preajuste medida en
+  vivo** (se toca un ajuste, se arranca y el servidor dice por consola que aplica «Custom»), que un
+  veto puesto desde el juego sobreviva a que la app reescriba el fichero **y al cierre del
+  servidor**, copia en caliente (305 s: el tiempo de esperar a su guardado), parada con Ctrl+Break
+  en 0,8 s, parar mientras arranca (4,9 s, reintentando la señal), mundos, **un mod real que
+  Shroudtopia encuentra y carga de verdad** —con su `mod.json` leído, apagarlo, encenderlo y
+  quitarlo—, restauración y que la instalación compartida queda como vino de Steam.
+- **`npm run typecheck`**, **`npm run e2e paper`** y **`npm run e2e:restart`** en verde: Minecraft no
+  ha empeorado.
+- **Recorrido de interfaz** (Playwright, datos aislados, sin arrancar nada —que aquí importa el
+  doble—): el selector con los seis juegos, el asistente básico paso a paso incluidas **las dos
+  formas de rechazar las contraseñas** (corta, y las dos iguales, que es la que impediría arrancar
+  el servidor), el avanzado con los cuatro roles, y las pantallas de un servidor ya creado con su
+  `enshrouded_server.json` real y dos vetados puestos «desde el juego». Sin un solo error de
+  consola. De ahí salieron tres arreglos de maquetación: **las casillas de permisos salían con el
+  texto en el otro extremo de la tarjeta** (un `input` hereda `width: 100%` y dentro de un flex se
+  estira: hay que darle tamaño y `flexShrink: 0`), **la explicación de cada casilla se pegaba al
+  nombre de la opción** (`.help` es en línea; va en un `div`), y una nota suelta en una tarjeta
+  salía a tamaño normal (va con `p.hint`). Las tres están recogidas en `CheckRow`.
+
+#### Lo que no se ha podido comprobar
+
+- **Las líneas de entrada y salida de jugadores**, que hacen falta dos clientes del juego. **No
+  deciden nada**: cuántos hay se le pregunta al servidor por la consulta de Steam.
+- **Si la consulta de Steam da los nombres** de quien está dentro. Con el servidor vacío devuelve una
+  lista vacía bien formada, pero no se ha visto un nombre llegar. Por eso se cuenta en vez de listar.
+- **Entrar a jugar de verdad** con un mod puesto.
+
+---
+
+### 19.25 Siguiente
 
 **Ahora (uso privado):**
 

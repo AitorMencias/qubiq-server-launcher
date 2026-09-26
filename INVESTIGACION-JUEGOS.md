@@ -190,15 +190,28 @@ reutiliza casi entera, incluidos la moderación y el control de memoria.
 | Puertos | **Un único puerto UDP**, `queryPort` 15637. Desde el Content Update #2 ya no hay `gamePort` aparte |
 | Configuración | `enshrouded_server.json` (se crea en el primer arranque) |
 | Roles | `userGroups`: cada rol (Admin, Friend, Guest…) tiene su contraseña y sus permisos; la contraseña con la que entras decide tu rol |
-| Parada limpia | Cerrar bien (guarda al salir); matarlo pierde datos → **Ctrl+C** (ver 2.3) **(a confirmar en prototipo)** |
-| Moderación | Sin RCON |
+| Parada limpia | **Ctrl+Break, confirmado en la fase 6**: guarda y sale con código 0 en medio segundo. Ctrl+C no llega, como en Valheim |
+| Moderación | Sin RCON. Desde fuera, **solo se puede quitar un veto**: echar «no está implementado» en el propio servidor |
+| Mods | **Sin taller ni cargador oficial.** La comunidad usa Shroudtopia (MIT, GitHub) o EML (Nexus). Los mods viven en Nexus Mods, que no deja descargar por API sin cuenta de pago |
 
 **Trampa conocida del JSON:** si `gameSettingsPreset` no es `"Custom"`, el servidor **ignora en
 silencio** todos los valores de `gameSettings`. La app tiene que poner `Custom` ella misma al
-cambiar cualquier ajuste, o el usuario verá que no pasa nada.
+cambiar cualquier ajuste, o el usuario verá que no pasa nada. **Confirmado y medido en la fase 6**,
+y es peor de lo que parecía: el fichero se queda con los valores puestos, así que mirándolo parece
+que se están aplicando.
 
-**Pega:** comparte el problema del Ctrl+C con Valheim y no tiene moderación desde fuera. Su
-configuración es buena para el asistente (dificultad, roles con contraseña).
+**Y el README oficial del servidor se equivoca en dos sitios** (comprobado contra el 0.9.0.0): la
+lista de vetados se llama **`bannedAccounts`**, no `bans`, y cada entrada lleva **`accountId`** (un
+número) con la fecha dentro de un objeto (`banDate: { value }`), no `accountIDHash`. Con los nombres
+del README el servidor borra la lista entera al reescribir el fichero, sin decir nada.
+
+**Lo que no dice ninguna guía y decide si crear el servidor o no:** Enshrouded **no se puede dejar
+de publicar**. No hay `-public 0` ni casilla equivalente: en cuanto arranca se registra en Steam y
+sale en la lista de servidores del juego con la IP pública del equipo, que además escribe en su
+propio registro. Es el caso de Rust, no el de Valheim.
+
+**Pega:** comparte el problema del Ctrl+C con Valheim, no se puede ocultar y apenas se modera desde
+fuera. Su configuración es buena para el asistente (dificultad, roles con contraseña).
 
 ### Rust — viabilidad **media**
 
@@ -261,7 +274,7 @@ Project Zomboid, que aún no está implementado, tiene también `legacy41` («Bu
 | **Satisfactory** | Anónima | API | Parcial **(a confirmar)** | Muy bueno (la app lo reclama sola) | **Alta** |
 | **Project Zomboid** | Anónima | stdin / RCON | Completa | Bueno (muchas reglas que filtrar) | **Alta** |
 | **Valheim** | Anónima | **Ctrl+C** | Listas de texto | Excelente (y crossplay sin puertos) | **Alta*** |
-| **Enshrouded** | Anónima | **Ctrl+C** | Ninguna externa | Bueno | **Media-alta*** |
+| **Enshrouded** | Anónima | **Ctrl+Break** (confirmado) | Solo quitar vetos | Bueno | **Media-alta** |
 | **Rust** | Anónima | WebRCON | Completa | Flojo (wipes, peso, público técnico) | **Media** |
 | **Factorio** | **Con cuenta** | stdin / RCON | Completa | Bueno, pero pide credenciales | **Media** |
 | Once Human | — | — | — | — | Descartado |
@@ -343,6 +356,10 @@ todavía; habría que pasarles la misma criba del apartado 1.
 **Enshrouded**
 - [Keen Games: configuración del servidor](https://enshrouded.zendesk.com/hc/en-us/articles/16055441447709-Dedicated-Server-Configuration) · [Keen Games: roles](https://enshrouded.zendesk.com/hc/en-us/articles/19191581489309-Server-Roles-Configuration)
 - [Sin build nativo para Linux](https://pimylifeup.com/ubuntu-enshrouded-server/) · [Copias y parada limpia](https://www.gameserverkings.com/knowledge-base/enshrouded/backing-up-and-restoring-your-world/) · [Discusión sobre parada limpia](https://github.com/jsknnr/enshrouded-server/issues/65)
+- Mods: [Shroudtopia, el cargador (MIT)](https://github.com/s0t7x/shroudtopia) · [Mods de Enshrouded en Nexus](https://www.nexusmods.com/games/enshrouded) · [La API de Nexus pide cuenta de pago para descargar](https://api-docs.nexusmods.com/)
+- ⚠ La referencia buena del fichero de configuración **no es la web de Keen**, sino el
+  `enshrouded_server_readme.txt` que viene con el servidor... y **ni siquiera ese acierta** con la
+  lista de vetados (ver la ficha de arriba). Lo que manda es lo que el servidor escribe al arrancar.
 
 **Rust**
 - [Requisitos y puertos](https://rust.runonflux.com/server-requirements) · [WebRCON, administración y wipes](https://mantascope.com/guides/rust-server-admin-guide) · [SteamDB 258550](https://steamdb.info/app/258550/info/)

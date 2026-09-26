@@ -1,0 +1,64 @@
+// Shroudtopia 0.1.1 cargado por el servidor dedicado REAL. Lo cuenta todo
+// por la consola, al reves que BepInEx en Valheim, que solo lo escribe en
+// su propio fichero.
+//
+// Lo que ensena:
+//   - 'Running on server: 1': el cargador sabe que esta en un dedicado.
+//   - 'Registered mod' por cada .dll que encuentra en mods/.
+//   - 'class NoResourceCostAddress not found': un mod que no encaja con
+//     esta version del juego. No tumba el servidor y solo se ve aqui.
+//   - 'DLL process detach': el cargador se suelta al parar, y la parada
+//     con Ctrl+Break sigue saliendo con codigo 0 con el puesto.
+
+[shroudtopia][INFO] Initializing ModContext.
+[shroudtopia][DEBG] Running in file: <ruta del servidor>
+[shroudtopia][DEBG] Running on server: 1
+[shroudtopia][INFO] DLL process attach.
+[shroudtopia][INFO] Thread started.
+[shroudtopia][INFO] Configuration loaded.
+[shroudtopia][INFO] Boot delay set to: 3000 ms
+[shroudtopia][INFO] Registered mod: basics
+[shroudtopia][INFO] Registered mod: Flight Mod
+[shroudtopia][INFO] Registered mod: ChatCommands
+[shroudtopia][INFO] Registered mod: FirstPersonView
+[shroudtopia][INFO] Registered mod: Whitelist
+[shroudtopia][INFO] Loading mod: ChatCommands
+[shroudtopia][INFO] Loading mod: basics
+[shroudtopia][INFO] (basics) class NoResourceCostAddress not found: Base Address: 140696808521728
+[shroudtopia][INFO] Loading mod: Flight Mod
+[shroudtopia][INFO] Loading mod: Whitelist
+[shroudtopia][INFO] Activating: basics
+[shroudtopia][INFO] (basics) basics activated
+[shroudtopia][INFO] (basics) class NoStaminaLossActivated
+[shroudtopia][INFO] (basics) class NoFallDamageActivated
+[shroudtopia][INFO] Activating: Flight Mod
+[shroudtopia][INFO] (Flight Mod) Flight Mod activated
+[shroudtopia][INFO] DLL process detach.
+
+// --- Y lo que NO vale como interruptor -------------------------------
+//
+// Segundo arranque con el mismo mods/, pero con shroudtopia.json diciendo
+// 'active': false para basics, Whitelist y ChatCommands. El cargador SIGUE
+// cargandolos ('Loading mod'): lo unico que se salta es 'Activating'. O sea
+// que un mod apagado por configuracion ya ha corrido su Load(). Para
+// apagarlo de verdad hay que sacar su fichero de mods/.
+
+[shroudtopia][INFO] Initializing ModContext.
+[shroudtopia][DEBG] Running in file: <ruta del servidor>
+[shroudtopia][DEBG] Running on server: 1
+[shroudtopia][INFO] DLL process attach.
+[shroudtopia][INFO] Thread started.
+[shroudtopia][INFO] Configuration loaded.
+[shroudtopia][INFO] Boot delay set to: 3000 ms
+[shroudtopia][INFO] Registered mod: basics
+[shroudtopia][INFO] Registered mod: Flight Mod
+[shroudtopia][INFO] Registered mod: ChatCommands
+[shroudtopia][INFO] Registered mod: FirstPersonView
+[shroudtopia][INFO] Registered mod: Whitelist
+[shroudtopia][INFO] Loading mod: ChatCommands
+[shroudtopia][INFO] Loading mod: basics
+[shroudtopia][INFO] (basics) class NoResourceCostAddress not found: Base Address: 140696808521728
+[shroudtopia][INFO] Loading mod: Flight Mod
+[shroudtopia][INFO] Loading mod: Whitelist
+[shroudtopia][INFO] Activating: Flight Mod
+[shroudtopia][INFO] (Flight Mod) Flight Mod activated

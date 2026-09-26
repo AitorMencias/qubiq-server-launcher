@@ -1,0 +1,71 @@
+// Lineas reales del registro del servidor de Enshrouded 0.9.0.0 (build
+// b466cef1500d760b8ba3dda230001923c40d0e12), tal cual las escribe por su
+// salida estandar: arranque, ajustes efectivos, listo, guardado y parada
+// con Ctrl+Break. Grabadas con el servidor de verdad.
+//
+// Limpiado antes de traerlo: las rutas del usuario y su IP publica, que el
+// servidor escribe en la linea '[online] Public ipv4'.
+
+[os] Started thread 0x00000187eb8add50 id:11764 (MessageSystem) with stack range (0x000000022ff00000-0x0000000230000000 size:1,048,576)
+[os] Started thread 0x00000187cb6a0008 id:14216 (Network) with stack range (0x000000022fe00000-0x000000022ff00000 size:1,048,576)
+[os] Started thread 0x00000187ebab5590 id:32932 (Task-Default02) with stack range (0x0000000230000000-0x0000000230400000 size:4,194,304)
+[os] Started thread 0x00000187eb8b52f8 id:9644 (Task-Default04) with stack range (0x0000000230800000-0x0000000230c00000 size:4,194,304)
+[os] Started thread 0x00000187ebeb5ec8 id:15052 (Task-Default06) with stack range (0x0000000231000000-0x0000000231400000 size:4,194,304)
+[os] Started thread 0x00000187ec0b6388 id:13392 (Task-Default08) with stack range (0x0000000231800000-0x0000000231c00000 size:4,194,304)
+[os] Started thread 0x00000187ec2b71b0 id:31244 (Task-Background00) with stack range (0x0000000232000000-0x0000000232400000 size:4,194,304)
+[os] Started thread 0x00000187ec4b7550 id:19040 (Task-Background01) with stack range (0x0000000232400000-0x0000000232800000 size:4,194,304)
+[os] Started thread 0x00000187eb9b5450 id:20760 (Task-Default03) with stack range (0x0000000230400000-0x0000000230800000 size:4,194,304)
+[os] Started thread 0x00000187ebeb5d90 id:38656 (Task-Default05) with stack range (0x0000000230c00000-0x0000000231000000 size:4,194,304)
+[os] Started thread 0x00000187ec2b6710 id:3312 (Task-Default09) with stack range (0x0000000231c00000-0x0000000232000000 size:4,194,304)
+[os] Started thread 0x00000187ec4b7688 id:33924 (Task-Background02) with stack range (0x0000000232800000-0x0000000232c00000 size:4,194,304)
+[os] Started thread 0x00000187ec0b6250 id:37748 (Task-Default07) with stack range (0x0000000231400000-0x0000000231800000 size:4,194,304)
+[os] Started thread 0x00000187c36a1990 id:13732 (Task-Background03) with stack range (0x0000000232c00000-0x0000000233000000 size:4,194,304)
+enshrouded_server(detached HEAD) - version b466cef1500d760b8ba3dda230001923c40d0e12 (master)
+Config Parsed: '<ruta del servidor>'
+CpuInfo:
+    PhysTotal:   34,164,105,216
+[app] start creation step Init_Steamworks
+[os] Started thread 0x00000187ec5b9df0 id:25612 (SteamworksSystem) with stack range (0x0000000233f00000-0x0000000234000000 size:1,048,576)
+[resource] Loaded kfc file '<ruta del servidor>' with 42,599 resources.
+[os] Started thread 0x00000187ec5b9d00 id:9976 (ResourceContent) with stack range (0x0000000234100000-0x0000000234200000 size:1,048,576)
+[os] Started thread 0x00000187ec5e9308 id:1960 (AsyncIo-IOCP) with stack range (0x0000000234200000-0x0000000234280000 size:524,288)
+[user] Couldn't retrieve steam friends interface.
+[user] Couldn't retrieve steam user interface.
+[os] Started thread 0x00000187ec603e90 id:9484 (P2pReceiveThread) with stack range (0x0000000233500000-0x0000000233600000 size:1,048,576)
+[os] Started thread 0x00000187ec603ec0 id:37676 (P2pSendThread) with stack range (0x0000000234280000-0x0000000234380000 size:1,048,576)
+[os] Started thread 0x00000187ec656fc0 id:29596 (Session) with stack range (0x0000000234380000-0x0000000234480000 size:1,048,576)
+[os] Started thread 0x00000187cb69ff80 id:10628 (HttpClient) with stack range (0x0000000234480000-0x0000000234580000 size:1,048,576)
+[os] Started thread 0x00000188083f9090 id:3004 (BaseSharingSystem) with stack range (0x0000000234580000-0x0000000234680000 size:1,048,576)
+[savedata] Couldn't retrieve steam remote storage interface.
+[savedata] Steam Cloud is disabled.
+[os] Started thread 0x0000018808420068 id:38764 (SaveData) with stack range (0x0000000234680000-0x0000000234780000 size:1,048,576)
+[os] Started thread 0x000001880843d9a8 id:14136 (HttpClient) with stack range (0x0000000234780000-0x0000000234880000 size:1,048,576)
+[os] Started thread 0x0000018808447de0 id:28688 (GameServer) with stack range (0x0000000234880000-0x0000000234980000 size:1,048,576)
+[Session] started transition from 'Lobby' to 'Host_Online' (current='<invalid>')!
+[game_server] Switching state from Create to Initialize after 1.04 ms
+[savedata] Start 'Open Container' on container 3ad85aea
+[savedata] Updating 'Open Container' on container 3ad85aea
+[savedata] Finished 'Open Container' on container 3ad85aea
+[server] Game Settings 'Default'
+[game_server] Switching state from Initialize to Load after 72.84 ms
+[game_server] Switching state from Load to LoadEcsScene after 2.16 s
+Path Grid Game Loaded State Changed : true
+[online] Server connected to Steam successfully
+[game_server] Switching state from LoadEcsScene to Run after 158.65 ms
+[online] Server is not VAC Secure!
+[online] Server SteamId: 90293400924314648
+[online] Public ipv4: 203.0.113.24
+[Session] finished transition from 'Lobby' to 'Host_Online' (current='Host_Online')!
+[app] Trigger gameflow shutdown, exit: Ctrl_Break
+[game_server] Switching state from Run to Shutdown after 17.59 s
+[server] Start Saving
+[server] Saved
+[savedata] Start 'Close Container' on container 3ad85aea
+[game_server] Switching state from Shutdown to Destroy after 130.41 ms
+[savedata] Updating 'Close Container' on container 3ad85aea
+[savedata] Finished 'Close Container' on container 3ad85aea
+[game_server] Switching state from Destroy to Invalid after 29.42 ms
+[Session] started transition from 'Host_Online' to 'Lobby' (current='<invalid>')!
+[Session] finished transition from 'Host_Online' to 'Lobby' (current='Lobby')!
+[app] start destruction step Init_Steamworks
+[enshrouded] Close Log file

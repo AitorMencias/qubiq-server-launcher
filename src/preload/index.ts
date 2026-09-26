@@ -6,6 +6,7 @@ import {
   VALHEIM_IPC,
   FACTORIO_IPC,
   ZOMBOID_IPC,
+  ENSHROUDED_IPC,
   EVENTS,
   type MemoryInfo,
   type SystemMemory
@@ -62,6 +63,11 @@ import type {
   ZomboidModEntry,
   ZomboidRole
 } from '../shared/games/zomboid/types'
+import type {
+  EnshroudedBan,
+  EnshroudedRole,
+  EnshroudedWorld
+} from '../shared/games/enshrouded/types'
 import type { EditableConfig } from '../shared/editableConfig'
 
 /** Ajustes del servidor de Satisfactory, con lo pendiente de un reinicio. */
@@ -500,6 +506,87 @@ const zomboid = {
   }
 }
 
+/**
+ * Ajustes de Enshrouded, con el preajuste que se le escribe de verdad.
+ *
+ * `effectivePreset` no siempre es el elegido: en cuanto un ajuste se aparta del
+ * preajuste hay que poner «Custom», o el servidor los ignora en silencio.
+ */
+interface EnshroudedConfigView {
+  preset: string
+  effectivePreset: string
+  settings: Record<string, number | boolean | string>
+  changed: string[]
+  roles: EnshroudedRole[]
+  tags: string[]
+  enableTextChat: boolean
+  enableVoiceChat: boolean
+  voiceChatMode: 'Proximity' | 'Global'
+  slotCount: number
+}
+
+const enshrouded = {
+  /**
+   * Toda la configuración del juego vive en un JSON que el servidor reescribe
+   * al arrancar, así que se cambia con el servidor parado.
+   */
+  config: {
+    get: (id: string): Promise<EnshroudedConfigView> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.getConfig, id),
+    set: (id: string, changes: Record<string, unknown>): Promise<EnshroudedConfigView> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.setConfig, id, changes)
+  },
+
+  /** Mundos: cambiar de uno a otro es cambiar la carpeta de guardado. */
+  worlds: {
+    list: (id: string): Promise<EnshroudedWorld[]> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.listWorlds, id),
+    create: (id: string, name: string): Promise<EnshroudedWorld[]> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.createWorld, id, name),
+    activate: (id: string, name: string): Promise<EnshroudedWorld[]> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.activateWorld, id, name),
+    rename: (id: string, name: string, newName: string): Promise<EnshroudedWorld[]> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.renameWorld, id, name, newName),
+    remove: (id: string, name: string): Promise<EnshroudedWorld[]> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.deleteWorld, id, name)
+  },
+
+  /**
+   * Vetados. Es lo único que se modera desde fuera del juego, y solo para
+   * quitar: vetar se hace desde dentro, con la contraseña de administrador.
+   */
+  bans: {
+    list: (id: string): Promise<EnshroudedBan[]> => ipcRenderer.invoke(ENSHROUDED_IPC.listBans, id),
+    remove: (id: string, accountId: number): Promise<EnshroudedBan[]> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.removeBan, id, accountId)
+  },
+
+  /**
+   * Mods con Shroudtopia de cargador. No hay buscador: los mods viven en Nexus
+   * Mods, que no deja descargar sin cuenta de pago, así que el fichero lo trae
+   * el usuario.
+   */
+  mods: {
+    list: (id: string): Promise<ModsView> => ipcRenderer.invoke(ENSHROUDED_IPC.listMods, id),
+    installLoader: (id: string): Promise<ModsView> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.installLoader, id),
+    removeLoader: (id: string): Promise<ModsView> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.removeLoader, id),
+    pickFile: (): Promise<string | null> => ipcRenderer.invoke(ENSHROUDED_IPC.pickModFile),
+    openFolder: (id: string): Promise<string> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.openModsFolder, id),
+    addFile: (id: string, filePath: string): Promise<ModsView> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.addModFile, id, filePath),
+    remove: (id: string, modId: string): Promise<ModsView> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.removeMod, id, modId),
+    setEnabled: (id: string, modId: string, enabled: boolean): Promise<ModsView> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.setModEnabled, id, modId, enabled),
+    loaderUpdate: (id: string): Promise<string | null> =>
+      ipcRenderer.invoke(ENSHROUDED_IPC.loaderUpdate, id)
+  }
+}
+
+
 const api = {
   settings: {
     get: (): Promise<AppSettings> => ipcRenderer.invoke(IPC.getSettings),
@@ -565,6 +652,7 @@ const api = {
   valheim,
   factorio,
   zomboid,
+  enshrouded,
 
   on: {
     log: (handler: (id: string, line: LogLine) => void) =>

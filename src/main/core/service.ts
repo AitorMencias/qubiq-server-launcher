@@ -36,6 +36,7 @@ import { createSatisfactoryService } from './games/satisfactory/service'
 import { createValheimService } from './games/valheim/service'
 import { createFactorioService } from './games/factorio/service'
 import { createZomboidService } from './games/zomboid/service'
+import { createEnshroudedService } from './games/enshrouded/service'
 
 /**
  * Orquestador del núcleo (§5).
@@ -90,6 +91,9 @@ class LauncherService extends EventEmitter implements GameHost {
 
   /** Operaciones exclusivas de Zomboid (ajustes, reglas de partida y cuentas). */
   readonly zomboid = createZomboidService(this)
+
+  /** Operaciones exclusivas de Enshrouded (ajustes, mundos, vetados y mods). */
+  readonly enshrouded = createEnshroudedService(this)
 
   async initialize(): Promise<void> {
     await ensureBaseDirs()

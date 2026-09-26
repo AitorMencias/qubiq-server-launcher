@@ -21,6 +21,13 @@ import {
   udpPortFor
 } from './zomboid/types'
 import {
+  DEFAULT_QUERY_PORT as ENSHROUDED_DEFAULT_PORT,
+  MAX_PLAYERS as ENSHROUDED_MAX_PLAYERS,
+  MEMORY_MIN_GB as ENSHROUDED_MEMORY_MIN_GB,
+  MEMORY_RECOMMENDED_GB as ENSHROUDED_MEMORY_RECOMMENDED_GB,
+  presetInfo as enshroudedPresetInfo
+} from './enshrouded/types'
+import {
   DEFAULT_GAME_PORT as VALHEIM_DEFAULT_PORT,
   MAX_PLAYERS as VALHEIM_MAX_PLAYERS,
   MEMORY_MIN_GB as VALHEIM_MEMORY_MIN_GB,
@@ -393,6 +400,56 @@ export const GAMES: Record<GameId, GameInfo> = {
       'En Zomboid se modera por nombre de cuenta del servidor, no por Steam. Las órdenes viajan ' +
       'por la consola remota, así que hay que tener el servidor arrancado: con él parado se ve ' +
       'quién es quién, pero no se puede cambiar.'
+  },
+
+  enshrouded: {
+    id: 'enshrouded',
+    name: 'Enshrouded',
+    card: {
+      tagline: 'Sobrevivir, construir y explorar un mundo tragado por la niebla.',
+      players: `Hasta ${ENSHROUDED_MAX_PLAYERS}`,
+      memoryGb: { min: ENSHROUDED_MEMORY_MIN_GB, recommended: ENSHROUDED_MEMORY_RECOMMENDED_GB },
+      download: '8,8 GB',
+      downloadMeasured: true,
+      highlights: [
+        { text: 'Arranca en 3 segundos', tone: 'good' },
+        { text: 'Permisos por contraseña', tone: 'neutral' },
+        // Medido: no hay forma de apagarlo. Va el último, como en los demás,
+        // pero es lo que más cambia la decisión de crearlo o no.
+        { text: 'Sale siempre en la lista pública', tone: 'warn' }
+      ]
+    },
+    // Como Valheim, Satisfactory y Zomboid: el servidor se baja de Steam de
+    // forma anónima, así que lo que se acepta es el acuerdo de Steam.
+    agreements: [
+      {
+        id: 'steam-subscriber',
+        label: 'el Acuerdo de Suscriptor de Steam',
+        url: 'https://store.steampowered.com/subscriber_agreement/'
+      }
+    ],
+    disclaimer: 'Herramienta no oficial. No está asociada a Keen Games ni a Enshrouded.',
+    joinHint: 'En Enshrouded: Jugar → Servidores → Añadir servidor, con esta dirección.',
+    joinSteps: [
+      'Abre Enshrouded y entra en «Servidores» desde el menú de jugar.',
+      'Pulsa «Añadir servidor» y pega ahí la dirección, con el puerto incluido.',
+      'Escribe la contraseña del rol que te hayan dado: la contraseña decide qué puedes hacer dentro.',
+      'El servidor queda en tus favoritos, que es donde sale aunque la lista pública tarde en refrescarse.'
+    ],
+    joinWarning:
+      'En Enshrouded no hay una contraseña del servidor, sino una por rol. Con la de Administrador ' +
+      'puedes echar y vetar; con la de Invitado no puedes ni abrir cofres. Si te dan la que no es, ' +
+      'entrarás igual pero con otros permisos.',
+    tunnelAddressExample: 'algo.gl.at.ply.gg',
+    save: { singular: 'mundo', plural: 'mundos', feminine: false },
+    backupScope:
+      'Se guardan los mundos y la configuración, con los roles y los vetados. El juego no hace ' +
+      'falta: se vuelve a descargar de Steam. Con el servidor en marcha, la copia se hace justo ' +
+      'después de uno de sus guardados, que son cada cinco minutos.',
+    moderationHint:
+      'Enshrouded no deja echar a nadie desde fuera del juego: su propio servidor dice que el ' +
+      'expulsar de un dedicado «no está implementado». Lo que sí se puede es quitar un veto desde ' +
+      'aquí, y vetar desde dentro del juego con la contraseña de Administrador (pestaña Social).'
   }
 }
 
@@ -513,6 +570,11 @@ export function serverPorts(manifest: InstanceManifest): ServerPort[] {
             }
           ]
         : [{ port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' }]
+    case 'enshrouded':
+      // Uno solo, y por UDP. Desde el Content Update #2 no hay puerto de juego
+      // aparte del de consulta, y el servidor no abre ningún otro: medido con
+      // netstat en la fase 6.
+      return [{ port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' }]
     case 'valheim':
       // Todo por UDP, y el de consulta es siempre el siguiente al de juego.
       // Con crossplay no hace falta abrir ninguno, pero se siguen listando:
@@ -639,6 +701,32 @@ export function capabilitiesFor(manifest: InstanceManifest): GameCapabilities {
         externalCheck: false,
         crossplay: false
       }
+    case 'enshrouded':
+      // Se parece a Valheim: ni consola ni RCON, todo por su fichero JSON y la
+      // consulta de Steam. Dos diferencias medidas: aquí el servidor **no
+      // puede echar a nadie** («Dedicated server kick not implemented», en su
+      // propio ejecutable), así que lo único que se modera desde fuera es
+      // quitar vetos; y la consulta de Steam contesta siempre, porque no hay
+      // forma de no publicarse. Los mods son los de Shroudtopia.
+      return {
+        worlds: false,
+        content: true,
+        officialPlugins: false,
+        memory: false,
+        settings: true,
+        reinstall: true,
+        versions: true,
+        commands: false,
+        // El servidor dice cuántos hay por la consulta de Steam, pero no
+        // quiénes: no se ha visto un nombre llegar nunca. Se cuenta, como en
+        // Satisfactory, en vez de listar a nadie con un número inventado.
+        playerIds: false,
+        playerNames: false,
+        // Quitar un veto es moderar de verdad, y es lo único que hay.
+        moderation: true,
+        externalCheck: true,
+        crossplay: false
+      }
     case 'valheim':
       // Los mundos y la moderación los aporta el juego con sus propias pestañas
       // (las listas son ficheros de texto, no comandos). El servidor no lee
@@ -679,6 +767,10 @@ export function versionLabel(manifest: InstanceManifest): string {
         : 'Satisfactory'
     case 'valheim':
       return manifest.data.gameVersion ? `Valheim ${manifest.data.gameVersion}` : 'Valheim'
+    case 'enshrouded':
+      return manifest.data.gameVersion
+        ? `Enshrouded ${manifest.data.gameVersion}`
+        : 'Enshrouded'
     case 'zomboid':
       return manifest.data.gameVersion
         ? `Project Zomboid ${manifest.data.gameVersion}`
@@ -702,6 +794,8 @@ export function summaryLabel(manifest: InstanceManifest): string {
       return `Satisfactory · ${manifest.data.sessionName}`
     case 'valheim':
       return `Valheim · ${manifest.data.worldName}`
+    case 'enshrouded':
+      return `Enshrouded · ${enshroudedPresetInfo(manifest.data.preset).label}`
     case 'zomboid':
       return `Project Zomboid · ${zomboidPresetInfo(manifest.data.preset).name}`
     case 'factorio':
@@ -724,5 +818,7 @@ export function defaultPortFor(game: GameId): number {
       return FACTORIO_DEFAULT_PORT
     case 'zomboid':
       return ZOMBOID_DEFAULT_PORT
+    case 'enshrouded':
+      return ENSHROUDED_DEFAULT_PORT
   }
 }

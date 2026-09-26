@@ -222,6 +222,38 @@ export const ZOMBOID_IPC = {
   updateMod: 'zomboid:mods:update'
 } as const
 
+/** Canales exclusivos de Enshrouded. */
+export const ENSHROUDED_IPC = {
+  // Configuración: un solo JSON que el servidor reescribe al arrancar, así que
+  // todo va con el servidor parado.
+  getConfig: 'enshrouded:config:get',
+  setConfig: 'enshrouded:config:set',
+
+  // Mundos: cambiar de mundo es cambiar el `saveDirectory` del arranque.
+  listWorlds: 'enshrouded:worlds:list',
+  createWorld: 'enshrouded:worlds:create',
+  activateWorld: 'enshrouded:worlds:activate',
+  renameWorld: 'enshrouded:worlds:rename',
+  deleteWorld: 'enshrouded:worlds:delete',
+
+  // Vetados: la única moderación que existe desde fuera del juego, y solo para
+  // quitar un veto. Vetar se hace desde dentro.
+  listBans: 'enshrouded:bans:list',
+  removeBan: 'enshrouded:bans:remove',
+
+  // Mods de Shroudtopia. El cargador se baja de GitHub; los mods los trae el
+  // usuario, porque Nexus Mods no deja descargar sin cuenta de pago.
+  listMods: 'enshrouded:mods:list',
+  installLoader: 'enshrouded:mods:installLoader',
+  removeLoader: 'enshrouded:mods:removeLoader',
+  pickModFile: 'enshrouded:mods:pickFile',
+  openModsFolder: 'enshrouded:mods:openFolder',
+  addModFile: 'enshrouded:mods:addFile',
+  removeMod: 'enshrouded:mods:remove',
+  setModEnabled: 'enshrouded:mods:enable',
+  loaderUpdate: 'enshrouded:mods:loaderUpdate'
+} as const
+
 /** Eventos que el núcleo empuja hacia la interfaz. */
 export const EVENTS = {
   log: 'event:log',

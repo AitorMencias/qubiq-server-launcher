@@ -1,0 +1,194 @@
+// Los ajustes EFECTIVOS que aplica cada preajuste, volcados por el propio
+// servidor al arrancar. Grabado arrancandolo una vez con cada uno.
+//
+// Los decimales salen en hexadecimal IEEE-754 cuando no son exactos
+// ('3fc00000' = 1,5); los enteros, como numero. Las duraciones son objetos
+// {value} en nanosegundos.
+
+[server] Game Settings 'Default'
+{
+	"playerHealthFactor": "1",
+	"playerManaFactor": "1",
+	"playerStaminaFactor": "1",
+	"playerBodyHeatFactor": "1",
+	"playerDivingTimeFactor": "1",
+	"enableDurability": true,
+	"enableStarvingDebuff": false,
+	"foodBuffDurationFactor": "1",
+	"fromHungerToStarving": {
+		"value": 600000000000
+	},
+	"shroudTimeFactor": "1",
+	"tombstoneMode": "AddBackpackMaterials",
+	"enableGliderTurbulences": true,
+	"weatherFrequency": "Normal",
+	"fishingDifficulty": "Normal",
+	"miningDamageFactor": "1",
+	"plantGrowthSpeedFactor": "1",
+	"resourceDropStackAmountFactor": "1",
+	"factoryProductionSpeedFactor": "1",
+	"perkUpgradeRecyclingFactor": "3f000000",
+	"perkCostFactor": "1",
+	"experienceCombatFactor": "1",
+	"experienceMiningFactor": "1",
+	"experienceExplorationQuestsFactor": "1",
+	"randomSpawnerAmount": "Normal",
+	"aggroPoolAmount": "Normal",
+	"enemyDamageFactor": "1",
+	"enemyHealthFactor": "1",
+	"enemyStaminaFactor": "1",
+	"enemyPerceptionRangeFactor": "1",
+	"bossDamageFactor": "1",
+	"bossHealthFactor": "1",
+	"threatBonus": "1",
+	"pacifyAllEnemies": false,
+	"tamingStartleRepercussion": "LoseSomeProgress",
+	"dayTimeDuration": {
+		"value": 1800000000000
+	},
+	"nightTimeDuration": {
+		"value": 720000000000
+	},
+	"curseModifier": "Normal"
+}
+
+[server] Game Settings 'Relaxed'
+{
+	"playerHealthFactor": "40000000",
+	"playerManaFactor": "40000000",
+	"playerStaminaFactor": "40000000",
+	"playerBodyHeatFactor": "40000000",
+	"playerDivingTimeFactor": "3fc00000",
+	"enableDurability": false,
+	"enableStarvingDebuff": false,
+	"foodBuffDurationFactor": "3fc00000",
+	"fromHungerToStarving": {
+		"value": 600000000000
+	},
+	"shroudTimeFactor": "3fc00000",
+	"tombstoneMode": "NoTombstone",
+	"enableGliderTurbulences": false,
+	"weatherFrequency": "Rare",
+	"fishingDifficulty": "Easy",
+	"miningDamageFactor": "3fc00000",
+	"plantGrowthSpeedFactor": "40000000",
+	"resourceDropStackAmountFactor": "3fc00000",
+	"factoryProductionSpeedFactor": "40000000",
+	"perkUpgradeRecyclingFactor": "1",
+	"perkCostFactor": "3f000000",
+	"experienceCombatFactor": "3fc00000",
+	"experienceMiningFactor": "3fa00000",
+	"experienceExplorationQuestsFactor": "1",
+	"randomSpawnerAmount": "Few",
+	"aggroPoolAmount": "Few",
+	"enemyDamageFactor": "3f000000",
+	"enemyHealthFactor": "3f000000",
+	"enemyStaminaFactor": "3f000000",
+	"enemyPerceptionRangeFactor": "3f400000",
+	"bossDamageFactor": "3f000000",
+	"bossHealthFactor": "3f000000",
+	"threatBonus": "3f000000",
+	"pacifyAllEnemies": false,
+	"tamingStartleRepercussion": "KeepProgress",
+	"dayTimeDuration": {
+		"value": 1800000000000
+	},
+	"nightTimeDuration": {
+		"value": 720000000000
+	},
+	"curseModifier": "Easy"
+}
+
+[server] Game Settings 'Hard'
+{
+	"playerHealthFactor": "1",
+	"playerManaFactor": "1",
+	"playerStaminaFactor": "1",
+	"playerBodyHeatFactor": "1",
+	"playerDivingTimeFactor": "3f666666",
+	"enableDurability": true,
+	"enableStarvingDebuff": false,
+	"foodBuffDurationFactor": "3f666666",
+	"fromHungerToStarving": {
+		"value": 600000000000
+	},
+	"shroudTimeFactor": "1",
+	"tombstoneMode": "AddBackpackMaterials",
+	"enableGliderTurbulences": true,
+	"weatherFrequency": "Normal",
+	"fishingDifficulty": "Normal",
+	"miningDamageFactor": "1",
+	"plantGrowthSpeedFactor": "1",
+	"resourceDropStackAmountFactor": "1",
+	"factoryProductionSpeedFactor": "1",
+	"perkUpgradeRecyclingFactor": "3f000000",
+	"perkCostFactor": "1",
+	"experienceCombatFactor": "3f000000",
+	"experienceMiningFactor": "3f000000",
+	"experienceExplorationQuestsFactor": "1",
+	"randomSpawnerAmount": "Many",
+	"aggroPoolAmount": "Normal",
+	"enemyDamageFactor": "3fc00000",
+	"enemyHealthFactor": "1",
+	"enemyStaminaFactor": "1",
+	"enemyPerceptionRangeFactor": "1",
+	"bossDamageFactor": "1",
+	"bossHealthFactor": "3fc00000",
+	"threatBonus": "3fc00000",
+	"pacifyAllEnemies": false,
+	"tamingStartleRepercussion": "LoseSomeProgress",
+	"dayTimeDuration": {
+		"value": 1800000000000
+	},
+	"nightTimeDuration": {
+		"value": 720000000000
+	},
+	"curseModifier": "Normal"
+}
+
+[server] Game Settings 'Survival'
+{
+	"playerHealthFactor": "3f400000",
+	"playerManaFactor": "1",
+	"playerStaminaFactor": "1",
+	"playerBodyHeatFactor": "3f400000",
+	"playerDivingTimeFactor": "3f400000",
+	"enableDurability": true,
+	"enableStarvingDebuff": true,
+	"foodBuffDurationFactor": "3f333333",
+	"fromHungerToStarving": {
+		"value": 600000000000
+	},
+	"shroudTimeFactor": "1",
+	"tombstoneMode": "Everything",
+	"enableGliderTurbulences": true,
+	"weatherFrequency": "Often",
+	"fishingDifficulty": "Hard",
+	"miningDamageFactor": "3f400000",
+	"plantGrowthSpeedFactor": "1",
+	"resourceDropStackAmountFactor": "3f400000",
+	"factoryProductionSpeedFactor": "1",
+	"perkUpgradeRecyclingFactor": "3e99999a",
+	"perkCostFactor": "3fa00000",
+	"experienceCombatFactor": "3f000000",
+	"experienceMiningFactor": "3f000000",
+	"experienceExplorationQuestsFactor": "1",
+	"randomSpawnerAmount": "Many",
+	"aggroPoolAmount": "Normal",
+	"enemyDamageFactor": "3fc00000",
+	"enemyHealthFactor": "1",
+	"enemyStaminaFactor": "1",
+	"enemyPerceptionRangeFactor": "1",
+	"bossDamageFactor": "1",
+	"bossHealthFactor": "3fc00000",
+	"threatBonus": "3fc00000",
+	"pacifyAllEnemies": false,
+	"tamingStartleRepercussion": "LoseAllProgress",
+	"dayTimeDuration": {
+		"value": 1800000000000
+	},
+	"nightTimeDuration": {
+		"value": 1200000000000
+	},
+	"curseModifier": "Hard"
+}

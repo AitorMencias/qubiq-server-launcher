@@ -257,11 +257,14 @@ sin la parte de mods; ya la tienen:
 | Valheim (fase 3) | Thunderstore, con BepInEx de cargador | **Hecho** (ANALISIS §19.23) |
 | Factorio (fase 4) | Portal de mods oficial | Hecho en su fase |
 | Project Zomboid (fase 5) | Steam Workshop | Hecho (ANALISIS §19.22) |
+| Enshrouded (fase 6) | Nexus Mods, con Shroudtopia de cargador | Hecho en su fase (ANALISIS §19.24) |
 
-Los cuatro tienen buscar o pegar la referencia, instalar con lo que el mod necesite, encender y
-apagar, avisar de versiones nuevas y quitar. Satisfactory y Valheim comparten pantalla
-(`CatalogModsPanel`) porque comparten forma —cargador y catálogo con buscador—; los otros dos no,
-porque uno va por enlaces del taller de Steam y el otro pide cuenta para descargar.
+Los cinco tienen buscar, pegar la referencia o traer el fichero, instalar con lo que el mod
+necesite, encender y apagar, avisar de versiones nuevas y quitar. Satisfactory y Valheim comparten
+pantalla (`CatalogModsPanel`) porque comparten forma —cargador y catálogo con buscador—; los otros
+tres no, porque uno va por enlaces del taller de Steam, otro pide cuenta para descargar y el tercero
+(Enshrouded) tiene cargador pero **ningún catálogo que se pueda consultar**: Nexus Mods no deja
+descargar sin cuenta de pago, así que el fichero lo trae el usuario.
 
 ### Fase 2 — Satisfactory (0.5.0)
 
@@ -436,16 +439,45 @@ porque uno va por enlaces del taller de Steam y el otro pide cuenta para descarg
 
 ### Fase 6 — Enshrouded (0.9.0)
 
-- **Asistente:** nombre, jugadores, *preset* de dificultad y **roles con contraseña** (Admin,
-  Amigo, Invitado), que es su forma de gestionar permisos.
+> **Estado: hecha** (pendiente de publicar como 0.9.0). Detalle, hallazgos del servidor real,
+> decisiones y verificación en [ANALISIS.md §19.24](ANALISIS.md). Cambios respecto a este plan:
+> - **Enshrouded no se puede dejar de publicar.** No hay `-public 0` ni casilla: en cuanto arranca
+>   se registra en Steam y sale en la lista del juego con la IP de casa. Es el caso de Rust, no el
+>   de Valheim, y se dice en la tarjeta del juego, en el asistente y antes de abrir el router. Lo
+>   único que impide que entre cualquiera son las contraseñas de los roles, así que **los cuatro
+>   nacen con una**.
+> - **El README oficial del servidor documenta mal su propio fichero.** La lista de vetados se llama
+>   `bannedAccounts` y no `bans`, el identificador es `accountId` (un número, no un hash) y la fecha
+>   va dentro de un objeto. Con los nombres del README el servidor borra la lista al reescribir y la
+>   moderación no haría nada, sin un solo mensaje.
+> - **La trampa del preajuste, confirmada y medida**: con cualquiera que no sea `Custom`, el
+>   servidor ignora los `gameSettings` **y el fichero se queda con ellos puestos**, así que parece
+>   que están aplicados. La app pone `Custom` sola en cuanto algo se aparta del preajuste.
+> - **Y el servidor vuelca por consola los ajustes que de verdad aplica**, lo que permitió medir los
+>   cuatro preajustes arrancándolo una vez con cada uno, en vez de copiarlos de una wiki.
+> - **Sí hay moderación, aunque poca**: quitar un veto. Echar no se puede ni desde dentro de la app
+>   ni por fichero («Dedicated server kick not implemented», en su propio ejecutable): se hace desde
+>   el juego con la contraseña de Administrador.
+> - **Ctrl+Break vale tal cual**, y es el juego que más rápido arranca y para de toda la app (3 s y
+>   0,5 s). Pero mandado **antes** de que esté listo mata el proceso con `0xC000013A` sin guardar,
+>   así que hace falta el mismo reintento que en Valheim.
+> - **Un solo puerto UDP**, medido con netstat: no abre el siguiente.
+> - **Se añade la pestaña Mundos**, que no estaba en este plan, igual que pasó en Valheim.
+> - **Los jugadores se cuentan, no se listan**: el número sale de la consulta de Steam, que contesta
+>   siempre porque el servidor siempre está publicado.
+
+- **Asistente:** nombre, mundo, jugadores, **dos contraseñas de rol** (Administrador y Amigo),
+  *preset* de dificultad y conexión. Los otros dos roles, en avanzado.
 - **Configuración:** `enshrouded_server.json`. **La app pone `gameSettingsPreset: "Custom"` sola**
-  al tocar cualquier ajuste, porque si no el servidor los ignora en silencio.
+  al tocar cualquier ajuste, porque si no el servidor los ignora en silencio. Y conserva la lista de
+  vetados que haya, porque esa la escribe el servidor desde el juego.
 - **Parada:** Ctrl+Break, ya resuelto en Valheim. **Puerto:** un único UDP (`queryPort` 15637).
-- **Moderación:** no hay desde fuera del juego. Se dice claramente en su pestaña.
-- **Mods: lo primero que hay que averiguar en la fase.** Enshrouded no tiene taller ni cargador
-  oficial que se sepa; si al mirarlo resulta que no hay ninguna forma establecida, se dice en su
-  pantalla igual que se dice lo de la moderación, y se anota en INVESTIGACION-JUEGOS.md. Lo que no
-  se hace es callarlo.
+- **Moderación:** lo único que hay desde fuera es **quitar un veto**. Se dice lo que no se puede.
+- **Mods: era la incógnita de la fase, y sí hay forma.** **Shroudtopia** de cargador (MIT, binarios
+  en GitHub, se engancha con un `winmm.dll` como BepInEx en Valheim, funciona en dedicado y lo
+  cuenta todo por la consola). Los mods viven en **Nexus Mods**, que no deja descargar sin cuenta de
+  pago: no hay buscador y se dice, el usuario trae el fichero y la app hace todo lo demás. Apagar un
+  mod es sacarlo de `mods/`: poner `"active": false` no basta (medido).
 
 ### Fase 7 — Rust (0.10.0)
 

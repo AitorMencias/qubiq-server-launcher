@@ -8,6 +8,7 @@ import type { SatisfactoryCreateOptions, SatisfactoryData } from './games/satisf
 import type { ValheimCreateOptions, ValheimData } from './games/valheim/types'
 import type { FactorioCreateOptions, FactorioData } from './games/factorio/types'
 import type { ZomboidCreateOptions, ZomboidData } from './games/zomboid/types'
+import type { EnshroudedCreateOptions, EnshroudedData } from './games/enshrouded/types'
 
 /**
  * Nivel de detalle de la interfaz.
@@ -31,7 +32,13 @@ export interface BackupSettings {
 // --- Juegos -------------------------------------------------------------------
 
 /** Juegos que sabe gestionar la app. Cada uno vive en `games/<id>/`. */
-export type GameId = 'minecraft' | 'satisfactory' | 'valheim' | 'factorio' | 'zomboid'
+export type GameId =
+  | 'minecraft'
+  | 'satisfactory'
+  | 'valheim'
+  | 'factorio'
+  | 'zomboid'
+  | 'enshrouded'
 
 /**
  * Condiciones que el usuario acepta de forma explícita al crear un servidor.
@@ -90,6 +97,11 @@ export interface ZomboidManifest extends ManifestBase {
   data: ZomboidData
 }
 
+export interface EnshroudedManifest extends ManifestBase {
+  game: 'enshrouded'
+  data: EnshroudedData
+}
+
 /**
  * Unión discriminada por `game`: quien lea `data` tiene que mirar antes de qué
  * juego es el servidor, y así no puede colarse un campo de un juego en otro.
@@ -100,6 +112,7 @@ export type InstanceManifest =
   | ValheimManifest
   | FactorioManifest
   | ZomboidManifest
+  | EnshroudedManifest
 
 /**
  * Cambios que se pueden pedir sobre un manifiesto. `data` se fusiona con lo que
@@ -114,6 +127,7 @@ export type ManifestChanges = Partial<
     | Partial<ValheimData>
     | Partial<FactorioData>
     | Partial<ZomboidData>
+    | Partial<EnshroudedData>
 }
 
 export type ServerStatus =
@@ -210,12 +224,18 @@ export interface ZomboidCreateRequest extends CreateRequestBase {
   options: ZomboidCreateOptions
 }
 
+export interface EnshroudedCreateRequest extends CreateRequestBase {
+  game: 'enshrouded'
+  options: EnshroudedCreateOptions
+}
+
 export type CreateInstanceRequest =
   | MinecraftCreateRequest
   | SatisfactoryCreateRequest
   | ValheimCreateRequest
   | FactorioCreateRequest
   | ZomboidCreateRequest
+  | EnshroudedCreateRequest
 
 // --- Copias de seguridad (§12) ----------------------------------------------
 

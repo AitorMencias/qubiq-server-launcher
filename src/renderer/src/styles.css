@@ -1592,3 +1592,14 @@ button.link:hover:not(:disabled) {
 .cfg-actions {
   margin: 6px 0 22px;
 }
+
+/*
+ * Un rol de Enshrouded: contrasena, permisos y plazas reservadas. Se separan
+ * con una linea porque son cuatro bloques seguidos dentro de la misma tarjeta y
+ * sin ella no se ve donde acaba uno y empieza el siguiente.
+ */
+.role-block + .role-block {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}

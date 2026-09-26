@@ -3,8 +3,9 @@
 Crea y gestiona tu servidor de juegos en tres clics.
 
 Aplicación de escritorio para Windows que descarga, configura, arranca y modera servidores de
-**Minecraft**, **Satisfactory** y **Valheim** sin que el usuario tenga que instalar Java, editar
-ficheros de configuración ni tocar la línea de comandos. Van llegando más juegos por fases.
+**Minecraft**, **Satisfactory**, **Valheim**, **Factorio**, **Project Zomboid** y **Enshrouded** sin
+que el usuario tenga que instalar Java, editar ficheros de configuración ni tocar la línea de
+comandos. Van llegando más juegos por fases.
 
 > NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
 > Herramienta no oficial: no está asociada a los estudios de los juegos que gestiona.
@@ -18,7 +19,7 @@ El análisis completo —decisiones, arquitectura, fuentes de datos y hoja de ru
 
 ## Estado
 
-MVP funcional. Cinco juegos, con todas sus distribuciones instalándose, arrancando y parando:
+MVP funcional. Seis juegos, con todas sus distribuciones instalándose, arrancando y parando:
 
 | Juego | Instalación | Arranque | Notas |
 |---|---|---|---|
@@ -32,6 +33,7 @@ MVP funcional. Cinco juegos, con todas sus distribuciones instalándose, arranca
 | Valheim | ✅ | ✅ | SteamCMD (2 GB); crossplay con código, sin abrir puertos |
 | Factorio | ✅ | ✅ | Hace falta tener el juego: se copia del equipo o se baja con tu cuenta de Steam |
 | Project Zomboid | ✅ | ✅ | SteamCMD (6,7 GB); consola, RCON, moderación y mods del taller. Sin Steam, no se anuncia en ningún sitio |
+| Enshrouded | ✅ | ✅ | SteamCMD (8,8 GB); permisos por contraseña de rol y mods con Shroudtopia. **Sale siempre en la lista del juego: no se puede evitar** |
 
 Funciones disponibles:
 
@@ -74,6 +76,10 @@ Funciones disponibles:
 - **Valheim** — se instala de Steam, se juega desde fuera **sin abrir puertos** con el crossplay del
   propio juego (la app enseña el código de 6 dígitos), varios mundos por servidor, dificultad y
   modificadores en cristiano, y moderación por las tres listas del juego
+- **Enshrouded** — se instala de Steam, los permisos van por **contraseña de rol** (quien entra con
+  la de Administrador manda), dificultad con los cuatro preajustes del juego y sus 37 ajustes uno a
+  uno, varios mundos y mods con el cargador Shroudtopia. La app avisa de lo que este juego **no**
+  deja hacer: ni esconderse de la lista pública ni echar a nadie desde fuera
 
 ---
 
@@ -106,7 +112,7 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 841 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro; y sus mods de ficsit.app, contra el `.uplugin` y el registro reales de SML (elegir versión según la build del juego, descartar los mods de solo cliente y traducir la lista de lo que ha cargado), con una sección de contrato contra la API de verdad. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación; y sus mods de Thunderstore, contra el `LogOutput.log` real de BepInEx (dónde acaba cada fichero de un paquete, identificadores y dependencias, y no confundir los errores de vídeo del propio juego con problemas de mods), con una sección de contrato contra la API de verdad. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Project Zomboid, contra los ficheros reales de su servidor (su `servertest.ini` de 144 claves, su `SandboxVars.lua` de 300 opciones y su registro): aislamiento de la carpeta del usuario, Steam apagado, claves que gestiona la app, lectura del registro sin enseñar la IP de quien entra, editor de tablas Lua (ida y vuelta byte a byte, límites con coma decimal y nombres de cada valor), aplicar un preajuste de dificultad sobre el fichero comentado, que las reglas del modo básico existan de verdad en el juego, y los mods del taller (leer un `mod.info` real, la regla de las carpetas de versión medida contra el servidor, las tres claves que se le escriben y las salidas reales de SteamCMD al descargar, incluidas las que fallan con código 0). De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON, .properties y Lua, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
+| `npm run smoke` | 961 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro; y sus mods de ficsit.app, contra el `.uplugin` y el registro reales de SML (elegir versión según la build del juego, descartar los mods de solo cliente y traducir la lista de lo que ha cargado), con una sección de contrato contra la API de verdad. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación; y sus mods de Thunderstore, contra el `LogOutput.log` real de BepInEx (dónde acaba cada fichero de un paquete, identificadores y dependencias, y no confundir los errores de vídeo del propio juego con problemas de mods), con una sección de contrato contra la API de verdad. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Project Zomboid, contra los ficheros reales de su servidor (su `servertest.ini` de 144 claves, su `SandboxVars.lua` de 300 opciones y su registro): aislamiento de la carpeta del usuario, Steam apagado, claves que gestiona la app, lectura del registro sin enseñar la IP de quien entra, editor de tablas Lua (ida y vuelta byte a byte, límites con coma decimal y nombres de cada valor), aplicar un preajuste de dificultad sobre el fichero comentado, que las reglas del modo básico existan de verdad en el juego, y los mods del taller (leer un `mod.info` real, la regla de las carpetas de versión medida contra el servidor, las tres claves que se le escriben y las salidas reales de SteamCMD al descargar, incluidas las que fallan con código 0). De Enshrouded, contra las grabaciones reales de su servidor: que **ninguna línea de la consola enseñe la IP pública** que él escribe en su registro, que tocar un ajuste obligue a poner el preajuste en «Custom» (con cualquier otro los ignora en silencio, y está medido), que la lista de vetados se escriba con el nombre que usa el servidor (`bannedAccounts`) y no con el que dice su propio README (`bans`), que los cuatro preajustes de dificultad digan ajuste a ajuste lo que el servidor aplica de verdad, que los 37 ajustes de la pantalla sean claves que el juego reconoce, su consulta de Steam, las dos reglas de los roles que el servidor trata como error interno, y la salida de su cargador de mods. De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON, .properties y Lua, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge`, `neoforge` |
 | `npm run e2e:custom` | Servidor a medida de verdad: monta un server pack de NeoForge 1.21.1 con su instalador oficial en una carpeta aparte, lo trae (comprueba que se **mueve**), arranca con su run.bat usando el Java de la app, pone la memoria en `user_jvm_args.txt`, para limpio sin quedarse en el `pause` y, con un script que se reinicia solo, comprueba que forzar el cierre mata también a Java |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
@@ -114,6 +120,7 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run e2e:valheim` | Valheim de verdad: instalar, arrancar generando el mundo, puertos UDP, moderación, copia en caliente esperando a que el servidor guarde, parada con Ctrl+Break, parar mientras arranca, mundos, **un mod real de Thunderstore que BepInEx carga de verdad** (con su cargador, comprobando que la parada limpia sigue guardando el mundo con él puesto), restauración y **comprobar que no se ha tocado la carpeta de Valheim del usuario**. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\valheim` con un enlace; `-- --descargar` baja los 2 GB de cero. No publica el servidor: arranca con `-public 0` y sin crossplay |
 | `npm run e2e:factorio` | Factorio de verdad: copiar el juego de una instalación del equipo y adelgazarlo (de 5,1 GB a ~246 MB), generar el mapa, arrancar, puerto UDP, moderación por RCON en caliente, copia con el servidor en marcha, parada con `/quit`, restauración y **comprobar que no se ha tocado `%APPDATA%\Factorio`**. `-- --rapido` usa la copia ya adelgazada del laboratorio; `-- --mods` prueba además buscar e instalar un mod real del portal, que necesita tu sesión de factorio.com. Son 34 comprobaciones. Termina con 2 si lo único que falla es que el portal no responde |
 | `npm run e2e:zomboid` | Project Zomboid de verdad: instalar, primer arranque que escribe la configuración y genera el mundo, puerto UDP (y comprobar que el segundo **no** se abre sin Steam), jugadores por RCON, ajustes en caliente, cuentas y niveles de acceso, reglas de la partida con el servidor parado, copia en caliente, parada con `quit`, **un mod real del taller que el servidor carga de verdad**, restauración y **comprobar que no se ha tocado `%USERPROFILE%\Zomboid`**. Guarda una copia del juego en `%LOCALAPPDATA%\qubiq-dev\e2e-zomboid-juego` y la **mueve** dentro de la instancia: **no se puede enlazar**, porque Zomboid no arranca si llega a su carpeta por un `mklink /J`. `-- --descargar` baja los 6,7 GB de cero. Arranca sin Steam: no se anuncia en ningún sitio |
+| `npm run e2e:enshrouded` | Enshrouded de verdad: instalar, comprobar el fichero de configuración que se le escribe, arrancar, un solo puerto UDP (y que **no** abre el siguiente), su consulta de Steam, **la trampa del preajuste medida en vivo** (se toca un ajuste, se arranca y el propio servidor dice por consola que aplica «Custom»), que un veto puesto desde el juego sobreviva a que la app reescriba el fichero, copia en caliente, parada con Ctrl+Break, parar mientras arranca, mundos, **un mod real que Shroudtopia carga de verdad** (con su cargador, apagarlo, encenderlo y quitarlo) y restauración. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\enshrouded` con un enlace; `-- --descargar` baja los 8,8 GB de cero. ⚠ **Esta prueba publica el servidor**: Enshrouded no se puede arrancar sin anunciarse |
 | `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones, viaje de ida y vuelta a una rama anterior y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%LOCALAPPDATA%\qubiq-dev\e2e-steam`); `-- --limpio` empieza de cero |
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
@@ -212,10 +219,15 @@ src/
 │       │       ├── api.ts       Su API HTTPS, con el certificado autofirmado
 │       │       ├── mods.ts      ficsit.app y SML: buscar, resolver dependencias e instalar
 │       │       └── service.ts   Partidas, ajustes y mods
-│       │   └── valheim/      Todo lo de Valheim:
+│       │   ├── valheim/      Todo lo de Valheim:
 │       │       ├── adapter.ts   Contrato: SteamCMD, línea de órdenes, registro y Ctrl+Break
 │       │       ├── mods.ts      Thunderstore y BepInEx: catálogo, cargador y su registro
 │       │       └── service.ts   Mundos, listas de moderación y mods (ficheros, servidor parado)
+│       │   └── enshrouded/   Todo lo de Enshrouded:
+│       │       ├── adapter.ts   Contrato: SteamCMD, registro, Ctrl+Break y consulta de Steam
+│       │       ├── config.ts    Su JSON: se genera entero y se conservan los vetados del juego
+│       │       ├── mods.ts      Shroudtopia desde GitHub y los mods que trae el usuario
+│       │       └── service.ts   Ajustes, roles, mundos, vetados y mods (servidor parado)
 │       └── service.ts       Orquestador: lo común, y delega en el juego
 ├── preload/                 Superficie expuesta al renderer (nada de Node)
 └── renderer/src/            Interfaz React
@@ -227,6 +239,7 @@ src/
         ├── minecraft/       Asistentes, Ajustes, Mundos, Plugins/Mods, plugins oficiales
         ├── satisfactory/    Asistentes, Ajustes, Partidas y Mods
         ├── valheim/         Asistentes, Ajustes, Mundos, Moderación y Mods
+        ├── enshrouded/      Asistentes, Ajustes, Roles, Mundos, Vetados y Mods
         └── <juego>/icon.svg Icono propio de cada juego, ya dibujado para su fase
 
 resources/<juego>/           Ficheros que se empaquetan por juego (resources/minecraft/plugins/)
@@ -505,6 +518,66 @@ ficheros JSON: `db/servertest.db`, con la tabla `whitelist` y los siete niveles 
 solo lectura con `node:sqlite` (así la pantalla enseña quién es quién esté el servidor como esté),
 pero **cambiar algo va siempre por RCON**, y eso exige el servidor arrancado. La pantalla lo dice en
 vez de esconder los botones.
+
+**Enshrouded no se puede dejar de publicar, y eso cambia cómo se presenta.** No tiene `-public 0`
+ni casilla equivalente: en cuanto el servidor arranca se conecta a Steam, se registra y sale en la
+lista del juego con la IP pública del equipo. Es el caso de Rust, no el de Valheim. Como no se puede
+arreglar, se dice: en la tarjeta del selector de juego, en el paso de conexión del asistente y antes
+de abrir el router. Y de ahí sale la regla de que **los cuatro roles nazcan con contraseña**: un rol
+sin contraseña es el que le toca a quien entre sin escribir ninguna, o sea, a cualquiera.
+
+**Y escribe tu IP pública en su registro** (`[online] Public ipv4: …`), igual que Valheim con
+crossplay. `parseLine` la esconde y se la borra hasta al texto que guarda, y esa regla va la primera
+de todas. El smoke comprueba contra el registro real que ninguna línea enseña una dirección.
+
+**En Enshrouded, un ajuste de partida con el preajuste puesto NO se aplica, y el fichero no lo
+dice.** Con `gameSettingsPreset` en cualquier cosa que no sea `"Custom"`, el servidor ignora todos
+los valores de `gameSettings`… pero el fichero se queda con ellos puestos, así que mirándolo parece
+que están aplicados. Medido: con el preajuste `Default` y `playerHealthFactor: 2`, el servidor aplica
+1. Por eso la app **pone `Custom` ella misma** en cuanto algo se aparta del preajuste, y lo hace en
+el servicio, no solo al escribir el fichero, para que lo que enseña la pantalla y lo que se aplica no
+puedan divergir.
+
+**El servidor de Enshrouded vuelca por consola los ajustes que de verdad aplica.** `[server] Game
+Settings 'Hard'` y un JSON detrás. Con eso se midieron los cuatro preajustes arrancándolo una vez
+con cada uno (`EFFECTIVE_PRESETS`), en vez de copiarlos de una wiki, y el smoke los compara ajuste a
+ajuste contra la grabación. Ojo con el formato: los decimales salen en **hexadecimal IEEE-754**
+cuando no son exactos (`3fc00000` = 1,5) y las duraciones son objetos `{value}` en nanosegundos.
+
+**El README oficial del servidor de Enshrouded se equivoca con los vetados.** Dice que la lista se
+llama `bans` y que el identificador es `accountIDHash`; el servidor real escribe **`bannedAccounts`**
+con **`accountId`** (un número) y la fecha dentro de un objeto. Con los nombres del README, el
+servidor borra la lista entera al reescribir el fichero y la moderación no hace nada, sin un solo
+mensaje. Lo que manda no es su documentación: es lo que el servidor deja escrito al arrancar.
+
+**Enshrouded reescribe su `enshrouded_server.json` al arrancar, así que la app lo genera entero…
+menos los vetados.** El servidor conserva lo que entiende, completa lo que falta y borra las claves
+que no conoce, o sea que no tiene sentido guardar nada propio ahí. Pero hay algo que escribe él y la
+app no sabe: la lista de vetados, que se llena desde dentro del juego. Por eso `writeConfig` **lee el
+fichero antes de generarlo** y conserva `bannedAccounts` tal cual venga. Sin eso, arrancar el
+servidor borraría los vetos puestos jugando.
+
+**Ctrl+Break en Enshrouded, pero no antes de que esté listo.** Guarda y sale con código 0 en medio
+segundo, que es lo más rápido de toda la app. Mandado mientras arranca, el proceso muere con
+`0xC000013A` sin guardar: todavía no tiene manejador puesto. Por eso se repite la señal, como en
+Valheim, y `diagnoseExit` traduce ese código en vez de soltar un número.
+
+**De Enshrouded no se puede echar a nadie desde fuera.** Lo dice su propio ejecutable: `Dedicated
+server kick not implemented`. Vetar tampoco: se hace desde dentro del juego, con la contraseña de
+Administrador, en la pestaña Social. Lo único que se puede hacer desde la app es **quitar un veto**,
+y con el servidor parado. La pantalla lo explica en vez de esconder los botones.
+
+**El cargador de mods de Enshrouded sí habla por la consola.** Shroudtopia escribe `Registered mod`,
+`Loading mod` y `Activating` por la salida estándar, al revés que BepInEx en Valheim, que solo lo
+deja en su fichero. Lo que importa de verdad es su línea de error: se engancha a direcciones de
+memoria del juego, así que una actualización de Enshrouded puede dejar un mod a medias **sin tumbar
+el servidor** (`class NoResourceCostAddress not found`). Esa línea se traduce a «el mod X no encaja
+con esta versión»; sin ella, el fallo no se notaría.
+
+**Y apagar un mod de Enshrouded tampoco es tocar su configuración.** Poner `"active": false` en
+`shroudtopia.json` **no** impide que el cargador lo cargue: medido, sigue saliendo `Loading mod` y
+solo se salta `Activating`, así que el `Load()` del mod ya ha corrido. Hay que sacar el fichero de
+`mods/`, la misma regla que en Satisfactory y Valheim.
 
 **La consulta de Steam de Valheim solo responde en el puerto de consulta.** Ni publicado contesta
 en el de juego. Y no te fíes de su campo `version`, que dice siempre «1.0.0.0»: la versión de

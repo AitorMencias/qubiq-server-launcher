@@ -1,0 +1,153 @@
+// LA TRAMPA DE LA FASE, medida contra el servidor real.
+//
+// Las tres veces se arranco con EL MISMO enshrouded_server.json en la parte
+// de gameSettings: playerHealthFactor 2, enableStarvingDebuff true y
+// curseModifier 'Easy'. Lo unico que cambia es gameSettingsPreset.
+//
+//   1) 'Default' -> el servidor aplica 1, false y 'Normal': LOS IGNORA.
+//   2) 'Custom'  -> aplica 40000000 (=2), true y 'Easy'.
+//   3) 'Hard'    -> aplica los del preajuste, no los del fichero.
+//
+// Y no avisa de nada: el fichero se queda con los valores puestos, asi que
+// mirandolo parece que estan aplicados.
+
+[server] Game Settings 'Default'
+{
+	"playerHealthFactor": "1",
+	"playerManaFactor": "1",
+	"playerStaminaFactor": "1",
+	"playerBodyHeatFactor": "1",
+	"playerDivingTimeFactor": "1",
+	"enableDurability": true,
+	"enableStarvingDebuff": false,
+	"foodBuffDurationFactor": "1",
+	"fromHungerToStarving": {
+		"value": 600000000000
+	},
+	"shroudTimeFactor": "1",
+	"tombstoneMode": "AddBackpackMaterials",
+	"enableGliderTurbulences": true,
+	"weatherFrequency": "Normal",
+	"fishingDifficulty": "Normal",
+	"miningDamageFactor": "1",
+	"plantGrowthSpeedFactor": "1",
+	"resourceDropStackAmountFactor": "1",
+	"factoryProductionSpeedFactor": "1",
+	"perkUpgradeRecyclingFactor": "3f000000",
+	"perkCostFactor": "1",
+	"experienceCombatFactor": "1",
+	"experienceMiningFactor": "1",
+	"experienceExplorationQuestsFactor": "1",
+	"randomSpawnerAmount": "Normal",
+	"aggroPoolAmount": "Normal",
+	"enemyDamageFactor": "1",
+	"enemyHealthFactor": "1",
+	"enemyStaminaFactor": "1",
+	"enemyPerceptionRangeFactor": "1",
+	"bossDamageFactor": "1",
+	"bossHealthFactor": "1",
+	"threatBonus": "1",
+	"pacifyAllEnemies": false,
+	"tamingStartleRepercussion": "LoseSomeProgress",
+	"dayTimeDuration": {
+		"value": 1800000000000
+	},
+	"nightTimeDuration": {
+		"value": 720000000000
+	},
+	"curseModifier": "Normal"
+}
+
+[server] Game Settings 'Custom'
+{
+	"playerHealthFactor": "40000000",
+	"playerManaFactor": "1",
+	"playerStaminaFactor": "1",
+	"playerBodyHeatFactor": "1",
+	"playerDivingTimeFactor": "1",
+	"enableDurability": true,
+	"enableStarvingDebuff": true,
+	"foodBuffDurationFactor": "1",
+	"fromHungerToStarving": {
+		"value": 600000000000
+	},
+	"shroudTimeFactor": "1",
+	"tombstoneMode": "AddBackpackMaterials",
+	"enableGliderTurbulences": true,
+	"weatherFrequency": "Normal",
+	"fishingDifficulty": "Normal",
+	"miningDamageFactor": "1",
+	"plantGrowthSpeedFactor": "1",
+	"resourceDropStackAmountFactor": "1",
+	"factoryProductionSpeedFactor": "1",
+	"perkUpgradeRecyclingFactor": "3f000000",
+	"perkCostFactor": "1",
+	"experienceCombatFactor": "1",
+	"experienceMiningFactor": "1",
+	"experienceExplorationQuestsFactor": "1",
+	"randomSpawnerAmount": "Normal",
+	"aggroPoolAmount": "Normal",
+	"enemyDamageFactor": "1",
+	"enemyHealthFactor": "1",
+	"enemyStaminaFactor": "1",
+	"enemyPerceptionRangeFactor": "1",
+	"bossDamageFactor": "1",
+	"bossHealthFactor": "1",
+	"threatBonus": "1",
+	"pacifyAllEnemies": false,
+	"tamingStartleRepercussion": "LoseSomeProgress",
+	"dayTimeDuration": {
+		"value": 1800000000000
+	},
+	"nightTimeDuration": {
+		"value": 720000000000
+	},
+	"curseModifier": "Easy"
+}
+
+[server] Game Settings 'Hard'
+{
+	"playerHealthFactor": "1",
+	"playerManaFactor": "1",
+	"playerStaminaFactor": "1",
+	"playerBodyHeatFactor": "1",
+	"playerDivingTimeFactor": "3f666666",
+	"enableDurability": true,
+	"enableStarvingDebuff": false,
+	"foodBuffDurationFactor": "3f666666",
+	"fromHungerToStarving": {
+		"value": 600000000000
+	},
+	"shroudTimeFactor": "1",
+	"tombstoneMode": "AddBackpackMaterials",
+	"enableGliderTurbulences": true,
+	"weatherFrequency": "Normal",
+	"fishingDifficulty": "Normal",
+	"miningDamageFactor": "1",
+	"plantGrowthSpeedFactor": "1",
+	"resourceDropStackAmountFactor": "1",
+	"factoryProductionSpeedFactor": "1",
+	"perkUpgradeRecyclingFactor": "3f000000",
+	"perkCostFactor": "1",
+	"experienceCombatFactor": "3f000000",
+	"experienceMiningFactor": "3f000000",
+	"experienceExplorationQuestsFactor": "1",
+	"randomSpawnerAmount": "Many",
+	"aggroPoolAmount": "Normal",
+	"enemyDamageFactor": "3fc00000",
+	"enemyHealthFactor": "1",
+	"enemyStaminaFactor": "1",
+	"enemyPerceptionRangeFactor": "1",
+	"bossDamageFactor": "1",
+	"bossHealthFactor": "3fc00000",
+	"threatBonus": "3fc00000",
+	"pacifyAllEnemies": false,
+	"tamingStartleRepercussion": "LoseSomeProgress",
+	"dayTimeDuration": {
+		"value": 1800000000000
+	},
+	"nightTimeDuration": {
+		"value": 720000000000
+	},
+	"curseModifier": "Normal"
+}
