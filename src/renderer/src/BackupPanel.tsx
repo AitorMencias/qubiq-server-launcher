@@ -2,9 +2,22 @@ import { useCallback, useEffect, useState } from 'react'
 import { D20Loader } from './D20Loader'
 import type { BackupEstimate, BackupInfo, InstanceState, UiMode } from '@shared/types'
 import { gameInfo, saveParticiple, theSave, type SaveNoun } from '@shared/games'
+import {
+  MAX_BACKUP_KEEP,
+  MIN_BACKUP_MINUTES,
+  RECOMMENDED_HISTORY_MINUTES,
+  formatMinutes,
+  formatSpan,
+  gameSaveMinutes,
+  intervalMinutes as intervalMinutesOf,
+  intervalProblem,
+  keepForRecommendedHistory,
+  minutesToHours,
+  recommendedInterval,
+  type IntervalRecommendation
+} from '@shared/backup'
 
-/** Intervalos ofrecidos, en horas. Más fino que esto no aporta nada. */
-const INTERVALS = [1, 2, 3, 6, 12, 24]
+type IntervalUnit = 'minutes' | 'hours'
 
 /**
  * Copias de seguridad (§12).
@@ -41,8 +54,12 @@ export function BackupPanel({
   // Ajustes editables, con guardado inmediato: son tres controles sueltos y
   // obligar a pulsar "Guardar" para cada uno sería fricción sin motivo.
   const [enabled, setEnabled] = useState(manifest.backup.enabled)
-  const [intervalHours, setIntervalHours] = useState(manifest.backup.intervalHours)
+  const [intervalMinutes, setIntervalMinutes] = useState(intervalMinutesOf(manifest.backup))
   const [keep, setKeep] = useState(manifest.backup.keep)
+  const saveEvery = gameSaveMinutes(manifest)
+  // Lo que de verdad separa dos copias: en los juegos que guardan a su ritmo,
+  // la copia espera a ese guardado aunque se haya pedido antes.
+  const effectiveMinutes = Math.max(intervalMinutes, saveEvery ?? 0)
 
   const refresh = useCallback(async () => {
     try {
@@ -63,17 +80,25 @@ export function BackupPanel({
 
   useEffect(() => {
     setEnabled(manifest.backup.enabled)
-    setIntervalHours(manifest.backup.intervalHours)
+    setIntervalMinutes(intervalMinutesOf(manifest.backup))
     setKeep(manifest.backup.keep)
   }, [manifest.backup.enabled, manifest.backup.intervalHours, manifest.backup.keep])
 
-  async function saveSettings(changes: Partial<typeof manifest.backup>): Promise<void> {
-    const next = { enabled, intervalHours, keep, ...changes }
+  async function saveSettings(
+    changes: Partial<{ enabled: boolean; intervalMinutes: number; keep: number }>
+  ): Promise<void> {
+    const next = { enabled, intervalMinutes, keep, ...changes }
     setEnabled(next.enabled)
-    setIntervalHours(next.intervalHours)
+    setIntervalMinutes(next.intervalMinutes)
     setKeep(next.keep)
     try {
-      await window.qubiq.instances.update(manifest.id, { backup: next })
+      await window.qubiq.instances.update(manifest.id, {
+        backup: {
+          enabled: next.enabled,
+          intervalHours: minutesToHours(next.intervalMinutes),
+          keep: next.keep
+        }
+      })
       onManifestChanged()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -178,7 +203,7 @@ export function BackupPanel({
           <h3>Copias automáticas</h3>
           <p className="hint" style={{ marginBottom: 0 }}>
             {manifest.backup.enabled
-              ? `Se guarda una copia sola cada ${manifest.backup.intervalHours} horas mientras juegas, y siempre antes de cualquier cambio importante. Se conservan las ${manifest.backup.keep} últimas.`
+              ? `Se guarda una copia sola cada ${formatMinutes(intervalMinutesOf(manifest.backup))} mientras juegas, y siempre antes de cualquier cambio importante. Se conservan las ${manifest.backup.keep} últimas.`
               : 'Están desactivadas. Puedes activarlas desde el modo avanzado.'}
           </p>
         </div>
@@ -204,30 +229,21 @@ export function BackupPanel({
 
         {enabled && (
           <>
-            <div className="field">
-              <label>Cada cuánto</label>
-              <select
-                value={intervalHours}
-                onChange={(e) => void saveSettings({ intervalHours: Number(e.target.value) })}
-              >
-                {INTERVALS.map((hours) => (
-                  <option key={hours} value={hours}>
-                    {hours === 1 ? 'Cada hora' : `Cada ${hours} horas`}
-                  </option>
-                ))}
-              </select>
-              <div className="help">
-                El temporizador corre solo con el servidor arrancado; si lo tienes parado no se
-                acumulan copias.
-              </div>
-            </div>
+            <IntervalField
+              minutes={intervalMinutes}
+              recommendation={
+                estimate ? recommendedInterval(manifest, estimate.worldBytes) : null
+              }
+              gameSaveMinutes={saveEvery}
+              onChange={(minutes) => void saveSettings({ intervalMinutes: minutes })}
+            />
 
             <div className="field">
               <label>Cuántas conservar: {keep}</label>
               <input
                 type="range"
                 min={1}
-                max={30}
+                max={MAX_BACKUP_KEEP}
                 step={1}
                 value={keep}
                 onChange={(e) => setKeep(Number(e.target.value))}
@@ -236,9 +252,15 @@ export function BackupPanel({
               />
               <div className="help">
                 Al superar este número se borra la más antigua. Cubrirías{' '}
-                <strong>{formatSpan(keep * intervalHours)}</strong> de historial.
+                <strong>{formatSpan(keep * effectiveMinutes)}</strong> de historial.
               </div>
             </div>
+
+            <HistoryAdvice
+              intervalMinutes={effectiveMinutes}
+              keep={keep}
+              onKeep={(value) => void saveSettings({ keep: value })}
+            />
 
             <StorageEstimate estimate={estimate} keep={keep} save={game.save} />
           </>
@@ -280,6 +302,167 @@ export function BackupPanel({
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+interface IntervalFieldProps {
+  minutes: number
+  recommendation: IntervalRecommendation | null
+  /** Cada cuánto guarda el propio juego, si no se le puede pedir antes. */
+  gameSaveMinutes: number | null
+  onChange: (minutes: number) => void
+}
+
+/**
+ * Cada cuánto se hace la copia: un número libre y la unidad al lado.
+ *
+ * Se guarda al salir del campo o al cambiar la unidad, no con cada tecla: a
+ * medio escribir «30» pasa por «3», que no vale, y no se debe avisar de nada
+ * ni reprogramar el temporizador por eso.
+ */
+function IntervalField({
+  minutes,
+  recommendation,
+  gameSaveMinutes,
+  onChange
+}: IntervalFieldProps): React.JSX.Element {
+  const [unit, setUnit] = useState<IntervalUnit>(unitFor(minutes))
+  const [amount, setAmount] = useState(amountIn(minutes, unitFor(minutes)))
+  const [problem, setProblem] = useState<string | null>(null)
+
+  // Refleja los cambios que llegan de fuera, como «Usar la recomendada».
+  useEffect(() => {
+    const next = unitFor(minutes)
+    setUnit(next)
+    setAmount(amountIn(minutes, next))
+    setProblem(null)
+  }, [minutes])
+
+  function commit(text: string, inUnit: IntervalUnit): void {
+    const value = Number(text.trim().replace(',', '.'))
+    const total = Math.round(value * (inUnit === 'hours' ? 60 : 1))
+    const invalid =
+      text.trim() === '' || !Number.isFinite(value) ? 'Escribe un número.' : intervalProblem(total)
+    setProblem(invalid)
+    if (!invalid && total !== minutes) onChange(total)
+  }
+
+  return (
+    <div className="field">
+      <label>Cada cuánto</label>
+      <div className="row">
+        <input
+          type="number"
+          min={inUnitMin(unit)}
+          step={unit === 'hours' ? 0.5 : 1}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          onBlur={() => commit(amount, unit)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit(amount, unit)
+          }}
+          style={{ width: 110 }}
+        />
+        <select
+          value={unit}
+          onChange={(e) => {
+            const next = e.target.value as IntervalUnit
+            setUnit(next)
+            commit(amount, next)
+          }}
+          style={{ width: 130 }}
+        >
+          <option value="minutes">minutos</option>
+          <option value="hours">horas</option>
+        </select>
+      </div>
+      {problem && (
+        <div className="help" style={{ color: '#ff8b83' }}>
+          {problem}
+        </div>
+      )}
+      <div className="help">
+        Mínimo {MIN_BACKUP_MINUTES} minutos. El temporizador corre solo con el servidor arrancado;
+        si lo tienes parado no se acumulan copias.
+      </div>
+
+      {gameSaveMinutes !== null && minutes < gameSaveMinutes && (
+        <div className="alert warn" style={{ marginTop: 10, marginBottom: 0 }}>
+          <strong>El servidor solo guarda la partida cada {formatMinutes(gameSaveMinutes)}</strong>
+          <p>
+            La copia espera a ese guardado para no llevarse la partida a medio escribir, así que
+            en la práctica saldrá una cada {formatMinutes(gameSaveMinutes)}.
+          </p>
+        </div>
+      )}
+
+      {recommendation && (
+        <div className="alert info" style={{ marginTop: 10, marginBottom: 0 }}>
+          <div className="row between">
+            <strong style={{ marginBottom: 0 }}>
+              Recomendado para este servidor: cada {formatMinutes(recommendation.minutes)}
+            </strong>
+            {recommendation.minutes !== minutes && (
+              <button onClick={() => onChange(recommendation.minutes)}>Usar esta</button>
+            )}
+          </div>
+          <p style={{ marginTop: 6 }}>{recommendation.reason}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Horas si es un número redondo de horas; si no, minutos. */
+function unitFor(minutes: number): IntervalUnit {
+  return minutes >= 60 && minutes % 60 === 0 ? 'hours' : 'minutes'
+}
+
+function amountIn(minutes: number, unit: IntervalUnit): string {
+  return String(unit === 'hours' ? minutes / 60 : minutes)
+}
+
+function inUnitMin(unit: IntervalUnit): number {
+  return unit === 'hours' ? 0.5 : MIN_BACKUP_MINUTES
+}
+
+interface HistoryAdviceProps {
+  intervalMinutes: number
+  keep: number
+  onKeep: (keep: number) => void
+}
+
+/**
+ * Hasta cuándo se puede volver atrás. Con copias frecuentes y pocas
+ * conservadas, el historial se queda en minutos: un problema que se note tarde
+ * (un griefing, un mod que corrompe) ya estaría en todas las copias.
+ */
+function HistoryAdvice({ intervalMinutes, keep, onKeep }: HistoryAdviceProps): React.JSX.Element {
+  const covered = intervalMinutes * keep
+  const short = covered < RECOMMENDED_HISTORY_MINUTES
+  const suggested = keepForRecommendedHistory(intervalMinutes)
+
+  const explanation = (
+    <>
+      Cuanto más frecuentes sean las copias, menos tiempo atrás cubren las que se conservan: se
+      pierde menos si algo falla, pero se puede retroceder menos. Se recomienda conservar al menos{' '}
+      {formatSpan(RECOMMENDED_HISTORY_MINUTES)} de historial
+      {short && `: con copias cada ${formatMinutes(intervalMinutes)} hacen falta ${suggested}`}.
+    </>
+  )
+
+  if (!short) return <p className="hint">{explanation}</p>
+
+  return (
+    <div className="alert warn">
+      <strong>Solo podrías volver hasta hace {formatSpan(covered)}</strong>
+      <p>{explanation}</p>
+      {suggested > keep && (
+        <button style={{ marginTop: 10 }} onClick={() => onKeep(suggested)}>
+          Conservar {suggested} copias
+        </button>
+      )}
     </div>
   )
 }
@@ -339,17 +522,6 @@ function StorageEstimate({ estimate, keep, save }: StorageEstimateProps): React.
       </p>
     </div>
   )
-}
-
-/** Horas a un texto legible: 72 -> "3 días". */
-function formatSpan(hours: number): string {
-  if (hours < 24) return `${hours} ${hours === 1 ? 'hora' : 'horas'}`
-  const days = Math.round(hours / 24)
-  if (days < 7) return `${days} ${days === 1 ? 'día' : 'días'}`
-  const weeks = Math.round(days / 7)
-  if (weeks < 5) return `${weeks} ${weeks === 1 ? 'semana' : 'semanas'}`
-  const months = Math.round(days / 30)
-  return `${months} ${months === 1 ? 'mes' : 'meses'}`
 }
 
 function formatSize(bytes: number): string {

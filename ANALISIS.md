@@ -2645,7 +2645,48 @@ dice». **La hay**, aunque no la de Satisfactory y Valheim.
 
 ---
 
-### 19.25 Siguiente
+### 19.25 Frecuencia libre de las copias automáticas
+
+Hasta ahora el intervalo se elegía de una lista fija (1, 2, 3, 6, 12 y 24 horas): una hora sin copia
+es mucho progreso que perder. Ahora se escribe un número y se elige la unidad (minutos u horas),
+con un **mínimo de 5 minutos**: cada copia pide guardar al servidor y comprime el mundo entero, y
+cada minuto sería demasiado según el juego.
+
+- **Sin migrar el manifiesto.** Se sigue guardando `backup.intervalHours`, ahora con fracciones
+  (`5 / 60`). Cambiar a minutos exigía migrar, y una versión anterior de la app que leyera un
+  manifiesto sin `intervalHours` programaría el temporizador con `NaN`, que en Node es cada 1 ms.
+  Todo lo demás trabaja en minutos con [`shared/backup.ts`](src/shared/backup.ts).
+- **Lo valida el núcleo**, no solo la interfaz: `updateInstance` rechaza menos de 5 minutos, más de
+  una semana y conservar fuera de 1 a 100 copias. El temporizador vuelve a aplicar el suelo por si
+  el manifiesto se edita a mano.
+- **Las copias no se amontonan.** Con 5 minutos y un mundo grande, una copia puede durar más que el
+  intervalo, y en Valheim y Enshrouded espera al guardado del propio juego (30 y 5 minutos). Si al
+  tocar la siguiente la anterior sigue en curso, se salta y se anota en el registro del lanzador.
+- **Cambiar el intervalo con el servidor arrancado vale desde ya.** Antes el temporizador solo se
+  programaba al arrancar, y el cambio no se notaba hasta el siguiente arranque.
+- **Recomendación por servidor**, a partir del peso del mundo sin comprimir (lo que ya mide la
+  estimación de espacio): hasta 200 MB, 15 minutos; hasta 1 GB, 30; hasta 5 GB, una hora; hasta
+  20 GB, tres; más, seis. En los juegos que no guardan cuando se les pide nunca baja de su propio
+  guardado: la copia lo espera, así que más a menudo solo daría copias repetidas. Si se elige
+  menos, se avisa de que en la práctica saldrá una cada lo que guarde el juego, y el historial
+  cubierto se calcula con ese ritmo real.
+- **Historial.** Con copias frecuentes, las conservadas cubren poco: 10 copias cada 5 minutos son
+  50 minutos, y un problema que se note tarde ya estaría en todas. Se explica siempre, y si no
+  llega a tres horas se avisa con un botón que sube las conservadas a lo necesario (36 para 5
+  minutos). Por eso el máximo de copias pasa de 30 a 100.
+
+**Probado:** `typecheck`; `smoke` (974, 13 nuevas: límites del intervalo y de las copias en el
+núcleo, que lo rechazado no se guarda, tramos de la recomendación y el suelo de Valheim);
+`e2e -- paper` y `e2e:restart`; y el recorrido `ui/copias.mjs` (capturas 200-206): 5 minutos se
+guardan, 3 se rechazan sin guardar, «Conservar 36 copias», 2 horas vuelve a enseñarse en horas,
+«Usar esta», el aviso de Valheim y el texto del modo básico.
+
+**Sin probar:** una copia programada de verdad cada 5 minutos con un servidor en marcha, ni el
+salto de una copia que se solapa con la siguiente.
+
+---
+
+### 19.26 Siguiente
 
 **Ahora (uso privado):**
 

@@ -3,6 +3,7 @@ import { readFile, writeFile, readdir, rm, access, copyFile } from 'node:fs/prom
 import { randomUUID } from 'node:crypto'
 import type { CreateInstanceRequest, InstanceManifest, ManifestChanges } from '@shared/types'
 import { requiredAgreements } from '@shared/games'
+import { intervalMinutes, intervalProblem, MAX_BACKUP_KEEP } from '@shared/backup'
 import {
   ensureDir,
   instanceDir,
@@ -154,6 +155,15 @@ export async function updateInstance(
 ): Promise<InstanceManifest> {
   const current = await readManifest(id)
   if (!current) throw new Error(`No existe la instancia ${id}.`)
+
+  if (changes.backup) {
+    const problem = intervalProblem(intervalMinutes(changes.backup))
+    if (problem) throw new Error(problem)
+    const { keep } = changes.backup
+    if (!Number.isInteger(keep) || keep < 1 || keep > MAX_BACKUP_KEEP) {
+      throw new Error(`Se pueden conservar entre 1 y ${MAX_BACKUP_KEEP} copias.`)
+    }
+  }
 
   const { data, ...rest } = changes
   // Los cambios de `data` son siempre del juego del manifiesto: quien llama

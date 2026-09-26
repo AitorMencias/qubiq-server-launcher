@@ -23,6 +23,7 @@ import {
   type PortProtocol,
   type UpdateCheck
 } from '@shared/games'
+import { intervalMinutes, MIN_BACKUP_MINUTES } from '@shared/backup'
 import { ServerSupervisor } from './runtime/supervisor'
 import * as instances from './instances/manager'
 import * as backups from './backup/manager'
@@ -266,7 +267,12 @@ class LauncherService extends EventEmitter implements GameHost {
 
   async updateInstance(id: string, changes: ManifestChanges): Promise<InstanceManifest> {
     const manifest = await this.requireManifest(id)
-    return instances.updateInstance(id, changes, gameOf(manifest))
+    const updated = await instances.updateInstance(id, changes, gameOf(manifest))
+    // Un intervalo nuevo vale desde ya, no desde el próximo arranque.
+    if (changes.backup && this.supervisors.get(id)?.status === 'running') {
+      await this.startBackupSchedule(id)
+    }
+    return updated
   }
 
   async remove(id: string): Promise<void> {
@@ -615,14 +621,26 @@ class LauncherService extends EventEmitter implements GameHost {
     const manifest = await instances.readManifest(id)
     if (!manifest?.backup.enabled || manifest.backup.intervalHours <= 0) return
 
-    const intervalMs = manifest.backup.intervalHours * 60 * 60 * 1000
+    // El suelo se aplica también aquí por si el manifiesto se editó a mano.
+    const minutes = Math.max(intervalMinutes(manifest.backup), MIN_BACKUP_MINUTES)
+    let inFlight = false
     const timer = setInterval(() => {
+      // Con intervalos cortos y mundos grandes, una copia puede durar más que
+      // el intervalo (o esperar al guardado del juego): no se amontonan.
+      if (inFlight) {
+        void this.appendLauncherLog(id, 'Copia programada omitida: la anterior aún no ha terminado.')
+        return
+      }
+      inFlight = true
       void this.createBackup(id, 'Copia programada', true)
         .then(() => this.applyRetention(id))
         .catch((err: Error) => {
           void this.appendLauncherLog(id, `Copia programada fallida: ${err.message}`)
         })
-    }, intervalMs)
+        .finally(() => {
+          inFlight = false
+        })
+    }, minutes * 60 * 1000)
 
     // No debe impedir que la app se cierre si es lo único pendiente.
     timer.unref?.()

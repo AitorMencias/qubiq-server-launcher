@@ -12,6 +12,13 @@ import { registerGame } from '../../src/main/core/games/registry'
 import type { GameAdapter } from '../../src/main/core/games/types'
 import { service } from '../../src/main/core/service'
 import type { CreateInstanceRequest, InstanceManifest, ServerStatus } from '../../src/shared/types'
+import {
+  formatMinutes,
+  intervalMinutes,
+  intervalProblem,
+  keepForRecommendedHistory,
+  recommendedInterval
+} from '../../src/shared/backup'
 
 /**
  * Prueba de humo de lo común a cualquier juego: utilidades, migraciones,
@@ -336,6 +343,22 @@ export async function commonSmoke(): Promise<void> {
         guardadas.join(', ')
       )
 
+      const cada5 = await service.updateInstance(manifest.id, {
+        backup: { enabled: true, intervalHours: 5 / 60, keep: 36 }
+      })
+      check('acepta copias cada 5 minutos', intervalMinutes(cada5.backup) === 5)
+      const rechaza = async (backup: InstanceManifest['backup']): Promise<boolean> =>
+        service.updateInstance(manifest.id, { backup }).then(
+          () => false,
+          () => true
+        )
+      check('rechaza menos de 5 minutos', await rechaza({ enabled: true, intervalHours: 4 / 60, keep: 10 }))
+      check('rechaza conservar 0 copias', await rechaza({ enabled: true, intervalHours: 1, keep: 0 }))
+      check(
+        'y no guarda lo rechazado',
+        intervalMinutes((await service.get(manifest.id)).manifest.backup) === 5
+      )
+
       await service.remove(manifest.id)
       check('se borra igual que cualquier otro', !(await exists(instanceDir(manifest.id))))
     } finally {
@@ -343,6 +366,28 @@ export async function commonSmoke(): Promise<void> {
       service.off('status', onStatus)
       service.off('players', onPlayers)
     }
+  })
+
+  // --- Frecuencia de las copias automáticas ---------------------------------
+
+  await section('Frecuencia de copias', async () => {
+    const MB = 1024 * 1024
+    const minecraft = { game: 'minecraft' } as InstanceManifest
+    const valheim = (segundos: number): InstanceManifest =>
+      ({ game: 'valheim', data: { saveIntervalSeconds: segundos } }) as InstanceManifest
+
+    check('un mundo pequeño, a menudo', recommendedInterval(minecraft, 50 * MB).minutes === 15)
+    check('uno grande, más espaciado', recommendedInterval(minecraft, 8 * 1024 * MB).minutes === 180)
+    check(
+      'nunca por debajo del guardado del propio juego',
+      recommendedInterval(valheim(1800), 50 * MB).minutes === 30
+    )
+    check('Valheim guardando a menudo sigue el tamaño', recommendedInterval(valheim(300), 50 * MB).minutes === 15)
+    check('5 minutos valen', intervalProblem(5) === null)
+    check('4 no', intervalProblem(4) !== null)
+    check('ni un intervalo con decimales', intervalProblem(7.5) !== null)
+    check('para 3 horas cada 5 minutos hacen falta 36', keepForRecommendedHistory(5) === 36)
+    check('1 h 30 min se lee bien', formatMinutes(90) === '1 h 30 min')
   })
 
   // --- Política de reinicio bajo petición -----------------------------------
