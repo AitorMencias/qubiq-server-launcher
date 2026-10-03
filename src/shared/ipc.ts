@@ -38,6 +38,7 @@ export const IPC = {
   stopServer: 'server:stop',
   sendCommand: 'server:command',
   listJournal: 'server:journal',
+  consoleHistory: 'server:console',
 
   // Copias de seguridad
   listBackups: 'backup:list',

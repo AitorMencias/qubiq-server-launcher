@@ -162,6 +162,23 @@ export function App({ initialLanguage, systemLanguage }: Props): React.JSX.Eleme
       setDiagnoses((prev) => ({ ...prev, [id]: diagnosis }))
     })
 
+    // Lo que ya tenía cada consola al abrir la ventana: un servidor que siguió
+    // en marcha con la app cerrada trae sus líneas, y lo que pasó mientras
+    // tanto se cuenta ahí. Sustituye a lo recibido hasta ahora, que ya va
+    // dentro (el núcleo guarda cada línea antes de mandarla).
+    void window.qubiq.instances
+      .list()
+      .then((list) =>
+        Promise.all(
+          list.map(async ({ manifest }) => {
+            const lines = await window.qubiq.server.console(manifest.id)
+            if (lines.length === 0) return
+            setLogs((prev) => ({ ...prev, [manifest.id]: lines.slice(-MAX_LOG_LINES) }))
+          })
+        )
+      )
+      .catch(() => undefined)
+
     return () => {
       offLog()
       offStatus()

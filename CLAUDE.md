@@ -52,7 +52,9 @@ general de la 0.10.0). Después, idiomas, Configuración de la app y carpeta de 
 órdenes:** R1 (anfitrión y página web, 0.12.0) y R2 (QubiQ como cliente de otro, 0.13.0) hechas.
 Hoja de ruta, ANALISIS.md §19.31 y §19.33; sin decisiones pendientes. Después, el **historial del servidor**
 (pestaña Historial, §19.32): si añades una forma de moderar, apúntala con `host.journal` (README). Probarlo desde fuera de casa exige
-abrir un puerto: preguntar antes. Lo demás que viene está en §19.30.
+abrir un puerto: preguntar antes. Los servidores se lanzan a través del **guardián** (§19.34): si
+la app se cierra de golpe, al volver los recupera; no lances el proceso de un servidor por otro
+camino. Lo demás que viene está en §19.30.
 
 **Textos de la interfaz:** nunca a pelo en el código. Van con `t('clave')` a
 `src/shared/i18n/locales/es/<área>.ts` y a los otros nueve idiomas (el typecheck avisa si falta

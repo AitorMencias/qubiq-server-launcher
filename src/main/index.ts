@@ -142,21 +142,33 @@ function createWindow(): void {
     mainWindow.on(event as 'show', () => updateLinksActivity())
   }
 
-  // Con el acceso remoto encendido, cerrar la ventana no cierra la app: si no,
-  // nadie recibiría las órdenes. Se queda en la bandeja.
   mainWindow.on('close', (event) => {
-    // Sin icono en la bandeja no se esconde: no habría forma de volver a abrirla.
-    if (quitting || !remote.enabled || !tray) return
-    event.preventDefault()
-    mainWindow?.hide()
-    if (!trayHintShown) {
-      trayHintShown = true
-      tray.displayBalloon({
-        title: t('remote.tray.hiddenTitle'),
-        content: t('remote.tray.hiddenText'),
-        noSound: true
-      })
+    if (quitting) return
+
+    // Con el acceso remoto encendido, cerrar la ventana no cierra la app: si
+    // no, nadie recibiría las órdenes. Se queda en la bandeja. Sin icono en la
+    // bandeja no se esconde: no habría forma de volver a abrirla.
+    if (remote.enabled && tray) {
+      event.preventDefault()
+      mainWindow?.hide()
+      if (!trayHintShown) {
+        trayHintShown = true
+        tray.displayBalloon({
+          title: t('remote.tray.hiddenTitle'),
+          content: t('remote.tray.hiddenText'),
+          noSound: true
+        })
+      }
+      return
     }
+
+    // Con servidores en marcha se pregunta AQUÍ, con la ventana todavía
+    // abierta. Esperar a `before-quit` era tarde: la ventana ya se había
+    // cerrado, y al cancelar la app se quedaba viva y sin ventana, con los
+    // servidores dentro y sin forma de volver a verlos (0.13.0).
+    if (!service.hasRunningServers()) return
+    event.preventDefault()
+    if (confirmStopServers()) stopServersAndQuit()
   })
 
   if (process.env['ELECTRON_RENDERER_URL']) {
@@ -321,8 +333,35 @@ void app.whenReady().then(async () => {
 })
 
 /**
+ * Pregunta si se paran los servidores para salir. Con la ventana a la vista y
+ * como padre del diálogo, para que no quede detrás de ella.
+ */
+function confirmStopServers(): boolean {
+  const options = {
+    type: 'question' as const,
+    buttons: [t('main.quit.confirm'), t('main.quit.cancel')],
+    defaultId: 0,
+    cancelId: 1,
+    title: t('main.quit.title'),
+    message: t('main.quit.message'),
+    detail: t('main.quit.detail')
+  }
+  const window = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
+  const choice = window ? dialog.showMessageBoxSync(window, options) : dialog.showMessageBoxSync(options)
+  return choice === 0
+}
+
+function stopServersAndQuit(): void {
+  quitting = true
+  void service.stopAll().finally(() => app.quit())
+}
+
+/**
  * Cierre con servidores activos: se pregunta y se cierra limpiamente.
  * Este es el punto donde un launcher mal hecho corrompe mundos.
+ *
+ * Cerrando con la X ya se preguntó en el `close` de la ventana; aquí llegan
+ * las otras salidas («Salir» de la bandeja, el reinicio tras mover los datos).
  */
 app.on('before-quit', (event) => {
   if (quitting) return
@@ -335,21 +374,7 @@ app.on('before-quit', (event) => {
 
   event.preventDefault()
   showWindow()
-
-  const choice = dialog.showMessageBoxSync({
-    type: 'question',
-    buttons: [t('main.quit.confirm'), t('main.quit.cancel')],
-    defaultId: 0,
-    cancelId: 1,
-    title: t('main.quit.title'),
-    message: t('main.quit.message'),
-    detail: t('main.quit.detail')
-  })
-
-  if (choice !== 0) return
-
-  quitting = true
-  void service.stopAll().finally(() => app.quit())
+  if (confirmStopServers()) stopServersAndQuit()
 })
 
 /**

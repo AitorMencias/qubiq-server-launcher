@@ -3345,3 +3345,102 @@ página; el anfitrión no distingue uno de otro (los dos firman igual).
   español.
 - Cada petición abre su propia conexión TLS. En casa no se nota; por internet, con la consola
   abierta, es un apretón de manos cada 1,5 s. Mantener la conexión abierta queda para después.
+
+---
+
+### 19.34 Recuperar los servidores al volver a abrir la app (guardián)
+
+Si QubiQ se cerraba con servidores en marcha sin pasar por la parada, los servidores seguían vivos
+pero la app, al volver, los daba por parados y no había forma de hablar con ellos. Eran hijos
+directos de la app y hablaban con ella por tuberías anónimas, que mueren con ella: con solo el PID
+se puede saber que siguen vivos, pero **Minecraft y Project Zomboid se paran escribiendo en su
+entrada estándar**, así que no habría parada limpia ni órdenes, y la consola habría que sacarla de
+sus ficheros de registro.
+
+**Decidido por el usuario:** el **guardián**, no recuperar solo por PID.
+
+#### El fallo que lo provocaba: «Cancelar» cerraba igualmente
+
+Al cerrar con la X, la app preguntaba si parar los servidores; con «Cancelar», desaparecía y los
+dejaba sueltos. Reproducido con Playwright y el Valheim de prueba: la pregunta estaba en
+`before-quit`, que llega **después** de que la ventana se haya cerrado (`close` → `closed` →
+`window-all-closed` → `app.quit()`). Al cancelar, `showWindow` creaba una ventana nueva que se
+quedaba oculta: la app seguía viva, sin ventana y con los servidores dentro. Desde fuera era
+«se ha cerrado sin parar». Ahora se pregunta en el `close` de la ventana, que todavía se puede
+cancelar; `before-quit` queda para las otras salidas («Salir» de la bandeja).
+
+#### Cómo está hecho
+
+- **`qubiq-guardian.exe`**, en C# 5 (`core/runtime/guardian/source.ts`). Lo compila en el equipo el
+  `csc.exe` de .NET Framework 4.8, que viene con Windows 10 y 11: 0,3 s y 10 KB, una vez por versión
+  del código (la huella va en el nombre), en `tools/guardian`. Se descartó usar Electron como Node
+  para el guardián: dejaría `QubiQ Server Launcher.exe` en uso mientras haya un servidor, y el
+  instalador de una versión nueva lo cerraría a la fuerza.
+- La app lo lanza **desligado** (sin consola ni grupo de la app, para que tampoco muera al cerrar la
+  terminal de `npm run dev`) con un fichero de lanzamiento que borra nada más leerlo. Él lanza el
+  servidor con `CreateNoWindow` (como Node con `windowsHide`: consola propia sin ventana, que es a la
+  que se engancha el Ctrl+Break de Valheim y Enshrouded), lee su salida y la ofrece por una tubería
+  con nombre **solo para el usuario de Windows** (`PipeSecurity`). Guarda las últimas 5000 líneas.
+- **La línea de órdenes la arma la app igual que Node** (`commandLine.ts`, las reglas de libuv),
+  para que ningún servidor reciba otros argumentos.
+- El supervisor ya no lanza nada: trabaja sobre un `ServerProcess` (`runtime/process.ts`), que puede
+  ser el de siempre (`DirectProcess`, si no hay guardián) o el del guardián (`GuardedProcess`).
+- Cada línea lleva un número. La app apunta en `guardian.json` hasta cuál ha visto y cómo estaba el
+  servidor (listo, jugadores, código para entrar): cada vez que apunta algo en el historial y cada
+  5 s. Al volver, las líneas ya vistas se repasan para rehacer el estado y salir en la consola, pero
+  **no se apuntan otra vez** en el historial ni en `launcher.log`; las de después, que pasaron con
+  la app cerrada, sí. El estado guardado cubre lo que ya no esté entre las 5000 líneas.
+- Si el servidor sale con la app cerrada, el guardián deja `guardian-exit.txt` (código y últimas 200
+  líneas) y termina; al abrir, se apunta la parada o el cierre con su hora y se cuenta en la consola
+  con el diagnóstico del juego. La ventana pide al abrirse lo que ya hay en cada consola
+  (`server:console`), porque esas líneas llegaron antes de que ella escuchara.
+
+#### Lo que salió al probar
+
+- **La tubería con nombre tiene que ser asíncrona.** Con `PipeOptions.None`, Windows pone la
+  escritura de un handle síncrono detrás de la lectura pendiente: la salida del servidor solo llegaba
+  cuando la app mandaba una orden. Lo pilló el juego falso del smoke.
+- **El guardián no puede trabajar en la carpeta del servidor**: la tenía ocupada al terminar y
+  borrar el servidor justo después de pararlo daba `EBUSY`.
+- **Si la app recibe el aviso de salida, no se deja fichero.** Si no, al abrir otra vez se habría
+  contado como un cierre con la app cerrada.
+- **Un servidor que sale nada más arrancar** (antes de que la app llegue a conectarse) hacía que el
+  guardián se fuera sin entregar nada. Ahora espera a la primera conexión, y la app recoge el
+  fichero si aun así llega tarde: el código de salida es el mismo que lanzando directo, también los
+  negativos (`4294967295`).
+
+#### Cómo se ha comprobado
+
+- `typecheck`; `smoke` con **1485** comprobaciones (40 nuevas, `scripts/smoke/guardian.ts`), con el
+  guardián compilado de verdad y servidores de mentira en Node: argumentos idénticos a lanzar
+  directo (espacios, comillas, barras al final, vacío, tabulador, ñ y €), soltar la conexión sin
+  parar el servidor, reengancharse con el estado guardado y lo ya visto marcado, órdenes con tildes y
+  tabuladores, 20 000 líneas seguidas sin perder ninguna, salir con la app «cerrada» y recuperar
+  código y últimas líneas, no dejar ficheros al salir con la app abierta, borrar la carpeta en cuanto
+  sale, matarlo y un ejecutable que no existe. El juego falso de `common.ts` (historial en orden
+  incluido) va ya a través del guardián.
+- Recorrido `cierre-cancelar.mjs` con el Valheim de prueba en local y sin publicar: X y «Cancelar»
+  (la ventana sigue a la vista y la app viva), y X y «Cerrar servidores y salir» (guarda el mundo,
+  para Valheim y sale con 0). El clic va por UI Automation: los botones del diálogo son *command
+  links* y la tecla Intro simulada no llegaba de forma fiable.
+- Recorrido `recuperar.mjs`: Valheim en marcha, **«Finalizar tarea» solo sobre la app**
+  (`taskkill /F` sin `/T`), Valheim y su guardián siguen vivos; al abrir la app sale «En marcha»,
+  con sus líneas y el aviso en la consola, y PARAR lo cierra limpio con Ctrl+Break (consola del
+  guardián) y «Mundo guardado».
+- `e2e -- paper` (47), `e2e:restart` (16) y `e2e:custom` (33, cmd con `.bat` y cierre forzado del
+  árbol a través del guardián) en verde a través del guardián; `e2e:steam` (23, supervisor directo)
+  también.
+
+#### Lo que no se ha podido comprobar
+
+- **Minecraft ni Zomboid recuperados de verdad**: el recorrido es con Valheim (parada por
+  Ctrl+Break). Que la orden `stop` llegue por la tubería del guardián lo cubren el juego falso del
+  smoke y las e2e de Paper, pero no después de un reenganche con un Minecraft real.
+- **El paquete instalado**: todo ha sido con la app compilada en desarrollo. Que un antivirus no se
+  queje de un ejecutable recién compilado en `tools/guardian` solo se sabrá en otros equipos; si no
+  se puede lanzar, el servidor arranca directo como antes.
+- **Apagar o reiniciar Windows con servidores en marcha**: no se ha probado qué hace Windows con el
+  guardián y el servidor (no es un caso nuevo: antes tampoco se paraban limpios).
+- Los servidores que se quedaron sueltos con versiones anteriores (sin guardián) no se recuperan.
+- El reinicio automático tras un fallo no actúa si el servidor se cae con la app cerrada: se apunta
+  y se cuenta al abrir, pero no se vuelve a arrancar solo.

@@ -747,7 +747,9 @@ const api = {
       ipcRenderer.invoke(IPC.sendCommand, id, command, options),
     /** Historial del servidor, de lo más reciente a lo más viejo. */
     journal: (id: string, limit?: number): Promise<JournalEntry[]> =>
-      ipcRenderer.invoke(IPC.listJournal, id, limit)
+      ipcRenderer.invoke(IPC.listJournal, id, limit),
+    /** Las últimas líneas de su consola que guarda el núcleo. */
+    console: (id: string): Promise<LogLine[]> => ipcRenderer.invoke(IPC.consoleHistory, id)
   },
 
   backups: {

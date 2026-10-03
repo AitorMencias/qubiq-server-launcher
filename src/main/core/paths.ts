@@ -94,6 +94,23 @@ export function launcherLogPath(id: string): string {
 }
 
 /**
+ * Lo del guardián de un servidor en marcha (`runtime/guardian`): cómo volver a
+ * conectarse, lo que deja si el servidor sale con la app cerrada y lo que hay
+ * que lanzar (este último lo borra el guardián nada más leerlo).
+ */
+export function guardianRecordPath(id: string): string {
+  return join(instanceDir(id), 'guardian.json')
+}
+
+export function guardianExitPath(id: string): string {
+  return join(instanceDir(id), 'guardian-exit.txt')
+}
+
+export function guardianSpecPath(id: string): string {
+  return join(instanceDir(id), 'guardian-spec.txt')
+}
+
+/**
  * Lo que es de la app dentro de la raíz de datos, y por tanto lo que se mueve
  * al cambiarla de sitio.
  *

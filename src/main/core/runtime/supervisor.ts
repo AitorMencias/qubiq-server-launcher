@@ -1,11 +1,9 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
-import { createInterface } from 'node:readline'
 import type { Diagnosis, LogLine, ServerStatus } from '@shared/types'
 import type { LiveStatus, ParsedEvent, StopStrategy, SupervisorHandle } from '../games/types'
 import { DEFAULT_STOP_GRACE_MS, requestStop } from './stop'
 import { EchoFilter } from './echoes'
+import { DirectProcess, type ServerProcess } from './process'
 
 /**
  * Supervisión del proceso de un servidor, de cualquier juego (§7).
@@ -51,13 +49,8 @@ export interface SupervisorEvents {
   exit: (code: number | null, requested: boolean) => void
 }
 
-export interface StartOptions {
-  command: string
-  args: string[]
-  cwd: string
-  env?: Record<string, string>
-  /** Ver `LaunchSpec.verbatimArguments`. */
-  verbatimArguments?: boolean
+/** Lo propio del juego para vigilar un proceso, lo lance quien lo lance. */
+export interface RunOptions {
   /** Ver `LaunchSpec.killTree`. */
   killTree?: boolean
   /** Ver `LaunchSpec.dropEchoes`. */
@@ -76,8 +69,30 @@ export interface StartOptions {
   pollIntervalMs?: number
 }
 
+export interface StartOptions extends RunOptions {
+  command: string
+  args: string[]
+  cwd: string
+  env?: Record<string, string>
+  /** Ver `LaunchSpec.verbatimArguments`. */
+  verbatimArguments?: boolean
+}
+
+/**
+ * Cómo estaba el servidor cuando la app lo dejó de ver. Al reengancharse se
+ * parte de aquí y se le aplican las líneas guardadas por el guardián: si eran
+ * tantas que ya no tiene las del principio (la de «listo», quién entró), esto
+ * es lo que lo cubre.
+ */
+export interface KnownState {
+  ready: boolean
+  players: string[]
+  playerCount: number | null
+  joinCode: string | null
+}
+
 export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
-  private child: ChildProcessWithoutNullStreams | null = null
+  private child: ServerProcess | null = null
   private currentStatus: ServerStatus = 'stopped'
   private readonly onlinePlayers = new Set<string>()
   private readonly recent: string[] = []
@@ -95,9 +110,11 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
   private stopRequested = false
   private autoRestartEnabled = false
   /** Lo propio del juego del arranque en curso. */
-  private options: StartOptions | null = null
+  private options: RunOptions | null = null
   /** Para los juegos que escriben cada línea dos veces (`dropEchoes`). */
   private readonly echoes = new EchoFilter()
+  /** Se están aplicando líneas que ya se vieron antes de cerrar la app. */
+  private replayingLines = false
 
   constructor(readonly instanceId: string) {
     super()
@@ -128,11 +145,31 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     return this.child !== null
   }
 
+  /**
+   * true mientras se repasan las líneas de antes de un reenganche. Lo que
+   * cuenten (entradas, guardados) ya pasó y ya se apuntó en su momento.
+   */
+  get replaying(): boolean {
+    return this.replayingLines
+  }
+
   setAutoRestart(enabled: boolean): void {
     this.autoRestartEnabled = enabled
   }
 
+  /** Lanza el proceso directamente, como hijo de la app. */
   start(options: StartOptions): void {
+    if (this.child) {
+      throw new Error('Este servidor ya está arrancado.')
+    }
+    this.attach(new DirectProcess(options), options)
+  }
+
+  /**
+   * Vigila un proceso ya lanzado: uno recién arrancado a través del guardián
+   * o, con `known`, uno que siguió en marcha con la app cerrada.
+   */
+  attach(child: ServerProcess, options: RunOptions, known?: KnownState): void {
     if (this.child) {
       throw new Error('Este servidor ya está arrancado.')
     }
@@ -146,33 +183,39 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     this.setStatus('starting')
 
     this.options = options
-    const child = spawn(options.command, options.args, {
-      cwd: options.cwd,
-      env: options.env ? { ...process.env, ...options.env } : process.env,
-      windowsHide: true,
-      windowsVerbatimArguments: options.verbatimArguments ?? false,
-      // stdin abierto es imprescindible: es el canal de comandos y de parada.
-      stdio: ['pipe', 'pipe', 'pipe']
-    })
-
     this.child = child
-    this.startedAt = Date.now()
+    this.startedAt = child.startedAt
 
-    // Escribir en stdin justo cuando el proceso muere da EPIPE como evento; sin
-    // oyente tumbaría la app entera. El cierre ya lo trata 'close'.
-    child.stdin.on('error', () => undefined)
+    if (known) {
+      for (const name of known.players) this.onlinePlayers.add(name)
+      this.currentPlayerCount = known.playerCount
+      this.currentJoinCode = known.joinCode
+      if (known.players.length > 0 || known.playerCount !== null) {
+        this.emit('players', this.players, this.currentPlayerCount)
+      }
+      if (known.joinCode) this.emit('joinCode', known.joinCode)
+      if (known.ready) {
+        this.setStatus('running')
+        this.emit('ready')
+      }
+    }
 
-    createInterface({ input: child.stdout }).on('line', (line) => this.handleLine(line))
-    createInterface({ input: child.stderr }).on('line', (line) => this.handleLine(line))
-
-    child.on('error', (err) => {
-      this.pushLog('error', `No se pudo lanzar el servidor: ${err.message}`)
-      this.finish(null)
+    child.on('line', (line: string, replay?: boolean) => {
+      this.replayingLines = replay === true
+      try {
+        this.handleLine(line)
+      } finally {
+        this.replayingLines = false
+      }
     })
-
-    child.on('close', (code) => this.finish(code))
+    child.on('notice', (level: LogLine['level'], text: string) => this.pushLog(level, text))
+    child.on('error', (err: Error) => {
+      this.pushLog('error', `No se pudo lanzar el servidor: ${err.message}`)
+    })
+    child.once('exit', (code: number | null) => this.finish(code))
 
     if (options.poll) this.startPolling(options.poll, options.pollIntervalMs ?? DEFAULT_POLL_MS)
+    child.resume?.()
   }
 
   /**
@@ -239,7 +282,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     if (wasStarting && strategy?.whileStarting) this.pushLog('system', strategy.whileStarting)
 
     const graceMs = strategy?.graceMs ?? DEFAULT_STOP_GRACE_MS
-    const closed = new Promise<void>((resolve) => child.once('close', () => resolve()))
+    const closed = new Promise<void>((resolve) => child.once('exit', () => resolve()))
 
     if (strategy) {
       // Si la petición falla (RCON caído, consola ya cerrada...) no se mata nada
@@ -248,7 +291,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
         closed,
         requestStop(strategy, {
           pid: child.pid,
-          writeStdin: (text) => child.stdin.write(text)
+          writeStdin: (text) => child.writeStdin(text)
         }).catch((err: unknown) => {
           const message = err instanceof Error ? err.message : String(err)
           this.pushLog('warn', `No se pudo pedir el cierre limpio: ${message}`)
@@ -264,7 +307,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
         if (!alive) return
         void requestStop(strategy, {
           pid: alive.pid,
-          writeStdin: (text) => alive.stdin.write(text)
+          writeStdin: (text) => alive.writeStdin(text)
         }).catch(() => undefined)
       }, strategy.retryEveryMs)
       this.stopRetryTimer.unref?.()
@@ -290,8 +333,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
           `El servidor no respondió al cierre en ${Math.round(graceMs / 1000)} segundos. ` +
             'Se fuerza el cierre; puede que los últimos cambios de la partida no se hayan guardado.'
         )
-        if (this.options?.killTree && child.pid) killTree(child.pid, () => child.kill())
-        else child.kill()
+        child.kill(this.options?.killTree ?? false)
 
         // Matar NO es instantáneo: Windows tarda un momento en soltar los
         // ficheros que tenía abiertos el proceso. Quien llama a `stop()` suele
@@ -341,7 +383,7 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     }
     const clean = command.replace(/[\r\n]+/g, ' ').trim()
     if (clean.length === 0) return
-    child.stdin.write(`${clean}\n`)
+    child.writeStdin(`${clean}\n`)
     this.pushLog('system', `> ${clean}`)
   }
 
@@ -477,22 +519,6 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
   private pushLog(level: LogLine['level'], text: string): void {
     this.emit('log', { ts: Date.now(), level, text })
   }
-}
-
-/**
- * Mata un proceso y todos sus hijos. `child.kill()` solo llega al primero, y
- * cuando ese es cmd con un .bat, el servidor de verdad es su hijo y seguiría
- * vivo con el puerto y el mundo abiertos. Si taskkill no está, se hace lo que
- * se pueda con `fallback`.
- */
-function killTree(pid: number, fallback: () => void): void {
-  const windowsDir = process.env['SystemRoot'] || process.env['windir']
-  const taskkill = windowsDir ? join(windowsDir, 'System32', 'taskkill.exe') : 'taskkill.exe'
-  const killer = spawn(taskkill, ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
-  killer.on('error', fallback)
-  killer.on('close', (code) => {
-    if (code !== 0) fallback()
-  })
 }
 
 /** ¿Es la misma gente, sin mirar el orden? */

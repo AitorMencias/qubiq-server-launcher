@@ -26,6 +26,7 @@ import { steamSmoke } from './steam'
 import { remoteSmoke } from './remote'
 import { remoteLinksSmoke } from './remoteLinks'
 import { journalSmoke } from './journal'
+import { guardianSmoke } from './guardian'
 import { setDataRoot, setResourcesRoot, ensureBaseDirs } from '../../src/main/core/paths'
 
 async function main(): Promise<void> {
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
   console.log(`Datos temporales en ${root}`)
 
   await commonSmoke()
+  await guardianSmoke()
   await journalSmoke()
   await i18nSmoke()
   await remoteSmoke()

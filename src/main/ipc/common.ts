@@ -54,6 +54,11 @@ export function registerCommonIpc(getWindow: () => BrowserWindow | null): void {
     async (_e, id: string, command: string, options?: { journal?: boolean }) =>
       service.sendCommand(id, command, { journal: options?.journal !== false })
   )
+  // Lo que ya hay en la consola: al abrir la ventana con un servidor
+  // recuperado (§19.34), sus líneas llegaron antes de que ella escuchara.
+  ipcMain.handle(IPC.consoleHistory, async (_e, id: string): Promise<LogLine[]> =>
+    service.consoleSince(id).lines.map(({ seq: _seq, ...line }) => line)
+  )
   ipcMain.handle(IPC.listJournal, async (_e, id: string, limit?: number) =>
     service.listJournal(
       id,

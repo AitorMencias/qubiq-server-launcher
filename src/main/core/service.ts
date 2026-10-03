@@ -26,7 +26,14 @@ import {
   type UpdateCheck
 } from '@shared/games'
 import { intervalMinutes, MIN_BACKUP_MINUTES } from '@shared/backup'
-import { ServerSupervisor } from './runtime/supervisor'
+import { ServerSupervisor, type RunOptions } from './runtime/supervisor'
+import {
+  guardianProblem,
+  launchGuarded,
+  reattachGuarded,
+  rememberGuardianState,
+  GuardedProcess
+} from './runtime/guardian'
 import * as instances from './instances/manager'
 import * as backups from './backup/manager'
 import * as network from './net/network'
@@ -95,6 +102,14 @@ const RESTART_REQUEST_FILE = 'hardcore-restart.request'
 /** Margen antes de volver a arrancar, para que el proceso anterior suelte todo. */
 const RESTART_DELAY_MS = 3_000
 
+/**
+ * Cada cuánto se apunta hasta qué línea se ha visto un servidor con guardián,
+ * aunque no haya pasado nada que apuntar en el historial. Si la app se cierra
+ * de golpe, como mucho se vuelven a procesar las líneas de este rato, y esas
+ * no apuntan nada (lo que apunta se guarda en el momento).
+ */
+const GUARDIAN_STATE_MS = 5_000
+
 class LauncherService extends EventEmitter implements GameHost, RustHost {
   private readonly supervisors = new Map<string, ServerSupervisor>()
   /** Instancias con una instalación en curso. */
@@ -115,6 +130,10 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
   private readonly lastSave = new Map<string, number>()
   /** Quién pidió la parada en curso, para apuntarlo cuando termine. */
   private readonly stopOrigin = new Map<string, Origin>()
+  /** Arranques en curso (compilar o lanzar el guardián lleva un momento). */
+  private readonly launching = new Set<string>()
+  /** Servidores en marcha a través del guardián, y el temporizador que apunta su estado. */
+  private readonly guarded = new Map<string, { process: GuardedProcess; timer: NodeJS.Timeout; saved: number }>()
 
   constructor() {
     super()
@@ -146,6 +165,9 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
 
   async initialize(): Promise<void> {
     await ensureBaseDirs()
+    // Antes que nada: los servidores que siguieron en marcha con la app
+    // cerrada tienen que salir como arrancados desde el primer momento.
+    await this.reattachAll()
     // El borrado programado de Rust mira cada diez minutos si ha salido el
     // parche del mes. Solo hace algo en los servidores que lo tienen pedido.
     this.rust.startWatcher()
@@ -361,19 +383,51 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
     }
 
     const existing = this.supervisors.get(id)
-    if (existing?.isRunning) throw new Error('Este servidor ya está arrancado.')
+    if (existing?.isRunning || this.launching.has(id)) throw new Error('Este servidor ya está arrancado.')
 
-    const spec = await game.launch(manifest)
+    this.launching.add(id)
+    try {
+      const spec = await game.launch(manifest)
+      const options = this.runOptions(manifest, spec)
 
-    const supervisor = this.supervisorFor(id)
-    // Un juego sin ficha de capacidades (el falso de las pruebas) se trata como
-    // uno que da nombres.
-    this.countOnly.set(id, capabilitiesFor(manifest)?.playerIds === false)
-    this.lastPlayers.delete(id)
-    this.lastSave.delete(id)
-    supervisor.setAutoRestart(manifest.autoRestart)
-    supervisor.start({
-      ...spec,
+      const supervisor = this.supervisorFor(id)
+      // Un juego sin ficha de capacidades (el falso de las pruebas) se trata como
+      // uno que da nombres.
+      this.countOnly.set(id, capabilitiesFor(manifest)?.playerIds === false)
+      this.lastPlayers.delete(id)
+      this.lastSave.delete(id)
+      supervisor.setAutoRestart(manifest.autoRestart)
+
+      // A través del guardián, para poder recuperarlo si la app se cierra de
+      // golpe. Si no se puede, directo, como siempre: arrancar gana.
+      const guarded = await launchGuarded(id, spec)
+      // Antes de escuchar: lo que el servidor ya haya dicho se apunta detrás.
+      this.journal(id, { kind: 'start', ...origin })
+      if (guarded) {
+        supervisor.attach(guarded, options)
+        if (guarded instanceof GuardedProcess) this.watchGuarded(id, guarded)
+      } else {
+        await this.appendLauncherLog(
+          id,
+          `Se arranca sin guardián (${guardianProblem() ?? 'no se pudo lanzar'}): si QubiQ se cierra de golpe, ` +
+            'no se podrá recuperar este servidor.'
+        )
+        supervisor.start({ ...spec, ...options })
+      }
+    } finally {
+      this.launching.delete(id)
+    }
+  }
+
+  /** Lo propio del juego para vigilar su proceso, arranque o reenganche. */
+  private runOptions(
+    manifest: InstanceManifest,
+    spec: { killTree?: boolean; dropEchoes?: boolean }
+  ): RunOptions {
+    const game = gameOf(manifest)
+    return {
+      killTree: spec.killTree,
+      dropEchoes: spec.dropEchoes,
       stop: game.stop(manifest),
       parseLine: (raw) => game.parseLine(raw),
       diagnoseExit: (code, recent) => game.diagnoseExit(code, recent),
@@ -382,8 +436,104 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
       ...(game.poll
         ? { poll: () => game.poll!(manifest), pollIntervalMs: game.pollIntervalMs }
         : {})
+    }
+  }
+
+  // --- Guardián: recuperar lo que siguió en marcha (§19.34) -----------------
+
+  /**
+   * Al abrir la app, cada servidor que se quedó en marcha con ella cerrada
+   * vuelve a estar bajo control, y del que se cerró mientras tanto se apunta
+   * cómo y cuándo.
+   */
+  private async reattachAll(): Promise<void> {
+    const manifests = (await instances.listInstances()).filter((m) => isKnownGame(m.game))
+    await Promise.all(
+      manifests.map((manifest) =>
+        this.reattach(manifest).catch((err: unknown) =>
+          this.appendLauncherLog(
+            manifest.id,
+            `No se pudo recuperar el servidor: ${err instanceof Error ? err.message : String(err)}`
+          )
+        )
+      )
+    )
+  }
+
+  private async reattach(manifest: InstanceManifest): Promise<void> {
+    const id = manifest.id
+    const found = await reattachGuarded(id)
+    if (!found) return
+    const game = gameOf(manifest)
+
+    if (found.kind === 'exited') {
+      const when = new Date(found.ts).toLocaleString()
+      if (found.code === 0) {
+        appendJournal(id, { ts: found.ts, kind: 'stop' })
+        this.systemLog(id, `El servidor se cerró mientras QubiQ estaba cerrado (${when}).`)
+      } else {
+        appendJournal(id, { ts: found.ts, kind: 'crash', code: found.code })
+        const diagnosis = game.diagnoseExit(found.code, found.lines)
+        this.systemLog(
+          id,
+          `El servidor se cerró solo mientras QubiQ estaba cerrado (${when}, código ${found.code}). ` +
+            `${diagnosis.title}. ${diagnosis.detail}`
+        )
+      }
+      return
+    }
+
+    if (found.kind === 'lost') {
+      this.systemLog(id, `No se ha podido recuperar el servidor: ${found.reason}.`)
+      return
+    }
+
+    const { process, record } = found
+    const state = record.state ?? { seq: 0, ready: false, players: [], playerCount: null, joinCode: null }
+    const supervisor = this.supervisorFor(id)
+    this.countOnly.set(id, capabilitiesFor(manifest)?.playerIds === false)
+    // Lo que ya se había apuntado: entradas y salidas se cuentan desde aquí.
+    this.lastPlayers.set(id, { names: state.players, count: state.playerCount })
+    this.lastSave.delete(id)
+    supervisor.setAutoRestart(manifest.autoRestart)
+    supervisor.attach(process, this.runOptions(manifest, record), state)
+    this.watchGuarded(id, process)
+
+    const minutes = Math.max(0, Math.round((Date.now() - process.startedAt) / 60_000))
+    this.systemLog(
+      id,
+      `QubiQ ha recuperado el control del servidor, que seguía en marcha (arrancado hace ${minutes} min).`
+    )
+  }
+
+  /** Apunta de vez en cuando hasta dónde se ha visto, mientras siga en marcha. */
+  private watchGuarded(id: string, process: GuardedProcess): void {
+    const timer = setInterval(() => {
+      const entry = this.guarded.get(id)
+      if (entry && entry.process.lastLine !== entry.saved) this.rememberState(id)
+    }, GUARDIAN_STATE_MS)
+    timer.unref?.()
+    this.guarded.set(id, { process, timer, saved: -1 })
+    process.once('exit', () => {
+      clearInterval(timer)
+      if (this.guarded.get(id)?.process === process) this.guarded.delete(id)
     })
-    this.journal(id, { kind: 'start', ...origin })
+    this.rememberState(id)
+  }
+
+  /** Lo que se sabe del servidor, para recuperarlo si la app se cierra de golpe. */
+  private rememberState(id: string): void {
+    const entry = this.guarded.get(id)
+    const supervisor = this.supervisors.get(id)
+    if (!entry || !supervisor?.isRunning) return
+    entry.saved = entry.process.lastLine
+    void rememberGuardianState(id, {
+      seq: entry.saved,
+      ready: supervisor.status === 'running' || supervisor.status === 'stopping',
+      players: supervisor.players,
+      playerCount: supervisor.playerCount,
+      joinCode: supervisor.joinCode
+    })
   }
 
   async stop(id: string, origin: Origin = {}): Promise<void> {
@@ -471,6 +621,9 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
     const entry = { ts: Date.now(), ...input } as JournalEntry
     appendJournal(id, entry)
     this.emit('journal', id, entry)
+    // Hasta aquí está apuntado: si la app se cierra de golpe, al volver no se
+    // apunta otra vez.
+    this.rememberState(id)
   }
 
   private journalPlayers(id: string, running: boolean, names: string[], count: number | null): void {
@@ -658,25 +811,39 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
     if (existing) return existing
 
     const supervisor = new ServerSupervisor(id)
+    // Al recuperar un servidor (§19.34) se repasan las líneas que la app ya
+    // vio antes de cerrarse: a la consola sí, pero lo que cuentan ya está en
+    // el historial y en el registro de la app.
     supervisor.on('log', (line: LogLine) => {
       this.emit('log', id, line)
-      void this.appendLauncherLog(id, line.text)
+      if (!supervisor.replaying) void this.appendLauncherLog(id, line.text)
     })
     supervisor.on('status', (status: ServerStatus) => {
       this.emitStatus(id, status)
       // Las copias programadas solo tienen sentido con el servidor en marcha.
       if (status === 'running') void this.startBackupSchedule(id)
       else this.stopBackupSchedule(id)
+      this.rememberState(id)
     })
     supervisor.on('players', (players: string[], playerCount: number | null) => {
       this.emit('players', id, players, playerCount)
+      if (supervisor.replaying) {
+        this.lastPlayers.set(id, { names: players, count: playerCount })
+        return
+      }
       this.journalPlayers(id, supervisor.isRunning, players, playerCount)
+      this.rememberState(id)
     })
-    supervisor.on('saved', () => this.journalSave(id))
-    supervisor.on('moderation', (moderation: NonNullable<ParsedEvent['moderation']>) =>
-      this.journal(id, { kind: 'moderation', ...moderation })
-    )
-    supervisor.on('joinCode', (code: string | null) => this.emit('joinCode', id, code))
+    supervisor.on('saved', () => {
+      if (!supervisor.replaying) this.journalSave(id)
+    })
+    supervisor.on('moderation', (moderation: NonNullable<ParsedEvent['moderation']>) => {
+      if (!supervisor.replaying) this.journal(id, { kind: 'moderation', ...moderation })
+    })
+    supervisor.on('joinCode', (code: string | null) => {
+      this.emit('joinCode', id, code)
+      this.rememberState(id)
+    })
     supervisor.on('diagnosis', (diagnosis: Diagnosis) => this.emit('diagnosis', id, diagnosis))
     supervisor.on('exit', (code: number | null, requested: boolean) => {
       const origin = this.stopOrigin.get(id) ?? {}
