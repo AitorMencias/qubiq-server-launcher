@@ -7,32 +7,30 @@
  */
 import type { InstanceManifest, MinecraftManifest } from '../../types'
 import type { ConfigFormat, EditableConfig } from '../../editableConfig'
+import { t, type MessageKey } from '../../i18n'
 export type Distribution = 'vanilla' | 'paper' | 'fabric' | 'forge' | 'neoforge'
 
 export const DISTRIBUTIONS: Distribution[] = ['vanilla', 'paper', 'fabric', 'forge', 'neoforge']
 
+/** Nombre y explicación de una distribución, traducidos al leerlos. */
+function distributionLabel(id: Distribution): { name: string; hint: string } {
+  return {
+    get name() {
+      return t(`mc.dist.${id}.name`)
+    },
+    get hint() {
+      return t(`mc.dist.${id}.hint`)
+    }
+  }
+}
+
 /** Etiquetas orientadas al usuario, no al desarrollador (§8). */
 export const DISTRIBUTION_LABELS: Record<Distribution, { name: string; hint: string }> = {
-  vanilla: {
-    name: 'Minecraft original',
-    hint: 'El juego tal cual. Sin plugins ni mods.'
-  },
-  paper: {
-    name: 'Plugins (Bukkit/Spigot)',
-    hint: 'Admite plugins y va más fino que el original. La opción recomendada.'
-  },
-  fabric: {
-    name: 'Mods (Fabric)',
-    hint: 'Mods ligeros y actualizaciones rápidas.'
-  },
-  forge: {
-    name: 'Mods (Forge)',
-    hint: 'El ecosistema de mods más grande. La instalación tarda más.'
-  },
-  neoforge: {
-    name: 'Mods (NeoForge)',
-    hint: 'La continuación de Forge. Lo usan la mayoría de modpacks nuevos.'
-  }
+  vanilla: distributionLabel('vanilla'),
+  paper: distributionLabel('paper'),
+  fabric: distributionLabel('fabric'),
+  forge: distributionLabel('forge'),
+  neoforge: distributionLabel('neoforge')
 }
 
 /** Lo propio de un servidor de Minecraft dentro del manifiesto (`manifest.data`). */
@@ -304,65 +302,37 @@ export interface ContentSource {
   primary?: boolean
 }
 
+/** Una fuente con su descripción traducida al leerla. */
+function source(name: string, url: string, key: MessageKey, primary = false): ContentSource {
+  return {
+    name,
+    url,
+    get description() {
+      return t(key)
+    },
+    ...(primary ? { primary } : {})
+  }
+}
+
 /** Dónde descargar, según el tipo de servidor. */
 export const CONTENT_SOURCES: Record<Distribution, ContentSource[]> = {
   vanilla: [],
   paper: [
-    {
-      name: 'Hangar',
-      url: 'https://hangar.papermc.io',
-      description: 'El repositorio oficial de PaperMC. Todo lo de aquí está pensado para tu servidor.',
-      primary: true
-    },
-    {
-      name: 'Modrinth',
-      url: 'https://modrinth.com/plugins',
-      description: 'Buscador cómodo y moderno. Filtra por versión y por Paper.'
-    },
-    {
-      name: 'SpigotMC',
-      url: 'https://www.spigotmc.org/resources/',
-      description: 'El catálogo clásico, enorme. Algunos plugins solo están aquí.'
-    }
+    source('Hangar', 'https://hangar.papermc.io', 'mc.source.paper.hangar', true),
+    source('Modrinth', 'https://modrinth.com/plugins', 'mc.source.paper.modrinth'),
+    source('SpigotMC', 'https://www.spigotmc.org/resources/', 'mc.source.paper.spigot')
   ],
   fabric: [
-    {
-      name: 'Modrinth',
-      url: 'https://modrinth.com/mods',
-      description: 'La referencia para Fabric. Filtra por versión y por Fabric.',
-      primary: true
-    },
-    {
-      name: 'CurseForge',
-      url: 'https://www.curseforge.com/minecraft/mc-mods',
-      description: 'El otro gran catálogo. Comprueba siempre que el mod sea de Fabric.'
-    }
+    source('Modrinth', 'https://modrinth.com/mods', 'mc.source.fabric.modrinth', true),
+    source('CurseForge', 'https://www.curseforge.com/minecraft/mc-mods', 'mc.source.fabric.curseforge')
   ],
   forge: [
-    {
-      name: 'CurseForge',
-      url: 'https://www.curseforge.com/minecraft/mc-mods',
-      description: 'El catálogo más grande para Forge, con diferencia.',
-      primary: true
-    },
-    {
-      name: 'Modrinth',
-      url: 'https://modrinth.com/mods',
-      description: 'Buscador más limpio. Filtra por versión y por Forge.'
-    }
+    source('CurseForge', 'https://www.curseforge.com/minecraft/mc-mods', 'mc.source.forge.curseforge', true),
+    source('Modrinth', 'https://modrinth.com/mods', 'mc.source.forge.modrinth')
   ],
   neoforge: [
-    {
-      name: 'CurseForge',
-      url: 'https://www.curseforge.com/minecraft/mc-mods',
-      description: 'El catálogo más grande. Comprueba que el mod sea de NeoForge, no de Forge.',
-      primary: true
-    },
-    {
-      name: 'Modrinth',
-      url: 'https://modrinth.com/mods',
-      description: 'Buscador más limpio. Filtra por versión y por NeoForge.'
-    }
+    source('CurseForge', 'https://www.curseforge.com/minecraft/mc-mods', 'mc.source.neoforge.curseforge', true),
+    source('Modrinth', 'https://modrinth.com/mods', 'mc.source.neoforge.modrinth')
   ]
 }
 
@@ -399,24 +369,17 @@ export interface CreateWorldRequest {
 }
 
 /** Tipos de mundo ofrecidos al crear uno nuevo. */
-export const LEVEL_TYPES: { value: string; label: string; help: string }[] = [
-  { value: 'minecraft:normal', label: 'Normal', help: 'El mundo de siempre.' },
-  {
-    value: 'minecraft:flat',
-    label: 'Superplano',
-    help: 'Terreno liso, sin relieve. Útil para construir.'
+export const LEVEL_TYPES: { value: string; label: string; help: string }[] = (
+  ['normal', 'flat', 'large_biomes', 'amplified'] as const
+).map((id) => ({
+  value: `minecraft:${id}`,
+  get label() {
+    return t(`mc.level.${id}.label`)
   },
-  {
-    value: 'minecraft:large_biomes',
-    label: 'Biomas grandes',
-    help: 'Mismo mundo, con biomas mucho más extensos.'
-  },
-  {
-    value: 'minecraft:amplified',
-    label: 'Amplificado',
-    help: 'Montañas enormes. Exige bastante al servidor.'
+  get help() {
+    return t(`mc.level.${id}.help`)
   }
-]
+}))
 
 /**
  * El manifiesto visto como lo que es: de Minecraft.

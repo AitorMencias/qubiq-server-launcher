@@ -10,6 +10,7 @@
  */
 
 import type { ModRef } from '../mods'
+import { choice, labelled } from '../../i18n'
 
 /** Lo propio de un servidor de Satisfactory dentro del manifiesto (`manifest.data`). */
 export interface SatisfactoryData {
@@ -102,57 +103,29 @@ export interface SatisfactoryOption {
  * o quita alguna, el panel enseña igual las que existan: lo que no esté aquí se
  * muestra en crudo solo en modo avanzado, en vez de desaparecer sin avisar.
  */
+/** Una opción con su etiqueta y su ayuda traducidas (`sf.opt.<clave>.label`/`.help`). */
+function option(base: Omit<SatisfactoryOption, 'label' | 'help'>): SatisfactoryOption {
+  return labelled(base, `sf.opt.${base.key}`)
+}
+
 export const SERVER_OPTIONS: SatisfactoryOption[] = [
-  {
-    key: 'FG.AutosaveInterval',
-    label: 'Guardado automático',
-    help: 'Cada cuánto guarda la partida el servidor. Cuanto más a menudo, menos se pierde si algo falla.',
-    kind: 'minutes'
-  },
-  {
-    key: 'FG.DSAutoPause',
-    label: 'Pausar cuando no hay nadie',
-    help: 'Con el servidor en pausa las fábricas no producen, pero el equipo descansa.',
-    kind: 'toggle'
-  },
-  {
-    key: 'FG.DSAutoSaveOnDisconnect',
-    label: 'Guardar cuando se va el último',
-    help: 'Guarda la partida en cuanto se desconecta el último jugador.',
-    kind: 'toggle'
-  },
-  {
-    key: 'FG.EnableSeasonalEvents',
-    label: 'Eventos de temporada',
-    help: 'Los eventos que el juego activa en ciertas fechas (FICSMAS y compañía).',
-    kind: 'toggle'
-  },
-  {
-    key: 'FG.SendGameplayData',
-    label: 'Enviar datos de juego al estudio',
-    help: 'Estadísticas anónimas de partida que el servidor manda a Coffee Stain.',
-    kind: 'toggle'
-  },
-  {
+  option({ key: 'FG.AutosaveInterval', kind: 'minutes' }),
+  option({ key: 'FG.DSAutoPause', kind: 'toggle' }),
+  option({ key: 'FG.DSAutoSaveOnDisconnect', kind: 'toggle' }),
+  option({ key: 'FG.EnableSeasonalEvents', kind: 'toggle' }),
+  option({ key: 'FG.SendGameplayData', kind: 'toggle' }),
+  option({
     key: 'FG.NetworkQuality',
-    label: 'Calidad de red',
-    help: 'Cuánta información manda el servidor a cada jugador. Más calidad, más ancho de banda.',
     advanced: true,
     kind: 'choice',
     choices: [
-      { value: '0', label: 'Baja' },
-      { value: '1', label: 'Normal' },
-      { value: '2', label: 'Alta' },
-      { value: '3', label: 'Ultra' }
+      choice('0', 'sf.opt.quality.low'),
+      choice('1', 'sf.opt.quality.normal'),
+      choice('2', 'sf.opt.quality.high'),
+      choice('3', 'sf.opt.quality.ultra')
     ]
-  },
-  {
-    key: 'FG.ServerRestartTimeSlot',
-    label: 'Reinicio programado del juego',
-    help: 'Minuto del día en que el propio juego se reinicia. 1440 significa que no.',
-    advanced: true,
-    kind: 'minutes'
-  }
+  }),
+  option({ key: 'FG.ServerRestartTimeSlot', advanced: true, kind: 'minutes' })
 ]
 
 /**
@@ -162,48 +135,13 @@ export const SERVER_OPTIONS: SatisfactoryOption[] = [
  * esa sesión. Por eso van juntas, con su aviso, y solo en modo avanzado.
  */
 export const GAME_RULES: SatisfactoryOption[] = [
-  {
-    key: 'FG.GameRules.NoPower',
-    label: 'Sin consumo de electricidad',
-    help: 'Las máquinas funcionan aunque no haya red eléctrica.',
-    kind: 'toggle'
-  },
-  {
-    key: 'FG.PlayerRules.NoBuildCost',
-    label: 'Construir sin materiales',
-    help: 'Construir no gasta nada del inventario.',
-    kind: 'toggle'
-  },
-  {
-    key: 'FG.GameRules.DisableArachnidCreatures',
-    label: 'Sin bichos con muchas patas',
-    help: 'Quita del mapa las criaturas tipo araña. Útil si alguien las lleva mal.',
-    kind: 'toggle'
-  },
-  {
-    key: 'FG.PlayerRules.FlightMode',
-    label: 'Volar',
-    help: 'Los jugadores pueden volar libremente por el mapa.',
-    kind: 'toggle'
-  },
-  {
-    key: 'FG.PlayerRules.GodMode',
-    label: 'Invulnerabilidad',
-    help: 'Los jugadores no reciben daño.',
-    kind: 'toggle'
-  },
-  {
-    key: 'FG.GameRules.NoFuelCost',
-    label: 'Sin gastar combustible',
-    help: 'Vehículos y generadores no consumen combustible.',
-    kind: 'toggle'
-  },
-  {
-    key: 'FG.GameRules.UnlockInstantAltRecipes',
-    label: 'Recetas alternativas al instante',
-    help: 'Las investigaciones de recetas alternativas salen sin esperar.',
-    kind: 'toggle'
-  }
+  option({ key: 'FG.GameRules.NoPower', kind: 'toggle' }),
+  option({ key: 'FG.PlayerRules.NoBuildCost', kind: 'toggle' }),
+  option({ key: 'FG.GameRules.DisableArachnidCreatures', kind: 'toggle' }),
+  option({ key: 'FG.PlayerRules.FlightMode', kind: 'toggle' }),
+  option({ key: 'FG.PlayerRules.GodMode', kind: 'toggle' }),
+  option({ key: 'FG.GameRules.NoFuelCost', kind: 'toggle' }),
+  option({ key: 'FG.GameRules.UnlockInstantAltRecipes', kind: 'toggle' })
 ]
 
 /** Una partida guardada, tal como la cuenta el servidor. */

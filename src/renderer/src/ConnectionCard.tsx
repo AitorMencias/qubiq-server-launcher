@@ -5,9 +5,10 @@ import type {
   ExternalCheck,
   InstanceState
 } from '@shared/types'
-import { capabilitiesFor, gameInfo, theSave, versionLabel } from '@shared/games'
+import { capabilitiesFor, gameInfo, versionLabel } from '@shared/games'
 import { ExposureHelp } from './ExposureHelp'
 import { JoinSteps } from './JoinSteps'
+import { Rich, formatTime, t } from './i18n'
 
 /**
  * Panel de conexión (§10).
@@ -23,12 +24,7 @@ interface Props {
   onManifestChanged: () => void
 }
 
-const MODE_LABELS: Record<ExposureMode, string> = {
-  local: 'Solo en mi casa (misma red)',
-  crossplay: 'Por internet, con el crossplay del juego (sin tocar el router)',
-  router: 'Por internet, abriendo un puerto en el router',
-  tunnel: 'Por internet, con playit.gg (sin tocar el router)'
-}
+const MODES: ExposureMode[] = ['local', 'crossplay', 'router', 'tunnel']
 
 export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.Element {
   const { manifest, status } = state
@@ -109,28 +105,31 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
   return (
     <>
       <div className="card">
-        <h3>Cómo conectarse</h3>
+        <h3>{t('connection.title')}</h3>
         <p className="hint">
           {running
-            ? `${gameInfo(manifest.game).joinHint.replace(/\.$/, '')}, y pega una de estas direcciones.`
-            : 'Arranca el servidor para poder conectarte.'}
+            ? `${gameInfo(manifest.game).joinHint} ${t('connection.pasteOne')}`
+            : t('connection.startToConnect')}
         </p>
 
         {/* Con crossplay la dirección no sirve para quien está fuera: lo que
             hay que repartir es el código, y va primero por eso. */}
         {exposure.mode === 'crossplay' && (
           <AddressRow
-            label="Código para entrar desde fuera"
-            help="El que tienen que escribir tus amigos en «Unirse con código». Cambia en cada arranque."
-            value={state.joinCode ?? (running ? 'esperando al servidor…' : 'arranca el servidor')}
+            label={t('connection.joinCode')}
+            help={t('connection.joinCodeHelp')}
+            value={
+              state.joinCode ??
+              (running ? t('connection.joinCodeWaiting') : t('connection.joinCodeStart'))
+            }
             copied={copied}
             onCopy={copy}
           />
         )}
 
         <AddressRow
-          label="Desde este mismo equipo"
-          help="Para jugar en el PC donde corre el servidor."
+          label={t('connection.sameComputer')}
+          help={t('connection.sameComputerHelp')}
           value={info?.loopback ?? `localhost:${manifest.port}`}
           copied={copied}
           onCopy={copy}
@@ -139,8 +138,8 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
         {info?.localAddresses.map((address) => (
           <AddressRow
             key={address.address}
-            label="Desde tu casa (misma red)"
-            help={`Para quien esté en tu wifi o router. Adaptador: ${address.label}.`}
+            label={t('connection.home')}
+            help={t('connection.homeHelp', { adapter: address.label })}
             value={`${address.address}:${manifest.port}`}
             copied={copied}
             onCopy={copy}
@@ -149,7 +148,7 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
 
         {info && info.localAddresses.length === 0 && (
           <div className="help" style={{ marginBottom: 14 }}>
-            No se ha detectado ninguna red local. Comprueba que el equipo está conectado al router.
+            {t('connection.noLocal')}
           </div>
         )}
 
@@ -160,26 +159,26 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
           >
             {ping.state === 'ok' ? (
               <>
-                <strong>El servidor responde correctamente</strong>
+                <strong>{t('connection.pingOk')}</strong>
                 <p>
                   {ping.motd ? `"${ping.motd}" · ` : ''}
-                  {ping.versionName ?? versionLabel(manifest)} · {ping.playersOnline ?? 0}/
-                  {ping.playersMax ?? '?'} jugadores
+                  {ping.versionName ?? versionLabel(manifest)} ·{' '}
+                  {t('connection.pingPlayers', {
+                    online: ping.playersOnline ?? 0,
+                    max: ping.playersMax ?? '?'
+                  })}
                   {ping.latencyMs !== undefined && ` · ${ping.latencyMs} ms`}
                 </p>
               </>
             ) : ping.state === 'comprobando' ? (
               <>
-                <strong>Comprobando...</strong>
-                <p>Preguntando al servidor si acepta conexiones.</p>
+                <strong>{t('connection.checking')}</strong>
+                <p>{t('connection.pingChecking')}</p>
               </>
             ) : (
               <>
-                <strong>El servidor no contesta todavía</strong>
-                <p>
-                  Está arrancado pero aún no acepta conexiones. Suele ser cuestión de segundos
-                  mientras termina de generar {theSave(gameInfo(manifest.game).save)}.
-                </p>
+                <strong>{t('connection.pingNo')}</strong>
+                <p>{t(`connection.pingNoText.${gameInfo(manifest.game).save}`)}</p>
               </>
             )}
           </div>
@@ -190,36 +189,34 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
 
       <div className="card">
         <div className="row between" style={{ marginBottom: 4 }}>
-          <h3 style={{ margin: 0 }}>Amigos desde fuera de casa</h3>
+          <h3 style={{ margin: 0 }}>{t('connection.outside')}</h3>
           <button style={{ flexShrink: 0 }} onClick={() => setShowHelp(true)}>
-            ¿Cómo se hace?
+            {t('connection.howTo')}
           </button>
         </div>
-        <p className="hint">
-          Para que entre gente que no está en tu wifi hay que elegir una de estas vías.
-        </p>
+        <p className="hint">{t('connection.outsideHint')}</p>
 
         <div className="field">
-          <label>¿Cómo van a entrar tus amigos?</label>
+          <label>{t('connection.howJoin')}</label>
           <select
             value={exposure.mode}
             onChange={(e) => void changeMode(e.target.value as ExposureMode)}
           >
-            {(Object.keys(MODE_LABELS) as ExposureMode[])
+            {MODES
               // El crossplay solo existe en los juegos que lo traen de serie.
               .filter((mode) => mode !== 'crossplay' || capabilities.crossplay)
               .map((mode) => (
                 <option key={mode} value={mode}>
-                  {MODE_LABELS[mode]}
+                  {t(`connection.mode.${mode}`)}
                 </option>
               ))}
           </select>
-          <div className="help">{MODE_HINTS[exposure.mode]}</div>
+          <div className="help">{t(`connection.modeHint.${exposure.mode}`)}</div>
         </div>
 
         {exposure.mode === 'tunnel' && (
           <div className="field">
-            <label>Dirección que te ha dado playit.gg</label>
+            <label>{t('connection.tunnelAddress')}</label>
             <div className="row">
               <input
                 className="grow"
@@ -230,13 +227,11 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
               />
               {tunnelAddress.trim().length > 0 && (
                 <button style={{ flexShrink: 0 }} onClick={() => void copy(tunnelAddress.trim())}>
-                  {copied === tunnelAddress.trim() ? 'Copiado' : 'Copiar'}
+                  {copied === tunnelAddress.trim() ? t('connection.copied') : t('panel.copy')}
                 </button>
               )}
             </div>
-            <div className="help">
-              Esta es la dirección que tienes que pasar a tus amigos, no tu IP.
-            </div>
+            <div className="help">{t('connection.tunnelHelp')}</div>
           </div>
         )}
 
@@ -244,19 +239,17 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
           <>
             <div className="row">
               <button className="primary" disabled={!running || checking} onClick={() => void runCheck()}>
-                {checking ? 'Comprobando...' : 'Comprobar desde internet'}
+                {checking ? t('connection.checking') : t('connection.checkButton')}
               </button>
               {!running && (
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                  Arranca el servidor para poder comprobarlo.
+                  {t('connection.startToCheck')}
                 </span>
               )}
             </div>
 
             <div className="help" style={{ marginTop: 8 }}>
-              Al comprobar consultamos tu IP pública y pedimos a un servicio externo que intente
-              conectarse a tu servidor. Es la única forma de saber si tus amigos pueden entrar: desde
-              este equipo siempre se ve.
+              {t('connection.checkPrivacy')}
             </div>
 
             {check && <CheckResult check={check} mode={exposure.mode} />}
@@ -268,12 +261,8 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
             que siempre respondería que no se llega. */}
         {exposure.mode !== 'local' && !capabilities.externalCheck && (
           <div className="alert info" style={{ textAlign: 'left' }}>
-            <strong>Aquí no se puede comprobar desde fuera</strong>
-            <p>
-              {gameInfo(manifest.game).name} no aparece en ninguna lista pública, así que no hay
-              ningún servicio al que preguntar si se llega a tu servidor. La prueba de verdad es que
-              alguien que no esté en tu red añada tu dirección en su juego y entre.
-            </p>
+            <strong>{t('connection.noCheckTitle')}</strong>
+            <p>{t('connection.noCheck', { game: gameInfo(manifest.game).name })}</p>
           </div>
         )}
       </div>
@@ -291,16 +280,6 @@ export function ConnectionCard({ state, onManifestChanged }: Props): React.JSX.E
   )
 }
 
-const MODE_HINTS: Record<ExposureMode, string> = {
-  local: 'Nadie de fuera podrá entrar. Es lo más seguro y no hay nada que configurar.',
-  crossplay:
-    'Lo trae el propio juego: no hay que tocar el router y funciona con CGNAT. Se entra con un código de 6 dígitos que cambia en cada arranque, no con una dirección.',
-  router:
-    'Hay que crear una regla en el router. Da el mejor ping, pero no funciona si tu operador usa CGNAT.',
-  tunnel:
-    'No hay que tocar el router y funciona aunque tengas CGNAT. A cambio, algo más de ping y depende de un servicio externo.'
-}
-
 function CheckResult({
   check,
   mode
@@ -308,7 +287,7 @@ function CheckResult({
   check: ExternalCheck
   mode: ExposureMode
 }): React.JSX.Element {
-  const time = new Date(check.checkedAt).toLocaleTimeString('es-ES', {
+  const time = formatTime(check.checkedAt, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'
@@ -317,10 +296,13 @@ function CheckResult({
   if (check.reachable) {
     return (
       <div className="alert info" style={{ marginTop: 12, marginBottom: 0 }}>
-        <strong>Tus amigos pueden entrar</strong>
+        <strong>{t('connection.reachable')}</strong>
         <p>
-          Comprobado desde fuera a las {time}. Diles que se conecten a{' '}
-          <strong>{check.address}</strong>
+          <Rich
+            k="connection.reachableText"
+            vars={{ time }}
+            values={{ address: <strong>{check.address}</strong> }}
+          />
           {check.playersOnline !== undefined && ` · ${check.playersOnline}/${check.playersMax}`}
         </p>
       </div>
@@ -329,15 +311,12 @@ function CheckResult({
 
   return (
     <div className="alert error" style={{ marginTop: 12, marginBottom: 0 }}>
-      <strong>Todavía no se puede entrar desde fuera</strong>
+      <strong>{t('connection.unreachable')}</strong>
       <p>
         {check.error ??
-          (mode === 'router'
-            ? 'El servidor no responde desde internet. Repasa la regla del router; si está bien puesta, lo más probable es que tu operador use CGNAT y no haya ningún puerto que abrir. En ese caso, cambia a playit.gg.'
-            : 'La dirección del túnel no responde. Comprueba que el programa de playit.gg está abierto y que el túnel apunta al puerto correcto.')}
-        {check.address && ` (probado: ${check.address})`}
-        {' '}Comprobado a las {time}; estos servicios cachean el resultado un minuto, así que si
-        acabas de cambiar algo, espera y vuelve a probar.
+          (mode === 'router' ? t('connection.unreachableRouter') : t('connection.unreachableTunnel'))}
+        {check.address && ` ${t('connection.tried', { address: check.address })}`}{' '}
+        {t('connection.checkedAt', { time })}
       </p>
     </div>
   )
@@ -358,7 +337,7 @@ function AddressRow({ label, help, value, copied, onCopy }: AddressRowProps): Re
       <div className="row">
         <input className="grow" readOnly value={value} onFocus={(e) => e.target.select()} />
         <button style={{ flexShrink: 0 }} onClick={() => void onCopy(value)}>
-          {copied === value ? 'Copiado' : 'Copiar'}
+          {copied === value ? t('connection.copied') : t('panel.copy')}
         </button>
       </div>
       <div className="help">{help}</div>

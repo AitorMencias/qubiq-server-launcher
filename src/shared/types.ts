@@ -10,6 +10,7 @@ import type { FactorioCreateOptions, FactorioData } from './games/factorio/types
 import type { ZomboidCreateOptions, ZomboidData } from './games/zomboid/types'
 import type { EnshroudedCreateOptions, EnshroudedData } from './games/enshrouded/types'
 import type { RustCreateOptions, RustData } from './games/rust/types'
+import type { Language } from './i18n'
 
 /**
  * Nivel de detalle de la interfaz.
@@ -22,6 +23,12 @@ export type UiMode = 'basic' | 'advanced'
 
 export interface AppSettings {
   uiMode: UiMode
+  /**
+   * Idioma elegido en la configuración. Sin él, el de Windows, y si no está
+   * traducido, inglés. Se deja sin guardar a propósito hasta que alguien elige:
+   * así, quien cambia el idioma de Windows ve la app en el nuevo.
+   */
+  language?: Language
 }
 
 export interface BackupSettings {

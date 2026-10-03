@@ -1668,3 +1668,212 @@ button.link:hover:not(:disabled) {
   max-width: 820px;
   margin: 0 auto 12px;
 }
+
+/* --- Configuración de la app ---------------------------------------------- */
+
+/* Botón discreto al pie de la barra: se usa poco, no compite con «Crear». */
+.sidebar-footer button.app-settings-button {
+  margin-top: 10px;
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+  padding: 6px 8px;
+}
+.sidebar-footer button.app-settings-button:hover:not(:disabled),
+.sidebar-footer button.app-settings-button.active {
+  background: var(--panel-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.settings-screen .card {
+  max-width: 820px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.settings-screen select {
+  min-width: 280px;
+}
+
+.data-folder-path {
+  display: block;
+  user-select: text;
+  word-break: break-all;
+}
+
+.data-folder-checking {
+  margin-top: 16px;
+  color: var(--muted);
+}
+
+.data-folder-plan {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.data-folder-how {
+  margin: 0 0 16px;
+}
+
+/* --- Acceso remoto (§19.31) ------------------------------------------------ */
+
+.remote-card .alert p + p {
+  margin-top: 6px;
+}
+
+.remote-urls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.remote-url,
+.remote-fingerprint {
+  user-select: text;
+}
+
+.remote-url {
+  color: var(--text);
+}
+
+.remote-fingerprint {
+  display: block;
+}
+
+.remote-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.remote-section h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.remote-servers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0 16px;
+}
+
+.remote-card .help.remote-warn {
+  color: var(--warn);
+}
+
+.remote-invite label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.remote-code {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 30px;
+  letter-spacing: 4px;
+  margin: 6px 0;
+  user-select: text;
+}
+
+.remote-device {
+  padding: 12px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.remote-device-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.remote-activity {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.remote-activity td {
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.remote-activity .nowrap {
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.remote-activity .mono {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  color: var(--muted);
+}
+
+.remote-activity .ok {
+  color: var(--ok);
+}
+
+.remote-activity .bad {
+  color: var(--danger);
+}
+
+/* --- Traslado de la carpeta de datos, al arrancar ------------------------- */
+
+.relocation-screen {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.relocation-card {
+  width: 100%;
+  max-width: 640px;
+}
+
+.relocation-card h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.relocation-paths {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  align-items: baseline;
+  margin: 16px 0;
+}
+
+.relocation-paths .mono-path {
+  word-break: break-all;
+}
+
+.relocation-phase {
+  margin: 0;
+  color: var(--muted);
+}
+
+/*
+ * Tipografía por escritura. Segoe UI no trae devanagari ni ideogramas: sin esto
+ * Windows elige por su cuenta una de reserva, y en japonés puede coger glifos
+ * chinos (los mismos puntos de código se dibujan distinto en cada idioma).
+ */
+:lang(hi) body {
+  font-family: 'Segoe UI', 'Nirmala UI', system-ui, sans-serif;
+}
+:lang(zh) body {
+  font-family: 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', system-ui, sans-serif;
+}
+:lang(ja) body {
+  font-family: 'Segoe UI', 'Yu Gothic UI', 'Meiryo UI', system-ui, sans-serif;
+}

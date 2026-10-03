@@ -2859,16 +2859,283 @@ que no sale cuando no hay ninguno).
 
 ---
 
-### 19.29 Siguiente
+### 19.29 Idiomas, Configuración de la app y carpeta de datos (0.11.0)
+
+Pedido por el usuario: elegir idioma (español, inglés, ruso, alemán, italiano, francés, portugués,
+chino, «indio» —se ha hecho hindi— y japonés), elegir modo básico o avanzado y cambiar la carpeta
+donde viven los datos. Sus decisiones: **la interfaz ahora y los mensajes del núcleo después**; una
+**pantalla dentro de la app** (no una ventana aparte); el modo se elige **en los dos sitios** (barra
+lateral y Configuración de la app); el idioma de partida es **el de Windows, y si no está
+traducido, inglés**.
+
+**Sin librería.** `src/shared/i18n` son claves planas, un diccionario por idioma y área
+(`locales/<idioma>/<área>.ts`: shell, games, panel y uno por juego) y `Intl` para plurales, fechas,
+números y listas. El español es la referencia de tipos: cada traducción es
+`Translation<typeof source>`, así que `npm run typecheck` falla si a un idioma le falta una clave o
+le sobra una. Lo que el tipo no ve lo mira el smoke (`scripts/smoke/i18n.ts`): que cada texto use
+las mismas variables que el español, que los plurales tengan las formas que su idioma necesita (el
+ruso `one/few/many`), que no quede relleno provisional ni texto idéntico al español más allá de las
+palabras que coinciden de verdad, y que las claves montadas con plantillas (`mc.prop.${key}.label`,
+`rust.size.${size}.label`…) existan: recorre todos los catálogos exportados en los diez idiomas
+buscando textos con forma de clave. Son 2303 claves por idioma.
+
+**Los catálogos se traducen al leerlos.** Ajustes de cada juego, preajustes, roles, etiquetas,
+tamaños de mapa: son getters (`labelled`, `choice` o `get label()`), no textos fijos, para que
+cambiar de idioma no obligue a reconstruir nada. Lo que viaja por IPC se copia antes
+(`localizedCatalog`), porque el clon estructurado no lleva getters. `GameInfo.save` pasó de ser un
+texto («mundo») a un tipo (`world`, `game`, `map`) que la interfaz nombra en cada idioma.
+
+**Detalles que salieron al traducir:**
+- Los números sueltos dentro de una frase (puertos, semillas) van **sin separador de miles**:
+  «puerto 28.016» parecía otra cosa. Las cantidades grandes se formatean antes de pasarlas.
+- Unidades: `formatSize`, `formatBytes` y `unitLabel` dicen ГБ en ruso y Go en francés.
+- Comillas por idioma (`quote()`): « » en ruso e italiano, „ “ en alemán, « » en francés,
+  「」 en japonés.
+- Un título metido en una frase va en minúscula (`midSentence`), salvo en alemán.
+- Los nombres de menús y pestañas de cada juego se han traducido a ojo: no hay revisión nativa.
+
+**Configuración de la app** (`SettingsScreen.tsx`): idioma (con «como Windows», que no guarda nada
+para seguir al sistema si cambia), modo y carpeta de datos. El modo sigue también en la barra
+lateral. El proceso principal usa el mismo idioma para sus diálogos nativos.
+
+**Mover la carpeta de datos.** Se mueven solo las entradas de `DATA_ENTRIES` (`instances`,
+`runtimes`, `tools`, `cache`, `settings.json`): en la carpeta de siempre conviven con las de
+Electron, que están abiertas mientras la app corre. La carpeta de siempre guarda
+`data-location.json` con dónde están los datos y, si se ha pedido, el traslado pendiente.
+
+- **Antes** se comprueba todo lo que se puede saber (`dataFolder/plan.ts`): misma carpeta o una
+  dentro de otra, espacios en la ruta (Forge), carpetas de red, datos de la app ya en el destino,
+  permisos, sitio libre (entre discos), enlaces (entre discos), servidores encendidos, OneDrive y
+  compañía, y la ruta de los mods de Valheim (260 caracteres): con mods, no se deja; sin ellos,
+  solo avisa. Si la carpeta elegida tiene cosas, los datos van a una subcarpeta `QubiQ`.
+- **El traslado se hace al volver a abrir la app**, antes de arrancar el núcleo, con una pantalla
+  de progreso (`RelocationScreen.tsx`): así nada tiene ficheros abiertos. En el mismo disco se
+  renombra; entre discos se copia a `.qubiq-moviendo`, se compara (número de ficheros y bytes), se
+  pone en su sitio y solo entonces se borra el origen. Mismo principio que traer un servidor a
+  medida (§19.21). Si falla, los datos siguen enteros en el origen y la app arranca con ellos.
+- **Chromium a su carpeta.** Por defecto Electron deja su caché en `userData\Cache`, que en Windows
+  es la misma carpeta que nuestra `cache`. Al mover los datos se arrastraban ficheros abiertos por
+  Chromium, y él recreaba `Cache` en el sitio viejo, que así parecía tener datos de QubiQ. Ahora
+  `sessionData` es `userData\electron`. Efecto secundario: lo que la interfaz recordaba en
+  `localStorage` (la última pestaña de Configuración, por ejemplo) se olvida una vez.
+- Si la carpeta de datos desaparece (un disco externo sin conectar), al abrir se pregunta si
+  reintentar (tras conectarlo), volver a la de siempre o salir. Volver no borra ni mueve nada: solo
+  deja de apuntar a la otra, y nunca se crea una vacía en su lugar sin decirlo.
+
+**Probado:** `typecheck`; `smoke` (1190, con las nuevas secciones de idiomas, idioma guardado,
+comprobación previa y traslado); `e2e paper` y `e2e:restart` en verde; el recorrido
+`idiomas.mjs` (nuevo, en `qubiq-dev/ui`) por los diez idiomas —Configuración de la app, selector de
+juego y el panel y cada pestaña de Configuración de los siete servidores de prueba— sin textos que
+se salgan ni errores, revisando a mano capturas en alemán, ruso, hindi y japonés; `modos.mjs` y
+`rust-panel.mjs` en español siguen igual. El traslado real **entre discos** (C: → D: → C:, con el
+camino de `EXDEV`) con checksums idénticos a la vuelta; el de la interfaz completo se probó con
+datos aislados.
+
+**Sin probar:** revisión de las traducciones por hablantes nativos; el traslado con decenas de GB
+reales; el diálogo de carpeta desaparecida con un disco externo de verdad.
+
+**Queda para la segunda entrega:** los mensajes que genera el núcleo (errores de instalación, de
+arranque, progreso de SteamCMD…) siguen en español; la pantalla de idioma lo dice. Para
+traducirlos, el núcleo tiene que devolver códigos con datos en vez de frases, como ya hace
+`shared/dataFolder.ts`.
+
+---
+
+### 19.30 Siguiente
 
 **Ahora (uso privado):**
 
+0. **Control remoto por órdenes** (0.12.0 y 0.13.0): en curso, ver §19.31.
 1. Instalación de plugins y mods desde Modrinth, filtrando por loader y versión (§4.8).
 2. Moderación con el servidor parado: editar whitelist y operadores antes del primer arranque,
    resolviendo UUID contra la API de Mojang (§9).
 3. Métricas en vivo: TPS y memoria del proceso, para ver si el servidor va justo.
 4. Plantillas de creación ("Survival con amigos", "Creativo", "Modded") sobre el asistente actual.
 5. UPnP, si aparece un router donde se pueda probar (§19.5).
+6. Segunda entrega de los idiomas: los mensajes del núcleo, con códigos en vez de frases (§19.29).
 
 **Aparcado hasta que haya que publicar:** firma de código (§13.3), CI de compilación,
 actualizaciones automáticas y las tareas de marca de §18.2. El instalador ya está hecho (§19.7).
+
+---
+
+### 19.31 Control remoto por órdenes (0.12.0 y 0.13.0)
+
+Pedido por el usuario: administrar los servidores desde cualquier sitio, **sin escritorio remoto**,
+que daría acceso a todo el PC. Plan de tareas y estado en la hoja de ruta (fases R1 y R2).
+
+#### Por qué órdenes y no un panel web completo
+
+La primera idea fue servir la interfaz entera por HTTP: los 183 canales de `window.qubiq` ya pasan
+por un único punto (el preload) y el núcleo no conoce Electron (§5), así que técnicamente encaja.
+Se descartó por seguridad: **administrar la app por completo es poder ejecutar código en el PC.**
+- Un plugin de Paper, un plugin de Oxide o un mod de Enshrouded corren con los permisos del
+  usuario de Windows.
+- El fichero de arranque de un servidor a medida (§19.21) puede ser cualquier `.bat`.
+- Varias llamadas reciben **rutas del equipo** (`inspectFolder`, `setStartFile`, `addModFile`) y
+  otras abren diálogos o carpetas que en remoto no significan nada.
+
+Con una **lista cerrada de órdenes** el riesgo cambia de clase, no solo de tamaño: lo que no está
+en la tabla no está bloqueado, es que no tiene código detrás. Lo peor que puede hacer quien robe
+un dispositivo emparejado es molestar en el servidor de juego, y se le revoca.
+
+| Orden | Datos | Qué hace |
+|---|---|---|
+| `list` | — | nombre, juego, estado y jugadores de cada servidor, y los permisos del dispositivo |
+| `start` / `stop` / `restart` | servidor | lo mismo que los botones de la app, con su parada limpia |
+| `console` | servidor, «desde la línea N» | últimas líneas del historial, con las IP enmascaradas |
+| `send` | servidor, texto | `service.sendCommand`, según el nivel de consola del dispositivo |
+
+El id del servidor se comprueba contra la lista real: uno inventado es un error, nunca una ruta.
+
+#### La consola: lo único delicado
+
+La consola de un juego no da acceso a Windows (el Lua de Factorio corre encerrado, RCON y WebRCON
+hablan con el juego), pero sí permite destrozar la partida o regalar poder (`op`, `kill @e`,
+`server.writecfg`). Además un plugin puede añadir comandos propios. Tres niveles, por dispositivo:
+1. **Solo lectura** (por defecto, decisión del usuario).
+2. **Comandos permitidos:** una lista corta por juego (charlar, listar, expulsar, guardar).
+3. **Libre:** como estar delante de la app. La interfaz avisa al elegirlo.
+
+**Las IP de los jugadores no salen.** Minecraft escribe la de cada jugador al entrar
+(`logged in with entity id … at ([/1.2.3.4:51234])`) y otros juegos hacen algo parecido. En la
+consola remota se enmascaran; en la de la app no se toca nada.
+
+#### Transporte: conexión directa, firmada y por HTTPS
+
+Alternativas que se valoraron:
+- **Bot de Discord o Telegram:** no abre puertos y la autenticación la ponen los roles, pero la
+  consola pasa por un tercero y robar la cuenta es robar el control. Aparcado.
+- **Túnel P2P propio (WebRTC):** exige montar y mantener un servidor de encuentro y otro de relevo,
+  y Node no trae WebRTC (sería la primera dependencia de ejecución). Tailscale ya es eso, gratis.
+- **Conexión directa** al puerto que el usuario abre en su router: **elegida.** Al usuario no le
+  importa que se vea su IP. Tailscale funciona igual sin cambiar nada (el servidor escucha en todas
+  las interfaces) y es la salida si hay CG-NAT.
+
+Decisiones del diseño:
+- **HTTPS obligatorio**, y no por el cifrado solamente: en el navegador, `crypto.subtle` solo
+  existe en contexto seguro (HTTPS o `localhost`). Sin HTTPS la página no podría firmar nada.
+- **Certificado autofirmado generado por Windows** (`New-SelfSignedCertificate`, exportado a PFX y
+  borrado del almacén): Node no sabe crear certificados y no queremos dependencias. Validez de
+  800 días porque iOS rechaza certificados de servidor de más de 825, con nombre alternativo y uso
+  «autenticación de servidor», que también exige. El navegador avisa la primera vez; la app
+  enseña la huella SHA-256 para poder compararla.
+- **Cada orden va firmada** por el dispositivo, con marca de hora (±60 s; si el reloj del móvil va
+  desfasado, el anfitrión devuelve su hora y la página corrige) y un número de uso único que se
+  recuerda dos minutos. La firma garantiza quién manda y que no se repite; HTTPS, que no se lee.
+- **Ed25519** por defecto y **ECDSA P-256** si el navegador no lo tiene (Safari antiguo). Las dos
+  vienen en `node:crypto`. La clave de la página se crea **no exportable** y se guarda en
+  IndexedDB: ni un script inyectado podría llevársela.
+- **Emparejamiento con código** de un solo uso, que caduca a los 10 minutos y se invalida tras 5
+  intentos fallidos. El código lleva los permisos que el dueño eligió al crearlo. El dispositivo
+  firma el propio código al emparejar, para demostrar que tiene la clave privada. Si alguien en
+  medio robara el código, el dispositivo legítimo fallaría al emparejar y el intruso aparecería en
+  la lista de la app: se ve y se revoca.
+- **Consulta por sondeo**, no eventos: la página pide `list` y `console` cada pocos segundos,
+  cada petición firmada. Más sencillo que un flujo SSE con autenticación propia y aguanta mejor
+  las redes del móvil.
+- **Límites:** bloqueo de una IP 15 minutos tras 10 fallos de autenticación en 5 minutos;
+  arrancar, parar y reiniciar como máximo 10 veces cada 10 minutos por dispositivo; envíos a la
+  consola, 30 por minuto. El reinicio ante bucles del núcleo (`evaluateRestart`) sigue aparte.
+- **Registro de actividad** con dispositivo, dirección, orden, servidor y resultado, visible en la
+  app. Las consultas (`list`, `console`) no se apuntan: serían ruido.
+- **Solo se sirve la página remota** (`remote.html` y sus ficheros de `assets/`), con una política
+  de contenido estricta, sin marcos y sin caché.
+
+#### Lo que cambia en la app
+
+- **Bandeja del sistema:** con el acceso remoto activo, cerrar la ventana la esconde en vez de
+  salir; si no, nadie recibiría las órdenes. Salir desde la bandeja hace la parada limpia de
+  siempre.
+- **Instancia única:** con la ventana escondida es fácil abrir la app otra vez, y dos copias
+  gestionarían los mismos servidores y pelearían por el puerto. Abrir una segunda enseña la
+  primera.
+- **Datos:** `remote/` en la carpeta de datos (configuración, dispositivos, certificado y
+  actividad), añadida a `DATA_ENTRIES` para que se mueva con ella.
+
+#### Lo que salió al probar
+
+- **Un fallo de la bandeja tumbaba el acceso remoto.** En el recorrido de interfaz no se encontraba
+  el icono, `new Tray()` lanzaba dentro del aviso `changed` y la excepción subía hasta quien lo estaba
+  encendiendo: se quedaba en «Preparando…». Ahora la bandeja busca el icono en los recursos, en
+  `build/` y, si no, coge el del ejecutable; nunca lanza; y **sin icono no se esconde la ventana**,
+  porque no habría forma de volver a abrirla.
+- **La app no se cerraba.** Con `will-quit` cancelado para cerrar el acceso remoto, el segundo
+  `app.quit()` no hace nada: Electron no vuelve a empezar la salida con las ventanas ya cerradas. La
+  app se quedaba viva sin ventana (lo destapó `modos.mjs`, que se colgaba al terminar). Forzarla con
+  `app.exit(0)` cerraba, pero a veces dejaba **un proceso `NetworkService` de Chromium huérfano**.
+  Lo bueno: no cancelar nada. El acceso remoto se cierra síncrono dentro de `will-quit`
+  (`shutdownNow`: cerrar el servidor, cortar conexiones y guardar con `writeFileSync`), y la salida
+  sigue su curso. Medido: cierra en 70 ms, tres veces seguidas, sin procesos sueltos.
+- **3 MB de página.** La página remota lleva los diccionarios de los diez idiomas. El servidor la
+  sirve comprimida con `node:zlib` (una vez por fichero) y los ficheros de `assets/` con caché
+  permanente, porque su nombre cambia si cambia su contenido.
+- **Memoria con escáneres.** El contador de fallos por dirección no olvidaba las direcciones que no
+  llegaban a bloquearse; con tope de 5000 y limpieza de lo antiguo.
+
+#### Cómo se ha comprobado
+
+- `typecheck`; `smoke` con 1316 comprobaciones (1334 con lo de abajo), de ellas unas 130 nuevas del control remoto: contrato
+  compartido, historial de consola, defensas, firmas Ed25519 y ECDSA hechas como las hace WebCrypto,
+  emparejar (código adivinado, anulado, caducado, gastado, firma de otra clave), órdenes contra un
+  anfitrión falso (todo lo que se rechaza, permisos que valen al momento, quitar un dispositivo,
+  límites, bloqueo de dirección, actividad, que el manifiesto no saca sus contraseñas) y una vuelta
+  por HTTPS con el certificado real de Windows (huella, menos de 825 días, cabeceras, gzip, rutas que
+  intentan salir de `assets/`, 413 y 415, reutilizar el certificado al reabrir). El almacén de
+  certificados del usuario queda vacío después.
+- `e2e:remote` (nuevo) contra un Paper de verdad: arrancar en 17 s, consola en vivo, `list` sí y
+  `op` no con el nivel 2, reiniciar con parada limpia, parar y la actividad. `e2e paper` y
+  `e2e:restart` siguen en verde.
+- Recorrido `remoto.mjs` (nuevo, en `qubiq-dev/ui`): la app con datos aislados y **Edge en tamaño de
+  móvil** (390×844) emparejando con el código de la pantalla. Contexto seguro con el certificado
+  aceptado, clave **Ed25519 no exportable** en IndexedDB, recargar sin volver a emparejar, la consola
+  con su caja de comandos, nivel 3 con aviso, quitar el dispositivo y que el móvil se entere, la
+  página en inglés con el navegador en inglés, sin scroll horizontal, cerrar la ventana la esconde y
+  sigue atendiendo, y «Salir» cierra y deja de escuchar. `modos.mjs` sigue igual.
+
+#### Lo que no se ha podido comprobar
+
+- **Un móvil de verdad**, sobre todo **Safari en iPhone**: aceptar el certificado autofirmado, si
+  después considera la página contexto seguro y si tiene Ed25519 o tira de ECDSA. Edge en emulación
+  no lo garantiza.
+- **Desde fuera de casa**: abrir el puerto en el router y entrar por la IP pública, y entrar por
+  Tailscale. No se ha hecho porque exige exponer el equipo; hay que pedirlo antes.
+- El aviso del cortafuegos de Windows con la app empaquetada (en las pruebas se escucha solo en
+  `127.0.0.1`).
+- La renovación del certificado a los 770 días (está programada: con menos de 30 por delante se
+  hace otro al arrancar, y los navegadores volverán a avisar).
+
+#### Servidores por dispositivo y lista de jugadores
+
+Pedido por el usuario después de la primera entrega: **cada dispositivo elige a qué servidores tiene
+permiso, y ninguno por defecto**; y la lista de jugadores en la página remota.
+
+- **`permissions.servers`**, junto a controlar y el nivel de consola. Al invitar no hay ninguno
+  marcado y el botón de generar el código no se activa hasta marcar uno. Los servidores creados
+  después **no se añaden solos**. Los dispositivos emparejados antes de esto se quedan **sin
+  ninguno**: no se da acceso a nada que no se haya marcado.
+- **Un servidor que no es suyo no existe para el dispositivo**: no sale en `list` y cualquier orden
+  sobre él da `unknown-server`, el mismo error que un id inventado. Desde fuera no se puede saber qué
+  más hay en el equipo.
+- **El hueco del id reutilizado.** El id de un servidor sale de su nombre (`slugify`): borrar
+  «survival» y crear otro «survival» da el mismo id, y el nuevo heredaría el permiso sin que nadie lo
+  diera. Por eso al borrar un servidor se quita de la lista de todos los dispositivos (`service`
+  emite `removed`) y, al arrancar la app, se limpian los que ya no existen.
+- **Jugadores.** `list` ya llevaba los nombres; ahora además dice lo que sabe cada juego
+  (`playerIds`, `playerNames`, de sus capacidades) y no manda jugadores de un servidor parado. La
+  página enseña en cada tarjeta «3 jugadores: Steve, Alex y Notch» (solo el número si son más de
+  cinco o no son nombres) y en la vista del servidor una sección «Jugadores» antes de la consola:
+  los nombres; los identificadores de Steam de Valheim avisando de que no son nombres; o solo el
+  número en Satisfactory, diciendo que el juego no dice quién es. Sin moderación: echar o banear no
+  son órdenes, y la lista cerrada no crece por esto.
+
+**Probado:** `smoke` (1334: dispositivo sin servidores que no ve ni arranca nada, servidores
+ajenos con el mismo error que uno inventado, permisos ampliados al momento, jugadores según el
+juego y con el servidor parado, borrar un servidor y que salga de todos y del fichero, la limpieza
+al abrir y la configuración de antes de esta versión); `e2e:remote` contra Paper con un tercer
+dispositivo sin servidores y la lista de jugadores real (vacía: nadie entra en la prueba); `e2e
+paper`; y `remoto.mjs` (33 comprobaciones): el botón desactivado hasta marcar uno, el móvil viendo
+solo el suyo, marcar otro en la app y que aparezca en el móvil, quitarlos todos y que el móvil diga
+que no tiene acceso, y la sección de jugadores. **La lista con gente dentro se ha visto con datos
+retocados en el navegador** (ningún servidor de prueba está arrancado): falta verla con jugadores de
+verdad entrando.

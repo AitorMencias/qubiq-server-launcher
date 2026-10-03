@@ -16,6 +16,7 @@ import {
   type SettingInfo
 } from '@shared/games/enshrouded/types'
 import { CheckRow } from '../../CheckRow'
+import { t } from '../../i18n'
 
 /**
  * Ajustes de un servidor de Enshrouded.
@@ -87,11 +88,11 @@ export function EnshroudedSettingsPanel({ state, mode, onSaved }: Props): React.
       <div className="panel">
         {error ? (
           <div className="alert error">
-            <strong>No se pudo leer la configuración</strong>
+            <strong>{t('en.settings.readFailed')}</strong>
             <p>{error}</p>
           </div>
         ) : (
-          <p className="hint">Leyendo la configuración…</p>
+          <p className="hint">{t('pz.search.reading')}</p>
         )}
       </div>
     )
@@ -142,8 +143,8 @@ export function EnshroudedSettingsPanel({ state, mode, onSaved }: Props): React.
       setSettings(saved.settings)
       setNotice(
         saved.preset === 'Custom' && preset !== 'Custom'
-          ? 'Guardado. Como has cambiado algún ajuste, la dificultad ha pasado a «A mi manera»: es la única con la que el servidor los mira.'
-          : 'Guardado.'
+          ? t('en.settings.savedCustom', { custom: presetInfo('Custom').label })
+          : t('vh.settings.saved')
       )
       onSaved()
     } catch (err) {
@@ -159,7 +160,7 @@ export function EnshroudedSettingsPanel({ state, mode, onSaved }: Props): React.
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo guardar</strong>
+          <strong>{t('common.saveFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -167,18 +168,15 @@ export function EnshroudedSettingsPanel({ state, mode, onSaved }: Props): React.
 
       {running && (
         <div className="alert info">
-          <strong>El servidor está arrancado</strong>
-          <p>
-            Enshrouded lee su configuración al arrancar y reescribe el fichero al cerrarse, así que
-            ahora mismo no se puede guardar. Para el servidor y vuelve aquí.
-          </p>
+          <strong>{t('vh.settings.running')}</strong>
+          <p>{t('en.settings.runningText')}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Dificultad</h3>
+        <h3>{t('mc.wizard.summary.difficulty')}</h3>
         <div className="field">
-          <label>Preajuste</label>
+          <label>{t('vh.create.preset')}</label>
           <select
             value={preset}
             disabled={running}
@@ -195,11 +193,8 @@ export function EnshroudedSettingsPanel({ state, mode, onSaved }: Props): React.
 
         {wouldBeCustom && preset !== 'Custom' && (
           <div className="alert warn">
-            <strong>Va a quedar como «A mi manera»</strong>
-            <p>
-              Has cambiado algún ajuste, y Enshrouded solo los mira con ese preajuste. Con cualquier
-              otro los ignora sin avisar, así que al guardar se cambia solo.
-            </p>
+            <strong>{t('en.settings.willBeCustom', { custom: presetInfo('Custom').label })}</strong>
+            <p>{t('en.settings.willBeCustomText')}</p>
           </div>
         )}
       </div>
@@ -225,11 +220,8 @@ export function EnshroudedSettingsPanel({ state, mode, onSaved }: Props): React.
 
       {advanced && (
         <div className="card">
-          <h3>En la lista de servidores</h3>
-          <p className="hint">
-            Enshrouded sale siempre en su lista pública. Las etiquetas solo sirven para que la gente
-            pueda filtrar y encontraros.
-          </p>
+          <h3>{t('en.create.list')}</h3>
+          <p className="hint">{t('en.settings.tagsHint')}</p>
           <div className="field">
             {TAGS.slice(0, 5).map((tag) => (
               <CheckRow
@@ -239,7 +231,7 @@ export function EnshroudedSettingsPanel({ state, mode, onSaved }: Props): React.
                 disabled={running}
                 onChange={(on) =>
                   setTags((prev) =>
-                    on ? [...prev, tag.value] : prev.filter((t) => t !== tag.value)
+                    on ? [...prev, tag.value] : prev.filter((other) => other !== tag.value)
                   )
                 }
               />
@@ -247,8 +239,8 @@ export function EnshroudedSettingsPanel({ state, mode, onSaved }: Props): React.
           </div>
 
           <CheckRow
-            label="Chat de texto"
-            help="Enshrouded lo trae apagado de serie."
+            label={t('en.create.textChat')}
+            help={t('en.settings.textChatHelp')}
             checked={textChat}
             disabled={running}
             onChange={setTextChat}
@@ -258,10 +250,10 @@ export function EnshroudedSettingsPanel({ state, mode, onSaved }: Props): React.
 
       <div className="row between">
         <span className="hint">
-          {changed ? 'Hay cambios sin guardar.' : 'Todo guardado.'}
+          {changed ? t('en.settings.unsaved') : t('en.settings.allSaved')}
         </span>
         <button className="primary" disabled={!changed || busy || running} onClick={() => void save()}>
-          {busy ? 'Guardando…' : 'Guardar'}
+          {busy ? t('common.saving') : t('cfg.save')}
         </button>
       </div>
     </div>
@@ -315,7 +307,7 @@ function SettingField({ setting, value, disabled, onChange }: FieldProps): React
     return (
       <div className="field">
         <label>
-          {setting.label}: {minutos} min
+          {setting.label}: {t('panel.uptime.minutes', { m: minutos })}
         </label>
         <input
           type="range"
@@ -327,7 +319,7 @@ function SettingField({ setting, value, disabled, onChange }: FieldProps): React
           onChange={(e) => onChange(minutesToNanos(Number(e.target.value)))}
         />
         <div className="help">
-          {setting.help} Entre {kind.min} y {kind.max} minutos.
+          {setting.help} {t('en.settings.betweenMinutes', { min: kind.min, max: kind.max })}
         </div>
       </div>
     )
@@ -349,7 +341,7 @@ function SettingField({ setting, value, disabled, onChange }: FieldProps): React
         onChange={(e) => onChange(Number(e.target.value))}
       />
       <div className="help">
-        {setting.help} Entre {factorLabel(kind.min)} y {factorLabel(kind.max)}.
+        {setting.help} {t('en.settings.between', { min: factorLabel(kind.min), max: factorLabel(kind.max) })}
       </div>
     </div>
   )

@@ -6,6 +6,7 @@ import { SettingsPanel } from './SettingsPanel'
 import { SavesPanel } from './SavesPanel'
 import { CatalogModsPanel } from '../../CatalogModsPanel'
 import icon from './icon.svg'
+import { Rich, quote, t } from '../../i18n'
 
 /** Piezas de interfaz de Satisfactory. */
 export const satisfactoryUi: GameUi = {
@@ -17,19 +18,19 @@ export const satisfactoryUi: GameUi = {
     return [
       {
         id: 'ajustes',
-        label: 'Ajustes',
+        label: t('tab.settings'),
         slot: 'first' as const,
         render: () => <SettingsPanel state={state} mode={mode} onSaved={onRefresh} />
       },
       {
         id: 'partidas',
-        label: 'Partidas',
+        label: t('tab.saves'),
         slot: 'afterConnection' as const,
         render: () => <SavesPanel state={state} mode={mode} onChanged={onRefresh} />
       },
       {
         id: 'mods',
-        label: 'Mods',
+        label: t('tab.mods'),
         slot: 'afterConnection' as const,
         render: () => (
           <CatalogModsPanel
@@ -38,14 +39,8 @@ export const satisfactoryUi: GameUi = {
             api={window.qubiq.satisfactory.mods}
             loaderId="SML"
             catalog={{ name: 'ficsit.app', url: 'ficsit.app' }}
-            playersNote={
-              <>
-                Satisfactory comprueba los mods al entrar: quien no tenga los mismos que el
-                servidor se queda fuera. Cada jugador se los instala en su juego con el
-                Satisfactory Mod Manager, que es la herramienta de ficsit.app.
-              </>
-            }
-            searchPlaceholder="Por ejemplo: Refined Power, SnapOn, Infinite Zoop…"
+            playersNote={t('sf.mods.playersNote')}
+            searchPlaceholder={t('common.forExample', { examples: 'Refined Power, SnapOn, Infinite Zoop…' })}
           />
         )
       }
@@ -56,31 +51,36 @@ export const satisfactoryUi: GameUi = {
     if (manifest.game !== 'satisfactory') return []
     const { data } = manifest
     return [
-      { label: 'Partida', value: data.sessionName },
-      { label: 'Jugadores como mucho', value: String(data.maxPlayers) },
-      { label: 'Versión del juego', value: data.gameVersion ?? 'se sabrá al arrancarlo' },
-      { label: 'Build de Steam', value: data.buildId ?? 'desconocida' },
-      { label: 'Contraseña de administrador', value: data.adminPassword },
+      { label: t('sf.wizard.summary.session'), value: data.sessionName },
+      { label: t('details.maxPlayers'), value: String(data.maxPlayers) },
+      { label: t('details.gameVersion'), value: data.gameVersion ?? t('details.knownAtStart') },
+      { label: t('details.steamBuild'), value: data.buildId ?? t('details.unknown') },
+      { label: t('sf.wizard.summary.admin'), value: data.adminPassword },
       {
-        label: 'Contraseña para entrar',
-        value: data.clientPassword.length > 0 ? data.clientPassword : 'sin contraseña'
+        label: t('wizard.summary.joinPassword'),
+        value: data.clientPassword.length > 0 ? data.clientPassword : t('wizard.summary.noPassword')
       }
     ]
   },
 
-  routerSafetyNote: (
-    <>
-      Abrir puertos expone este ordenador a internet. Satisfactory necesita{' '}
-      <strong>dos</strong>: el del juego y el <strong>{RELIABLE_PORT}</strong> de su mensajería.
-      Pon una <strong>contraseña para entrar</strong> en Ajustes: sin ella, cualquiera que dé con tu
-      dirección puede meterse en la partida.
-    </>
-  ),
+  get routerSafetyNote() {
+    return (
+      <Rich
+        k="sf.routerSafety"
+        vars={{ settings: t('tab.settings') }}
+        values={{
+          two: <strong>{t('sf.routerSafety.two')}</strong>,
+          port: <strong>{RELIABLE_PORT}</strong>,
+          password: <strong>{t('sf.routerSafety.password')}</strong>
+        }}
+      />
+    )
+  },
 
   async describeLoss(manifest) {
-    if (manifest.game !== 'satisfactory') return 'Sus partidas'
+    if (manifest.game !== 'satisfactory') return t('sf.loss.saves')
     // Preguntar al servidor exigiría tenerlo arrancado, y borrar se hace con él
     // parado: se dice lo que se sabe sin inventar un número de partidas.
-    return `Su partida «${manifest.data.sessionName}» y el resto de guardados del servidor, con todo lo construido`
+    return t('sf.loss.session', { name: quote(manifest.data.sessionName) })
   }
 }

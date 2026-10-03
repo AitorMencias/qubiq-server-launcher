@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { D20Loader } from './D20Loader'
 import type { BackupEstimate, BackupInfo, InstanceState, UiMode } from '@shared/types'
-import { gameInfo, saveParticiple, theSave, type SaveNoun } from '@shared/games'
+import { gameInfo, type SaveKind } from '@shared/games'
 import {
   MAX_BACKUP_KEEP,
   MIN_BACKUP_MINUTES,
   RECOMMENDED_HISTORY_MINUTES,
+  backupReasonLabel,
   formatMinutes,
   formatSpan,
   gameSaveMinutes,
@@ -16,6 +17,7 @@ import {
   recommendedInterval,
   type IntervalRecommendation
 } from '@shared/backup'
+import { Rich, formatBytes, formatDate as formatDateTime, t } from './i18n'
 
 type IntervalUnit = 'minutes' | 'hours'
 
@@ -110,8 +112,10 @@ export function BackupPanel({
     setError(null)
     setNotice(null)
     try {
+      // El motivo se guarda en español dentro de la copia: es un dato, y así lo
+      // reconoce `backupReasonLabel` para enseñarlo en cualquier idioma.
       const info = await window.qubiq.backups.create(manifest.id, 'Copia manual')
-      setNotice(`Copia creada: ${formatSize(info.sizeBytes)}`)
+      setNotice(t('backup.created', { size: formatSize(info.sizeBytes) }))
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -121,11 +125,7 @@ export function BackupPanel({
   }
 
   async function restore(backup: BackupInfo): Promise<void> {
-    const ok = window.confirm(
-      `Vas a volver al estado del ${formatDate(backup.createdAt)}.\n\n` +
-        'Todo lo construido después se perderá. Antes de sobrescribir se guardará ' +
-        'automáticamente una copia del estado actual, por si te arrepientes.\n\n¿Continuar?'
-    )
+    const ok = window.confirm(t('backup.confirmRestore', { date: formatDate(backup.createdAt) }))
     if (!ok) return
 
     setBusy('restaurando')
@@ -133,7 +133,7 @@ export function BackupPanel({
     setNotice(null)
     try {
       await window.qubiq.backups.restore(manifest.id, backup.fileName)
-      setNotice(`${saveParticiple(game.save, 'restaurado')}. Ya puedes arrancar el servidor.`)
+      setNotice(t(`backup.restored.${game.save}`))
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -143,9 +143,7 @@ export function BackupPanel({
   }
 
   async function remove(backup: BackupInfo): Promise<void> {
-    const ok = window.confirm(
-      `¿Borrar la copia del ${formatDate(backup.createdAt)}? No se puede deshacer.`
-    )
+    const ok = window.confirm(t('backup.confirmDelete', { date: formatDate(backup.createdAt) }))
     if (!ok) return
     try {
       await window.qubiq.backups.remove(manifest.id, backup.fileName)
@@ -159,20 +157,20 @@ export function BackupPanel({
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo completar la operación</strong>
+          <strong>{t('backup.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       {notice && !busy && (
         <div className="alert info">
-          <strong>Listo</strong>
+          <strong>{t('backup.done')}</strong>
           <p>{notice}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Copias de seguridad</h3>
+        <h3>{t('backup.title')}</h3>
         <p className="hint">{game.backupScope}</p>
 
         {busy ? (
@@ -181,18 +179,16 @@ export function BackupPanel({
           <div className="row" style={{ gap: 12 }}>
             <D20Loader size={44} />
             <p style={{ fontSize: 13, margin: 0 }}>
-              {progressDetail ?? (busy === 'creando' ? 'Creando la copia...' : 'Restaurando...')}
+              {progressDetail ?? (busy === 'creando' ? t('backup.creating') : t('backup.restoring'))}
             </p>
           </div>
         ) : (
           <div className="row">
             <button className="primary" onClick={() => void create()}>
-              Crear copia ahora
+              {t('backup.createNow')}
             </button>
             {running && (
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                Se puede hacer con el servidor en marcha: se le pide que guarde antes de copiar.
-              </span>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t('backup.runningHint')}</span>
             )}
           </div>
         )}
@@ -200,20 +196,20 @@ export function BackupPanel({
 
       {basic ? (
         <div className="card">
-          <h3>Copias automáticas</h3>
+          <h3>{t('backup.auto.title')}</h3>
           <p className="hint" style={{ marginBottom: 0 }}>
             {manifest.backup.enabled
-              ? `Se guarda una copia sola cada ${formatMinutes(intervalMinutesOf(manifest.backup))} mientras juegas, y siempre antes de cualquier cambio importante. Se conservan las ${manifest.backup.keep} últimas.`
-              : 'Están desactivadas. Puedes activarlas desde el modo avanzado.'}
+              ? t('backup.auto.basicOn', {
+                  interval: formatMinutes(intervalMinutesOf(manifest.backup)),
+                  count: manifest.backup.keep
+                })
+              : t('backup.auto.basicOff')}
           </p>
         </div>
       ) : (
       <div className="card">
-        <h3>Copias automáticas</h3>
-        <p className="hint">
-          Se hacen solas mientras el servidor está en marcha. Además siempre se guarda una copia
-          antes de reinstalar o de restaurar, aunque tengas esto desactivado.
-        </p>
+        <h3>{t('backup.auto.title')}</h3>
+        <p className="hint">{t('backup.auto.hint')}</p>
 
         <div className="field">
           <label className="row" style={{ cursor: 'pointer' }}>
@@ -223,7 +219,7 @@ export function BackupPanel({
               onChange={(e) => void saveSettings({ enabled: e.target.checked })}
               style={{ width: 16, height: 16, flexShrink: 0 }}
             />
-            <span>Hacer copias automáticas</span>
+            <span>{t('backup.auto.enable')}</span>
           </label>
         </div>
 
@@ -239,7 +235,7 @@ export function BackupPanel({
             />
 
             <div className="field">
-              <label>Cuántas conservar: {keep}</label>
+              <label>{t('backup.keep', { keep })}</label>
               <input
                 type="range"
                 min={1}
@@ -251,8 +247,10 @@ export function BackupPanel({
                 onKeyUp={() => void saveSettings({ keep })}
               />
               <div className="help">
-                Al superar este número se borra la más antigua. Cubrirías{' '}
-                <strong>{formatSpan(keep * effectiveMinutes)}</strong> de historial.
+                <Rich
+                  k="backup.keepHelp"
+                  values={{ span: <strong>{formatSpan(keep * effectiveMinutes)}</strong> }}
+                />
               </div>
             </div>
 
@@ -269,11 +267,10 @@ export function BackupPanel({
       )}
 
       <div className="card">
-        <h3>Historial</h3>
+        <h3>{t('backup.history')}</h3>
         {backups.length === 0 ? (
           <p className="hint" style={{ marginBottom: 0 }}>
-            Todavía no hay ninguna copia. Crea la primera cuando tengas algo que merezca la pena
-            conservar.
+            {t('backup.empty')}
           </p>
         ) : (
           <div className="player-list">
@@ -283,19 +280,19 @@ export function BackupPanel({
                   <div style={{ fontWeight: 600 }}>{formatDate(backup.createdAt)}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)' }}>
                     {formatSize(backup.sizeBytes)} · {backup.version}
-                    {backup.automatic && ' · automática'}
-                    {backup.reason && ` · ${backup.reason}`}
+                    {backup.automatic && ` · ${t('backup.automatic')}`}
+                    {backup.reason && ` · ${backupReasonLabel(backup.reason)}`}
                   </div>
                 </div>
                 <button
                   disabled={running || busy !== null}
-                  title={running ? 'Para el servidor para poder restaurar' : undefined}
+                  title={running ? t('backup.stopToRestore') : undefined}
                   onClick={() => void restore(backup)}
                 >
-                  Restaurar
+                  {t('backup.restore')}
                 </button>
                 <button className="danger" disabled={busy !== null} onClick={() => void remove(backup)}>
-                  Borrar
+                  {t('backup.delete')}
                 </button>
               </div>
             ))}
@@ -343,14 +340,14 @@ function IntervalField({
     const value = Number(text.trim().replace(',', '.'))
     const total = Math.round(value * (inUnit === 'hours' ? 60 : 1))
     const invalid =
-      text.trim() === '' || !Number.isFinite(value) ? 'Escribe un número.' : intervalProblem(total)
+      text.trim() === '' || !Number.isFinite(value) ? t('backup.writeNumber') : intervalProblem(total)
     setProblem(invalid)
     if (!invalid && total !== minutes) onChange(total)
   }
 
   return (
     <div className="field">
-      <label>Cada cuánto</label>
+      <label>{t('backup.every')}</label>
       <div className="row">
         <input
           type="number"
@@ -373,8 +370,8 @@ function IntervalField({
           }}
           style={{ width: 130 }}
         >
-          <option value="minutes">minutos</option>
-          <option value="hours">horas</option>
+          <option value="minutes">{t('backup.unit.minutes')}</option>
+          <option value="hours">{t('backup.unit.hours')}</option>
         </select>
       </div>
       {problem && (
@@ -382,18 +379,14 @@ function IntervalField({
           {problem}
         </div>
       )}
-      <div className="help">
-        Mínimo {MIN_BACKUP_MINUTES} minutos. El temporizador corre solo con el servidor arrancado;
-        si lo tienes parado no se acumulan copias.
-      </div>
+      <div className="help">{t('backup.minimum', { min: MIN_BACKUP_MINUTES })}</div>
 
       {gameSaveMinutes !== null && minutes < gameSaveMinutes && (
         <div className="alert warn" style={{ marginTop: 10, marginBottom: 0 }}>
-          <strong>El servidor solo guarda la partida cada {formatMinutes(gameSaveMinutes)}</strong>
-          <p>
-            La copia espera a ese guardado para no llevarse la partida a medio escribir, así que
-            en la práctica saldrá una cada {formatMinutes(gameSaveMinutes)}.
-          </p>
+          <strong>
+            {t('backup.gameSaves.title', { interval: formatMinutes(gameSaveMinutes) })}
+          </strong>
+          <p>{t('backup.gameSaves.text', { interval: formatMinutes(gameSaveMinutes) })}</p>
         </div>
       )}
 
@@ -401,10 +394,10 @@ function IntervalField({
         <div className="alert info" style={{ marginTop: 10, marginBottom: 0 }}>
           <div className="row between">
             <strong style={{ marginBottom: 0 }}>
-              Recomendado para este servidor: cada {formatMinutes(recommendation.minutes)}
+              {t('backup.recommended', { interval: formatMinutes(recommendation.minutes) })}
             </strong>
             {recommendation.minutes !== minutes && (
-              <button onClick={() => onChange(recommendation.minutes)}>Usar esta</button>
+              <button onClick={() => onChange(recommendation.minutes)}>{t('backup.useThis')}</button>
             )}
           </div>
           <p style={{ marginTop: 6 }}>{recommendation.reason}</p>
@@ -443,24 +436,23 @@ function HistoryAdvice({ intervalMinutes, keep, onKeep }: HistoryAdviceProps): R
   const short = covered < RECOMMENDED_HISTORY_MINUTES
   const suggested = keepForRecommendedHistory(intervalMinutes)
 
-  const explanation = (
-    <>
-      Cuanto más frecuentes sean las copias, menos tiempo atrás cubren las que se conservan: se
-      pierde menos si algo falla, pero se puede retroceder menos. Se recomienda conservar al menos{' '}
-      {formatSpan(RECOMMENDED_HISTORY_MINUTES)} de historial
-      {short && `: con copias cada ${formatMinutes(intervalMinutes)} hacen falta ${suggested}`}.
-    </>
-  )
+  const explanation = short
+    ? t('backup.adviceShort', {
+        span: formatSpan(RECOMMENDED_HISTORY_MINUTES),
+        interval: formatMinutes(intervalMinutes),
+        count: suggested
+      })
+    : t('backup.advice', { span: formatSpan(RECOMMENDED_HISTORY_MINUTES) })
 
   if (!short) return <p className="hint">{explanation}</p>
 
   return (
     <div className="alert warn">
-      <strong>Solo podrías volver hasta hace {formatSpan(covered)}</strong>
+      <strong>{t('backup.onlyBack', { span: formatSpan(covered) })}</strong>
       <p>{explanation}</p>
       {suggested > keep && (
         <button style={{ marginTop: 10 }} onClick={() => onKeep(suggested)}>
-          Conservar {suggested} copias
+          {t('backup.keepN', { count: suggested })}
         </button>
       )}
     </div>
@@ -470,7 +462,7 @@ function HistoryAdvice({ intervalMinutes, keep, onKeep }: HistoryAdviceProps): R
 interface StorageEstimateProps {
   estimate: BackupEstimate | null
   keep: number
-  save: SaveNoun
+  save: SaveKind
 }
 
 /**
@@ -489,9 +481,7 @@ function StorageEstimate({ estimate, keep, save }: StorageEstimateProps): React.
 
   if (estimate.perBackupBytes === 0) {
     return (
-      <div className="help">
-        Todavía no se puede estimar el espacio: {theSave(save)} aún no se ha generado.
-      </div>
+      <div className="help">{t(`backup.noEstimate.${save}`)}</div>
     )
   }
 
@@ -503,36 +493,32 @@ function StorageEstimate({ estimate, keep, save }: StorageEstimateProps): React.
       className={noRoom ? 'alert error' : 'alert info'}
       style={{ marginBottom: 0, marginTop: 4 }}
     >
-      <strong>
-        {keep} copias ocuparían unos {formatSize(total)}
-      </strong>
+      <strong>{t('backup.wouldTake', { count: keep, size: formatSize(total) })}</strong>
       <p>
         {measured
-          ? `Calculado sobre ${estimate.sampleCount} ${
-              estimate.sampleCount === 1 ? 'copia real' : 'copias reales'
-            }: unos ${formatSize(estimate.perBackupBytes)} cada una.`
-          : `Estimado a partir ${save.feminine ? 'de la' : 'del'} ${save.singular} actual (${formatSize(
-              estimate.worldBytes
-            )} sin comprimir): unos ${formatSize(estimate.perBackupBytes)} por copia.`}
-        {free !== null && ` Tienes ${formatSize(free)} libres.`}
-        {noRoom && ' No hay espacio suficiente: reduce el número de copias.'}
-        {tight && ' Se te va una parte notable del disco libre.'}
-        {!measured &&
-          ` ${theSave(save).charAt(0).toUpperCase()}${theSave(save).slice(1)} crece según lo exploréis, así que esto subirá con el tiempo.`}
+          ? t('backup.measured', {
+              count: estimate.sampleCount,
+              size: formatSize(estimate.perBackupBytes)
+            })
+          : t(`backup.estimated.${save}`, {
+              world: formatSize(estimate.worldBytes),
+              size: formatSize(estimate.perBackupBytes)
+            })}
+        {free !== null && ` ${t('backup.free', { size: formatSize(free) })}`}
+        {noRoom && ` ${t('backup.noRoom')}`}
+        {tight && ` ${t('backup.tight')}`}
+        {!measured && ` ${t(`backup.grows.${save}`)}`}
       </p>
     </div>
   )
 }
 
 function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+  return formatBytes(bytes)
 }
 
 function formatDate(iso: string): string {
-  const date = new Date(iso)
-  return date.toLocaleString('es-ES', {
+  return formatDateTime(iso, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',

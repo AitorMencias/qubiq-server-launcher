@@ -5,6 +5,7 @@ import { DISTRIBUTIONS, DISTRIBUTION_LABELS } from '@shared/games/minecraft/type
 import { D20Loader } from '../../D20Loader'
 import { ImportWizard } from './ImportWizard'
 import { Choices, StepDots, StepFrame, SummaryRow, labelOf, type Option } from '../../WizardParts'
+import { Rich, formatSize, t } from '../../i18n'
 
 /**
  * Asistente en modo básico (§3).
@@ -40,73 +41,47 @@ type Step =
   | 'conexion'
 type Stage = Step | 'resumen'
 
-const GAME_MODES: Option<GameMode>[] = [
-  {
-    value: 'survival',
-    title: 'Supervivencia',
-    sub: 'Consigue recursos, construye y sobrevive a los monstruos. Lo clásico.'
-  },
-  {
-    value: 'creative',
-    title: 'Creativo',
-    sub: 'Bloques infinitos, vuelo y sin peligro. Para construir sin límites.'
-  },
-  {
-    value: 'adventure',
-    title: 'Aventura',
-    sub: 'No se pueden romper ni poner bloques libremente. Para mapas hechos por otros.'
-  },
-  {
-    value: 'hardcore',
-    title: 'Extremo',
-    sub: 'Supervivencia en Difícil y una sola vida: quien muere ya no vuelve a jugar en ese mundo.'
-  }
-]
+// Las opciones se construyen al pintar: en constantes de módulo se quedarían
+// en el idioma con el que arrancó la app.
 
-const DIFFICULTIES: Option<Difficulty>[] = [
-  { value: 'peaceful', title: 'Pacífico', sub: 'Sin monstruos que ataquen. Ideal para construir tranquilos.' },
-  { value: 'easy', title: 'Fácil', sub: 'Hay monstruos, pero hacen poco daño.' },
-  { value: 'normal', title: 'Normal', sub: 'La experiencia estándar de Minecraft.' },
-  { value: 'hard', title: 'Difícil', sub: 'Monstruos más duros y el hambre puede llegar a matar.' }
-]
+function gameModes(): Option<GameMode>[] {
+  return (['survival', 'creative', 'adventure', 'hardcore'] as const).map((value) => ({
+    value,
+    title: t(`mc.wizard.mode.${value}`),
+    sub: t(`mc.wizard.mode.${value}.sub`)
+  }))
+}
 
-const LEVEL_TYPES: Option<LevelType>[] = [
-  { value: 'minecraft:normal', title: 'Normal', sub: 'Montañas, océanos, cuevas… el mundo de siempre.' },
-  { value: 'minecraft:flat', title: 'Superplano', sub: 'Todo llano, sin relieve. Perfecto para construir en creativo.' },
-  {
-    value: 'minecraft:large_biomes',
-    title: 'Biomas grandes',
-    sub: 'Como el normal, pero cada bioma ocupa mucho más terreno.'
-  },
-  {
-    value: 'minecraft:amplified',
-    title: 'Amplificado',
-    sub: 'Montañas enormes y paisajes exagerados. Exige más al ordenador.'
-  }
-]
+function difficulties(): Option<Difficulty>[] {
+  return (['peaceful', 'easy', 'normal', 'hard'] as const).map((value) => ({
+    value,
+    title: t(`mc.wizard.difficulty.${value}`),
+    sub: t(`mc.wizard.difficulty.${value}.sub`)
+  }))
+}
 
-const PVP: Option<'true' | 'false'>[] = [
-  { value: 'true', title: 'Sí, se puede luchar', sub: 'Los jugadores pueden hacerse daño entre ellos.' },
-  { value: 'false', title: 'No, somos un equipo', sub: 'Nadie puede herir a otro jugador, ni sin querer.' }
-]
+function levelTypes(): Option<LevelType>[] {
+  return (['normal', 'flat', 'large_biomes', 'amplified'] as const).map((id) => ({
+    value: `minecraft:${id}` as LevelType,
+    title: t(`mc.level.${id}.label`),
+    sub: t(`mc.wizard.level.${id}.sub`)
+  }))
+}
 
-const CONNECTIONS: Option<ExposureMode>[] = [
-  {
-    value: 'local',
-    title: 'Solo desde mi casa',
-    sub: 'Quien esté en tu mismo wifi o router. No hay que tocar nada más.'
-  },
-  {
-    value: 'router',
-    title: 'Desde cualquier sitio, abriendo el router',
-    sub: 'El mejor ping. Hay que crear una regla en el router y no funciona si tu compañía usa CGNAT.'
-  },
-  {
-    value: 'tunnel',
-    title: 'Desde cualquier sitio, con playit.gg',
-    sub: 'Sin tocar el router y funciona casi siempre, a cambio de algo más de ping.'
-  }
-]
+function pvpOptions(): Option<'true' | 'false'>[] {
+  return [
+    { value: 'true', title: t('mc.wizard.pvp.yes'), sub: t('mc.wizard.pvp.yes.sub') },
+    { value: 'false', title: t('mc.wizard.pvp.no'), sub: t('mc.wizard.pvp.no.sub') }
+  ]
+}
+
+function connections(): Option<ExposureMode>[] {
+  return (['local', 'router', 'tunnel'] as const).map((value) => ({
+    value,
+    title: t(`wizard.connection.${value}`),
+    sub: t(`wizard.connection.${value}.sub`)
+  }))
+}
 
 export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX.Element {
   const [stage, setStage] = useState<Stage>('nombre')
@@ -115,7 +90,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
   /** Si se entró a editar el modo estando en Extremo: al salir de él, falta la dificultad. */
   const [editedFromHardcore, setEditedFromHardcore] = useState(false)
 
-  const [name, setName] = useState('Mi servidor')
+  const [name, setName] = useState(() => t('mc.wizard.defaultName'))
   const [distribution, setDistribution] = useState<Distribution>('paper')
   const [expectedPlayers, setExpectedPlayers] = useState(8)
   const [gameMode, setGameMode] = useState<GameMode>('survival')
@@ -157,7 +132,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
         setTestingVersion(list.find((v) => v.experimental)?.minecraftVersion ?? null)
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(`No se pudo consultar la última versión: ${err.message}`)
+        if (!cancelled) setError(t('mc.wizard.versionFailed', { error: err.message }))
       })
     return () => {
       cancelled = true
@@ -286,12 +261,11 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
-            <p className="hint">
-              Estamos descargando todo lo necesario. La primera vez tarda unos minutos porque hay
-              que bajar bastantes megas; las siguientes irá mucho más rápido.
+            <h3>{t('wizard.preparing')}</h3>
+            <p className="hint">{t('mc.wizard.preparingHint')}</p>
+            <p style={{ margin: '10px 0 0', fontSize: 13 }}>
+              {progress?.detail ?? t('panel.working')}
             </p>
-            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
             {/* Solo con un porcentaje real: si no lo hay, el dado ya dice que
                 se está trabajando sin inventarse cuánto falta. */}
             {progress?.progress != null && (
@@ -301,7 +275,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -311,6 +285,12 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
     )
   }
 
+  const GAME_MODES = gameModes()
+  const DIFFICULTIES = difficulties()
+  const LEVEL_TYPES = levelTypes()
+  const CONNECTIONS = connections()
+  const byUs = t('wizard.chosenByUs')
+
   return (
     <div className="panel">
       <div className="wizard">
@@ -318,16 +298,13 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {error && (
           <div className="alert error">
-            <strong>Algo ha fallado</strong>
+            <strong>{t('catalog.error')}</strong>
             <p>{error}</p>
           </div>
         )}
 
         {stage === 'nombre' && (
-          <StepFrame
-            title="¿Cómo se va a llamar?"
-            help="Es el nombre que verán tus amigos en su lista de servidores. Puedes cambiarlo luego."
-          >
+          <StepFrame title={t('wizard.name.title')} help={t('mc.wizard.name.help')}>
             <input
               value={name}
               maxLength={40}
@@ -341,10 +318,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
         )}
 
         {stage === 'tipo' && (
-          <StepFrame
-            title="¿Qué quieres poder hacer?"
-            help="Si no lo tienes claro, deja la primera opción: sirve para casi todo."
-          >
+          <StepFrame title={t('mc.wizard.type.title')} help={t('mc.wizard.type.help')}>
             <div className="choice-grid">
               {DISTRIBUTIONS.map((d) => (
                 <button
@@ -358,20 +332,15 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               ))}
               {/* No es un tipo más: abre otro recorrido, el de traer una carpeta. */}
               <button className="choice" onClick={() => setImporting(true)}>
-                <div className="title">Uno que ya tengo (a medida)</div>
-                <div className="sub">
-                  Un server pack o un servidor que ya tenías montado. Arranca con su propio run.bat.
-                </div>
+                <div className="title">{t('mc.wizard.type.custom')}</div>
+                <div className="sub">{t('mc.wizard.type.custom.sub')}</div>
               </button>
             </div>
           </StepFrame>
         )}
 
         {stage === 'jugadores' && (
-          <StepFrame
-            title="¿Cuánta gente vais a ser?"
-            help="Cuenta a quienes estaréis conectados a la vez, no el total de amigos."
-          >
+          <StepFrame title={t('wizard.players.title')} help={t('wizard.players.help')}>
             <div className="big-number">{expectedPlayers}</div>
             <input
               type="range"
@@ -382,66 +351,56 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               onChange={(e) => setExpectedPlayers(Number(e.target.value))}
             />
             <div className="help" style={{ textAlign: 'center', marginTop: 10 }}>
-              Con esto ajustamos la memoria del servidor y el límite de jugadores.
+              {t('mc.wizard.players.note')}
             </div>
           </StepFrame>
         )}
 
         {stage === 'modo' && (
-          <StepFrame
-            title="¿A qué vais a jugar?"
-            help="Es el modo con el que entra todo el mundo. Se puede cambiar más adelante."
-          >
+          <StepFrame title={t('mc.wizard.mode.title')} help={t('mc.wizard.mode.help')}>
             <Choices options={GAME_MODES} value={gameMode} onChange={setGameMode} />
             {hardcore && (
               <div className="alert error" style={{ textAlign: 'left', marginTop: 14, marginBottom: 0 }}>
-                <strong>Sin segundas oportunidades</strong>
-                <p>
-                  Al morir, el jugador pasa a espectador y no puede seguir jugando en ese mundo. La
-                  dificultad será siempre Difícil, así que nos saltamos esa pregunta.
-                </p>
+                <strong>{t('mc.wizard.hardcore.title')}</strong>
+                <p>{t('mc.wizard.hardcore.text')}</p>
               </div>
             )}
           </StepFrame>
         )}
 
         {stage === 'dificultad' && (
-          <StepFrame
-            title="¿Qué dificultad queréis?"
-            help="Decide cuánto daño hacen los monstruos y si aparecen siquiera."
-          >
+          <StepFrame title={t('mc.wizard.difficulty.title')} help={t('mc.wizard.difficulty.help')}>
             <Choices options={DIFFICULTIES} value={difficulty} onChange={setDifficulty} />
           </StepFrame>
         )}
 
         {stage === 'mundo' && (
-          <StepFrame
-            title="¿Cómo queréis que sea el mundo?"
-            help="Solo se elige al crearlo: el terreno ya generado no cambia después."
-          >
+          <StepFrame title={t('mc.wizard.world.title')} help={t('mc.wizard.world.help')}>
             <Choices options={LEVEL_TYPES} value={levelType} onChange={setLevelType} />
           </StepFrame>
         )}
 
         {stage === 'pvp' && (
-          <StepFrame
-            title="¿Os podéis pelear entre vosotros?"
-            help="Los monstruos atacan igual; esto solo decide si un jugador puede herir a otro."
-          >
-            <Choices options={PVP} value={pvp} onChange={setPvp} />
+          <StepFrame title={t('mc.wizard.pvp.title')} help={t('mc.wizard.pvp.help')}>
+            <Choices options={pvpOptions()} value={pvp} onChange={setPvp} />
           </StepFrame>
         )}
 
         {stage === 'conexion' && (
-          <StepFrame
-            title="¿Desde dónde se van a conectar?"
-            help="Si alguien jugará desde otra casa, elige una de las dos últimas."
-          >
+          <StepFrame title={t('wizard.connection.title')} help={t('wizard.connection.help')}>
             <Choices options={CONNECTIONS} value={connection} onChange={setConnection} columns={1} />
             {connection !== 'local' && (
               <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-                Cuando termines tendrás una guía paso a paso en{' '}
-                <strong>Configuración → Conexión</strong> para dejarlo funcionando.
+                <Rich
+                  k="wizard.connection.guide"
+                  values={{
+                    path: (
+                      <strong>
+                        {t('panel.configuration')} → {t('panel.tab.connection')}
+                      </strong>
+                    )
+                  }}
+                />
               </div>
             )}
           </StepFrame>
@@ -449,68 +408,77 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'resumen' && (
           <div className="step-frame">
-            <h2>Todo listo, revísalo</h2>
-            <p className="step-help">
-              Así va a quedar tu servidor. Si algo no cuadra, toca en &quot;cambiar&quot;.
-            </p>
+            <h2>{t('wizard.summary.title')}</h2>
+            <p className="step-help">{t('wizard.summary.help', { change: t('wizard.change') })}</p>
 
             <div className="card" style={{ textAlign: 'left' }}>
-              <SummaryRow label="Nombre" value={name} onEdit={() => edit('nombre')} />
+              <SummaryRow label={t('wizard.summary.name')} value={name} onEdit={() => edit('nombre')} />
               <SummaryRow
-                label="Tipo"
+                label={t('mc.wizard.summary.type')}
                 value={DISTRIBUTION_LABELS[distribution].name}
                 onEdit={() => edit('tipo')}
               />
               <SummaryRow
-                label="Jugadores a la vez"
+                label={t('wizard.summary.players')}
                 value={String(expectedPlayers)}
                 onEdit={() => edit('jugadores')}
               />
               <SummaryRow
-                label="Modo de juego"
+                label={t('mc.wizard.summary.mode')}
                 value={labelOf(GAME_MODES, gameMode)}
                 onEdit={() => edit('modo')}
               />
               {hardcore ? (
-                <SummaryRow label="Dificultad" value="Difícil" autoNote="la fija el modo extremo" />
+                <SummaryRow
+                  label={t('mc.wizard.summary.difficulty')}
+                  value={t('mc.wizard.difficulty.hard')}
+                  autoNote={t('mc.wizard.summary.hardcoreSets')}
+                />
               ) : (
                 <SummaryRow
-                  label="Dificultad"
+                  label={t('mc.wizard.summary.difficulty')}
                   value={labelOf(DIFFICULTIES, difficulty)}
                   onEdit={() => edit('dificultad')}
                 />
               )}
               <SummaryRow
-                label="Mundo"
+                label={t('mc.wizard.summary.world')}
                 value={labelOf(LEVEL_TYPES, levelType)}
                 onEdit={() => edit('mundo')}
               />
               <SummaryRow
-                label="Peleas entre jugadores"
-                value={pvp === 'true' ? 'Permitidas' : 'Desactivadas'}
+                label={t('mc.wizard.summary.pvp')}
+                value={pvp === 'true' ? t('mc.wizard.summary.pvpOn') : t('mc.wizard.summary.pvpOff')}
                 onEdit={() => edit('pvp')}
               />
               <SummaryRow
-                label="Se conectan"
+                label={t('wizard.summary.connect')}
                 value={labelOf(CONNECTIONS, connection)}
                 onEdit={() => edit('conexion')}
               />
               <SummaryRow
-                label="Versión de Minecraft"
-                value={version ? `${version}${useTesting ? ' (en pruebas)' : ''}` : 'consultando...'}
-                autoNote="elegida por nosotros"
+                label={t('mc.wizard.summary.version')}
+                value={
+                  version
+                    ? `${version}${useTesting ? ` ${t('mc.wizard.summary.testing')}` : ''}`
+                    : t('wizard.summary.checking')
+                }
+                autoNote={byUs}
               />
               <SummaryRow
-                label="Memoria"
-                value={memoryMb ? `${(memoryMb / 1024).toFixed(1)} GB` : 'calculando...'}
-                autoNote="elegida por nosotros"
+                label={t('chooser.memory')}
+                value={
+                  memoryMb
+                    ? formatSize(memoryMb / 1024, 'GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                    : t('wizard.summary.calculating')
+                }
+                autoNote={byUs}
                 last
               />
             </div>
 
             <div className="help" style={{ textAlign: 'left', marginTop: -6, marginBottom: 16 }}>
-              Tus amigos tendrán que abrir Minecraft con la versión{' '}
-              <strong>{version ?? '...'}</strong> para poder entrar.
+              <Rich k="mc.wizard.summary.friendsVersion" values={{ version: <strong>{version ?? '...'}</strong> }} />
             </div>
 
             {/*
@@ -522,31 +490,26 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               <div className="alert warn" style={{ textAlign: 'left' }}>
                 <strong>
                   {useTesting
-                    ? `Vas a usar la ${testingVersion}, que está en pruebas`
-                    : `Ya ha salido la ${testingVersion}`}
+                    ? t('mc.wizard.testing.using', { version: testingVersion })
+                    : t('mc.wizard.testing.out', { version: testingVersion })}
                 </strong>
                 <p>
-                  El servidor para la {testingVersion} todavía no está terminado: solo hay
-                  compilaciones de prueba. Funcionan, pero pueden fallar, ir peor de rendimiento o
-                  dar problemas con los plugins. Lo seguro es quedarse en la {stableVersion}.
+                  {t('mc.wizard.testing.text', {
+                    version: testingVersion,
+                    stable: stableVersion ?? ''
+                  })}
                 </p>
-                <button
-                  style={{ marginTop: 10 }}
-                  onClick={() => setUseTesting(!useTesting)}
-                >
+                <button style={{ marginTop: 10 }} onClick={() => setUseTesting(!useTesting)}>
                   {useTesting
-                    ? `Mejor la ${stableVersion}, que va segura`
-                    : `Usar la ${testingVersion} de todas formas`}
+                    ? t('mc.wizard.testing.backToStable', { version: stableVersion ?? '' })
+                    : t('mc.wizard.testing.useAnyway', { version: testingVersion })}
                 </button>
               </div>
             )}
 
             <div className="card" style={{ textAlign: 'left', marginBottom: 0 }}>
-              <h3>Condiciones de Minecraft</h3>
-              <p className="hint">
-                Mojang exige aceptar su EULA para ejecutar un servidor. Solo hay que hacerlo una vez
-                por servidor.
-              </p>
+              <h3>{t('mc.wizard.eula.title')}</h3>
+              <p className="hint">{t('mc.wizard.eula.hint')}</p>
               <label className="row" style={{ cursor: 'pointer' }}>
                 <input
                   type="checkbox"
@@ -555,15 +518,21 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
                   style={{ width: 16, height: 16, flexShrink: 0 }}
                 />
                 <span>
-                  He leído y acepto el{' '}
-                  <a
-                    href="https://aka.ms/MinecraftEULA"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: 'var(--accent)' }}
-                  >
-                    EULA de Minecraft
-                  </a>
+                  <Rich
+                    k="mc.wizard.eula.accept"
+                    values={{
+                      link: (
+                        <a
+                          href="https://aka.ms/MinecraftEULA"
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ color: 'var(--accent)' }}
+                        >
+                          {t('mc.wizard.eula.link')}
+                        </a>
+                      )
+                    }}
+                  />
                 </span>
               </label>
             </div>
@@ -572,12 +541,16 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         <div className="row between wizard-nav">
           <button onClick={back}>
-            {editing ? 'Volver al resumen' : stepIndex <= 0 && onStep ? 'Cancelar' : 'Atrás'}
+            {editing
+              ? t('wizard.backToSummary')
+              : stepIndex <= 0 && onStep
+                ? t('common.cancel')
+                : t('wizard.back')}
           </button>
 
           {onStep ? (
             <button className="primary" disabled={!canContinue} onClick={next}>
-              {editing ? 'Listo' : 'Siguiente →'}
+              {editing ? t('wizard.done') : t('wizard.next')}
             </button>
           ) : (
             <button
@@ -585,7 +558,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               disabled={!eula || !version || !memoryMb}
               onClick={() => void create()}
             >
-              Crear servidor
+              {t('wizard.create')}
             </button>
           )}
         </div>

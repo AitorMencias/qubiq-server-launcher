@@ -13,6 +13,7 @@ import { RustSettingsPanel } from './SettingsPanel'
 import { WipeNotice, WipePanel } from './WipePanel'
 import { ModerationPanel } from './ModerationPanel'
 import icon from './icon.svg'
+import { Rich, t } from '../../i18n'
 
 /** Oxide y uMod, con la forma que espera la pantalla común de catálogo. */
 const pluginsApi: ModsApi = {
@@ -36,25 +37,25 @@ export const rustUi: GameUi = {
     return [
       {
         id: 'ajustes',
-        label: 'Ajustes',
+        label: t('tab.settings'),
         slot: 'first' as const,
         render: () => <RustSettingsPanel state={state} mode={mode} onSaved={onRefresh} />
       },
       {
         id: 'borrado',
-        label: 'Borrado',
+        label: t('rust.tab.wipe'),
         slot: 'afterConnection' as const,
         render: () => <WipePanel state={state} mode={mode} onChanged={onRefresh} />
       },
       {
         id: 'moderacion',
-        label: 'Moderación',
+        label: t('tab.moderation'),
         slot: 'afterConnection' as const,
         render: () => <ModerationPanel state={state} onChanged={onRefresh} />
       },
       {
         id: 'plugins',
-        label: 'Plugins',
+        label: t('tab.plugins'),
         slot: 'afterConnection' as const,
         render: () => (
           <CatalogModsPanel
@@ -63,29 +64,28 @@ export const rustUi: GameUi = {
             api={pluginsApi}
             loaderId="oxide"
             catalog={{ name: 'uMod', url: 'umod.org' }}
-            noun={{ one: 'plugin', many: 'plugins' }}
+            kind="plugin"
             liveChanges
-            unavailableLabel="No disponible"
-            playersTitle="Los jugadores no tienen que instalar nada"
+            unavailableLabel={t('rust.plugins.unavailable')}
+            playersTitle={t('rust.plugins.playersTitle')}
             playersNote={
-              <>
-                Los plugins de Oxide solo corren en el servidor: tus amigos entran con su Rust de
-                siempre. Eso sí, con Oxide puesto el servidor sale marcado como{' '}
-                <strong>modificado</strong> en la lista del juego (medido en su consulta de Steam),
-                y cada actualización de Rust lo quita hasta que sale su versión nueva, que suele
-                tardar unas horas tras el parche del mes.
-              </>
+              <Rich
+                k="rust.plugins.playersNote"
+                values={{ modified: <strong>{t('rust.plugins.modified')}</strong> }}
+              />
             }
-            searchPlaceholder="Por ejemplo: kits, teleport, stack size, gather"
+            searchPlaceholder={t('common.forExample', {
+              examples: 'kits, teleport, stack size, gather'
+            })}
             extra={
               <div className="row" style={{ marginTop: 14 }}>
                 <button onClick={() => void window.qubiq.rust.plugins.openFolder(state.manifest.id)}>
-                  Abrir la carpeta de plugins
+                  {t('rust.plugins.openFolder')}
                 </button>
                 {/* p.hint y no span: suelta en una tarjeta, una nota en
                     `span` sale a tamaño normal (lección de la fase 6). */}
                 <p className="hint" style={{ margin: 0 }}>
-                  La configuración de cada plugin es un fichero en <code>oxide/config</code>.
+                  <Rich k="rust.plugins.configNote" values={{ folder: <code>oxide/config</code> }} />
                 </p>
               </div>
             }
@@ -105,8 +105,8 @@ export const rustUi: GameUi = {
     return [
       {
         id: 'admin',
-        label: 'Hacer administrador',
-        help: 'Podrá usar la consola del juego (F1) para moderar. Le vale al momento.',
+        label: t('vh.action.admin'),
+        help: t('rust.action.adminHelp'),
         run: async (player) => {
           await window.qubiq.rust.moderation.makeAdmin(id, player)
           onRefresh()
@@ -114,9 +114,9 @@ export const rustUi: GameUi = {
       },
       {
         id: 'kick',
-        label: 'Echar',
+        label: t('fa.action.kick'),
         danger: true,
-        help: 'Lo saca del servidor. Puede volver a entrar cuando quiera.',
+        help: t('fa.action.kickHelp'),
         run: async (player) => {
           await window.qubiq.rust.moderation.kick(id, player)
           onRefresh()
@@ -124,9 +124,9 @@ export const rustUi: GameUi = {
       },
       {
         id: 'ban',
-        label: 'Vetar',
+        label: t('vh.action.ban'),
         danger: true,
-        help: 'Lo echa al momento y ya no puede volver a entrar con esa cuenta de Steam.',
+        help: t('rust.action.banHelp'),
         run: async (player) => {
           await window.qubiq.rust.moderation.ban(id, player, '')
           onRefresh()
@@ -143,54 +143,59 @@ export const rustUi: GameUi = {
     const tocados = Object.keys(changedSettings(data.settings)).length
 
     return [
-      { label: 'Mapa', value: worldSizeLabel(data.worldSize) },
-      { label: 'Semilla', value: String(data.seed) },
-      { label: 'Plazas', value: String(data.maxPlayers) },
+      { label: t('rust.details.map'), value: worldSizeLabel(data.worldSize) },
+      { label: t('fa.create.seed'), value: String(data.seed) },
+      { label: t('en.summary.slots'), value: String(data.maxPlayers) },
       {
-        label: 'Puertos',
-        value: `${manifest.port} y ${queryPortFor(manifest.port)} (UDP)${data.rustPlus ? ` · Rust+ ${rustPlusPortFor(manifest.port)} (TCP)` : ''}`
+        label: t('rust.details.ports'),
+        value:
+          t('rust.details.portsValue', { game: manifest.port, query: queryPortFor(manifest.port) }) +
+          (data.rustPlus ? ` · Rust+ ${rustPlusPortFor(manifest.port)} (TCP)` : '')
       },
       {
-        label: 'Consola remota',
-        value: `puerto ${rconPortFor(manifest.port)} (TCP), solo en este equipo · la usa la app`
+        label: t('rust.details.rcon'),
+        value: t('rust.details.rconValue', { port: rconPortFor(manifest.port) })
       },
-      { label: 'Ajustes cambiados', value: tocados === 0 ? 'ninguno, todo de serie' : String(tocados) },
       {
-        label: 'Borrado mensual',
-        value: data.wipe.auto ? 'lo hace la app sola' : 'con aviso, lo haces tú'
+        label: t('rust.details.changed'),
+        value: tocados === 0 ? t('rust.details.noneChanged') : String(tocados)
       },
-      { label: 'En la lista del juego', value: 'siempre (no se puede evitar)' },
-      { label: 'Versión de red', value: data.gameVersion ?? 'se sabrá al arrancarlo' },
-      { label: 'Build de Steam', value: data.buildId ?? 'desconocida' },
+      {
+        label: t('rust.details.wipe'),
+        value: data.wipe.auto ? t('rust.details.wipeAuto') : t('rust.details.wipeManual')
+      },
+      { label: t('en.details.listed'), value: t('rust.details.listedAlways') },
+      { label: t('rust.details.netVersion'), value: data.gameVersion ?? t('details.knownAtStart') },
+      { label: t('details.steamBuild'), value: data.buildId ?? t('details.unknown') },
       {
         label: 'Oxide',
         value: data.oxide
-          ? `${data.oxide.version}${data.oxide.pending ? ' · esperando la versión de este mes' : ''}`
-          : 'sin poner'
+          ? `${data.oxide.version}${data.oxide.pending ? ` · ${t('rust.details.oxidePending')}` : ''}`
+          : t('rust.details.oxideNone')
       }
     ]
   },
 
-  routerSafetyNote: (
-    <>
-      Abrir los puertos expone este ordenador a internet. Rust necesita <strong>dos</strong>, los
-      dos por UDP (y uno TCP más si enciendes Rust+). La consola remota no se abre nunca: la app la
-      deja solo dentro de este equipo. Y recuerda que Rust sale siempre en su lista pública, así que
-      tener a mano la pestaña de Moderación no está de más.
-    </>
-  ),
+  get routerSafetyNote() {
+    return (
+      <Rich
+        k="rust.routerSafety"
+        values={{ two: <strong>{t('rust.routerSafety.two')}</strong> }}
+      />
+    )
+  },
 
   async describeLoss(manifest) {
-    if (manifest.game !== 'rust') return 'Su mapa'
+    if (manifest.game !== 'rust') return t('rust.loss.map')
     try {
       const map = await window.qubiq.rust.map.get(manifest.id)
       const plugins = manifest.data.plugins?.length ?? 0
       const base = map.current
-        ? `Su mapa de ${map.current.size} m, con todo lo construido`
-        : 'Su mapa, que todavía no se ha llegado a generar'
-      return plugins > 0 ? `${base}, y sus ${plugins} plugins con su configuración` : base
+        ? t('rust.loss.sized', { size: map.current.size })
+        : t('rust.loss.notGenerated')
+      return plugins > 0 ? t('rust.loss.withPlugins', { base, count: plugins }) : base
     } catch {
-      return 'Su mapa, con todo lo construido'
+      return t('rust.loss.built')
     }
   }
 }

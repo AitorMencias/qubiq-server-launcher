@@ -7,6 +7,7 @@ import { ConfigPanel } from './ConfigPanel'
 import { WorldsPanel } from './WorldsPanel'
 import { ContentPanel } from './ContentPanel'
 import icon from './icon.svg'
+import { Rich, formatSize, quote, t } from '../../i18n'
 
 /** Piezas de interfaz de Minecraft. */
 export const minecraftUi: GameUi = {
@@ -22,7 +23,7 @@ export const minecraftUi: GameUi = {
     return [
       {
         id: 'ajustes',
-        label: 'Ajustes',
+        label: t('tab.settings'),
         slot: 'first' as const,
         render: () => <ConfigPanel state={state} mode={mode} onSaved={onRefresh} />
       },
@@ -30,7 +31,7 @@ export const minecraftUi: GameUi = {
         ? [
             {
               id: 'mundos',
-              label: 'Mundos',
+              label: t('tab.worlds'),
               slot: 'afterConnection' as const,
               render: () => <WorldsPanel state={state} mode={mode} onChanged={onRefresh} />
             }
@@ -41,7 +42,7 @@ export const minecraftUi: GameUi = {
         ? [
             {
               id: 'contenido',
-              label: kind === 'mods' ? 'Mods' : 'Plugins',
+              label: kind === 'mods' ? t('tab.mods') : t('tab.plugins'),
               slot: 'afterConnection' as const,
               render: () => <ContentPanel state={state} mode={mode} />
             }
@@ -59,9 +60,18 @@ export const minecraftUi: GameUi = {
     const id = state.manifest.id
     const command = (text: string): Promise<void> => window.qubiq.server.command(id, text)
     return [
-      { id: 'kick', label: 'Expulsar', run: (player) => command(`kick ${player} Expulsado`) },
-      { id: 'ban', label: 'Banear', danger: true, run: (player) => command(`ban ${player} Baneado`) },
-      { id: 'op', label: 'Dar OP', run: (player) => command(`op ${player}`) }
+      {
+        id: 'kick',
+        label: t('mod.kick'),
+        run: (player) => command(`kick ${player} ${t('mc.kickReason')}`)
+      },
+      {
+        id: 'ban',
+        label: t('mod.ban'),
+        danger: true,
+        run: (player) => command(`ban ${player} ${t('mc.banReason')}`)
+      },
+      { id: 'op', label: t('mc.giveOp'), run: (player) => command(`op ${player}`) }
     ]
   },
 
@@ -69,38 +79,43 @@ export const minecraftUi: GameUi = {
     const { data } = minecraftOf(manifest)
     return [
       {
-        label: 'Tipo',
-        value: `${DISTRIBUTION_LABELS[data.distribution].name}${data.custom ? ' · a medida' : ''}`
+        label: t('mc.wizard.summary.type'),
+        value: `${DISTRIBUTION_LABELS[data.distribution].name}${
+          data.custom ? ` · ${t('games.summary.custom')}` : ''
+        }`
       },
-      { label: 'Versión de Minecraft', value: data.minecraftVersion },
+      { label: t('mc.wizard.summary.version'), value: data.minecraftVersion },
       ...(data.build ? [{ label: 'Build', value: data.build }] : []),
-      ...(data.custom ? [{ label: 'Arranca con', value: data.custom.startFile }] : []),
+      ...(data.custom ? [{ label: t('mc.details.startsWith'), value: data.custom.startFile }] : []),
       { label: 'Java', value: String(data.javaMajor) },
       {
-        label: 'Memoria',
+        label: t('chooser.memory'),
         // Si la fija su script, el número del manifiesto no es el que usa.
         value:
           data.custom?.memory === 'script'
-            ? 'La que fije su archivo de inicio'
-            : `${(data.memoryMb / 1024).toFixed(1)} GB`
+            ? t('mc.details.memoryByScript')
+            : formatSize(data.memoryMb / 1024, 'GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
       }
     ]
   },
 
-  routerSafetyNote: (
-    <>
-      Abrir un puerto expone este ordenador a internet. Mantén activado <strong>&quot;Exigir cuenta
-      oficial de Minecraft&quot;</strong> en Ajustes, y considera activar{' '}
-      <strong>&quot;Solo pueden entrar los invitados&quot;</strong> para que solo entre gente que tú
-      hayas añadido.
-    </>
-  ),
+  // Getter: el texto se pide al pintar, en el idioma de ese momento.
+  get routerSafetyNote() {
+    return (
+      <Rich
+        k="mc.routerSafety"
+        vars={{ settings: t('tab.settings') }}
+        values={{
+          online: <strong>{quote(t('mc.prop.online-mode.label'))}</strong>,
+          whitelist: <strong>{quote(t('mc.prop.white-list.label'))}</strong>
+        }}
+      />
+    )
+  },
 
   async describeLoss(manifest) {
     const worlds = await window.qubiq.minecraft.worlds.list(manifest.id).catch(() => null)
-    if (worlds === null) return 'Sus mundos'
-    return worlds.length === 1
-      ? 'Su mundo, con todo lo construido'
-      : `Sus ${worlds.length} mundos, con todo lo construido`
+    if (worlds === null) return t('mc.loss.worlds')
+    return t('mc.loss.count', { count: worlds.length })
   }
 }

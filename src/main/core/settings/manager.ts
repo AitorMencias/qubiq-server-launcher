@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { readFile, writeFile } from 'node:fs/promises'
 import type { AppSettings } from '@shared/types'
+import { isLanguage } from '@shared/i18n'
 import { dataRoot, ensureDir } from '../paths'
 
 /**
@@ -27,7 +28,11 @@ export async function readSettings(): Promise<AppSettings> {
     const parsed = JSON.parse(raw) as Partial<AppSettings>
     // Se fusiona con los valores por defecto para que añadir un ajuste nuevo
     // no rompa los ficheros ya escritos.
-    return { ...DEFAULTS, ...parsed }
+    const settings: AppSettings = { ...DEFAULTS, ...parsed }
+    // Un idioma que esta versión no conoce (quitado, o de una más nueva) se
+    // olvida y se vuelve al de Windows, en vez de pedir un diccionario que no hay.
+    if (settings.language !== undefined && !isLanguage(settings.language)) delete settings.language
+    return settings
   } catch {
     return { ...DEFAULTS }
   }
@@ -36,6 +41,8 @@ export async function readSettings(): Promise<AppSettings> {
 export async function updateSettings(changes: Partial<AppSettings>): Promise<AppSettings> {
   const current = await readSettings()
   const updated: AppSettings = { ...current, ...changes }
+  // `language: undefined` es «como Windows»: se quita del fichero.
+  if ('language' in changes && changes.language === undefined) delete updated.language
   await ensureDir(dataRoot())
   await writeFile(settingsPath(), JSON.stringify(updated, null, 2), 'utf8')
   return updated

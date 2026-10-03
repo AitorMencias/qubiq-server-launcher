@@ -1,8 +1,20 @@
-import { app, BrowserWindow, Menu, dialog, powerSaveBlocker } from 'electron'
+import { app, BrowserWindow, Menu, Tray, dialog, nativeImage, powerSaveBlocker, type NativeImage } from 'electron'
 import { join } from 'node:path'
 import { registerIpc } from './ipc'
+import { registerRemoteIpc } from './ipc/remote'
 import { service } from './core/service'
-import { setDataRoot, setResourcesRoot } from './core/paths'
+import { RemoteAccess } from './core/remote'
+import { serviceOrderHost } from './core/remote/serviceHost'
+import { gameResourcePath, setDataRoot, setResourcesRoot } from './core/paths'
+import { readSettings } from './core/settings/manager'
+import type { AppSettings } from '@shared/types'
+import { resolveLanguage, setLanguage, t } from '@shared/i18n'
+import {
+  finishRelocation,
+  readDataLocation,
+  resolveDataRoot,
+  runPendingRelocation
+} from './dataFolder'
 
 /**
  * Proceso principal.
@@ -24,12 +36,52 @@ import { setDataRoot, setResourcesRoot } from './core/paths'
  *
  * Fijarla además evita espacios en la ruta, que es donde tropiezan el
  * instalador de Forge y otras herramientas (§14.1).
+ *
+ * Los datos de la app pueden vivir en otra carpeta elegida en la
+ * configuración; esta sigue siendo la de Electron y la que guarda dónde están
+ * (`data-location.json`, ver `dataFolder.ts`).
  */
 app.setPath('userData', join(app.getPath('appData'), 'qubiq-server-launcher'))
+
+/**
+ * Lo de Chromium (su caché HTTP, `Local Storage`, `GPUCache`…) en una
+ * subcarpeta propia, no mezclado con los datos de la app.
+ *
+ * Por defecto va a la misma carpeta que `userData`, y su caché se llama
+ * `Cache`: en Windows es LA MISMA carpeta que nuestra `cache` de descargas. Al
+ * mover la carpeta de datos se arrastraban ficheros que Chromium tiene
+ * abiertos, y al volver a abrir la app él recreaba `Cache` en el sitio viejo,
+ * que así parecía tener datos de QubiQ (recorrido del traslado, 0.11.0).
+ */
+app.setPath('sessionData', join(app.getPath('userData'), 'electron'))
+
+/**
+ * Una sola copia de la app. Con el acceso remoto encendido, cerrar la ventana
+ * la esconde en la bandeja y es fácil volver a abrirla sin darse cuenta: dos
+ * copias gestionarían los mismos servidores y pelearían por el puerto. La
+ * segunda solo enseña la primera. El bloqueo va por carpeta de `userData`, así
+ * que el recorrido de interfaz con datos aislados no choca con la app real.
+ */
+const primary = app.requestSingleInstanceLock()
+if (!primary) app.quit()
 
 let mainWindow: BrowserWindow | null = null
 let powerBlockerId: number | null = null
 let quitting = false
+let tray: Tray | null = null
+let trayHintShown = false
+
+/**
+ * Control remoto por órdenes (§19.31). La página remota sale de la misma
+ * compilación que la interfaz (`out/renderer/remote.html`).
+ */
+const remote = new RemoteAccess({
+  host: serviceOrderHost(),
+  staticRoot: join(__dirname, '../renderer'),
+  // Solo para los recorridos de interfaz: `127.0.0.1`, para no abrirse a la
+  // red de casa al probar. La app normal escucha en todas las interfaces.
+  listenHost: process.env['QUBIQ_REMOTE_LISTEN'] || undefined
+})
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -56,11 +108,93 @@ function createWindow(): void {
 
   mainWindow.once('ready-to-show', () => mainWindow?.show())
 
+  // Con el acceso remoto encendido, cerrar la ventana no cierra la app: si no,
+  // nadie recibiría las órdenes. Se queda en la bandeja.
+  mainWindow.on('close', (event) => {
+    // Sin icono en la bandeja no se esconde: no habría forma de volver a abrirla.
+    if (quitting || !remote.enabled || !tray) return
+    event.preventDefault()
+    mainWindow?.hide()
+    if (!trayHintShown) {
+      trayHintShown = true
+      tray.displayBalloon({
+        title: t('remote.tray.hiddenTitle'),
+        content: t('remote.tray.hiddenText'),
+        noSound: true
+      })
+    }
+  })
+
   if (process.env['ELECTRON_RENDERER_URL']) {
     void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     void mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+}
+
+function showWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow()
+    return
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+}
+
+/**
+ * El icono de la bandeja. En los recursos de la app (empaquetada, junto al
+ * ejecutable); en desarrollo, el de `build/`; y si no aparece ninguno, el del
+ * propio ejecutable, que siempre existe.
+ */
+async function trayIcon(): Promise<NativeImage> {
+  for (const path of [gameResourcePath('app', 'icon.ico'), join(app.getAppPath(), 'build', 'icon.ico')]) {
+    const image = nativeImage.createFromPath(path)
+    if (!image.isEmpty()) return image
+  }
+  return app.getFileIcon(process.execPath, { size: 'small' })
+}
+
+/**
+ * Icono en la bandeja mientras el acceso remoto esté encendido.
+ *
+ * ⚠ Nunca lanza: se llama desde el aviso `changed` del acceso remoto, y un
+ * fallo aquí subiría hasta quien lo está encendiendo y lo dejaría a medias.
+ */
+let trayPending: Promise<void> | null = null
+function updateTray(): void {
+  if (!remote.enabled) {
+    tray?.destroy()
+    tray = null
+    return
+  }
+  if (tray) {
+    setTrayMenu(tray)
+    return
+  }
+  if (trayPending) return
+  trayPending = trayIcon()
+    .then((icon) => {
+      if (!remote.enabled || tray) return
+      tray = new Tray(icon)
+      tray.on('click', showWindow)
+      setTrayMenu(tray)
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      trayPending = null
+    })
+}
+
+function setTrayMenu(tray: Tray): void {
+  tray.setToolTip(t('remote.tray.tooltip'))
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: t('remote.tray.open'), click: showWindow },
+      { type: 'separator' },
+      { label: t('remote.tray.quit'), click: () => app.quit() }
+    ])
+  )
 }
 
 function updatePowerBlocker(): void {
@@ -73,25 +207,75 @@ function updatePowerBlocker(): void {
   }
 }
 
+/**
+ * Idioma del proceso principal (sus diálogos nativos). El de la interfaz lo
+ * decide ella con el mismo criterio: el elegido o, si no, el de Windows.
+ */
+function applyLanguage(settings: AppSettings | null): void {
+  setLanguage(resolveLanguage(settings?.language, app.getPreferredSystemLanguages()))
+}
+
+app.on('second-instance', () => showWindow())
+
 void app.whenReady().then(async () => {
+  if (!primary) return
+
   // Sin menú nativo: File/Edit/View no significan nada para el usuario al que
   // va dirigida la app, y solo restan espacio y claridad (§3).
   Menu.setApplicationMenu(null)
-
-  // El núcleo no conoce Electron: se le inyecta dónde guardar los datos (§5).
-  setDataRoot(app.getPath('userData'))
 
   // Los jars de los plugins oficiales viajan con la aplicación. En desarrollo
   // están en el repositorio; empaquetados, junto al ejecutable.
   setResourcesRoot(
     app.isPackaged ? process.resourcesPath : join(app.getAppPath(), 'resources')
   )
+
+  // Antes de leer nada hay que saber dónde están los datos: pueden haberse
+  // movido a otra carpeta desde la configuración (ver `dataFolder.ts`).
+  applyLanguage(null)
+  const location = await readDataLocation()
+  const move = location.pendingMove
+
+  // El núcleo no conoce Electron: se le inyecta dónde guardar los datos (§5).
+  if (move) {
+    // Traslado pedido en la sesión anterior. Se hace ahora, ANTES de arrancar
+    // el núcleo, con la ventana enseñando el progreso: así nada tiene abiertos
+    // los ficheros que se mueven.
+    setDataRoot(move.from)
+    applyLanguage(await readSettings().catch(() => null))
+    registerIpc(() => mainWindow)
+    createWindow()
+    setDataRoot(await runPendingRelocation(move))
+  } else {
+    const root = await resolveDataRoot(location)
+    if (!root) {
+      app.quit()
+      return
+    }
+    setDataRoot(root)
+    applyLanguage(await readSettings().catch(() => null))
+    registerIpc(() => mainWindow)
+  }
+
   await service.initialize()
-  registerIpc(() => mainWindow)
 
   service.on('status', () => updatePowerBlocker())
+  service.on('settings', (settings: AppSettings) => {
+    applyLanguage(settings)
+    // El menú de la bandeja también cambia de idioma.
+    if (tray) updateTray()
+  })
 
-  createWindow()
+  // Después del núcleo: si estaba encendido, se pone a escuchar ya. Un fallo
+  // (puerto ocupado, certificado) queda en su estado y lo enseña Configuración.
+  registerRemoteIpc(remote, () => mainWindow)
+  remote.on('changed', () => updateTray())
+  service.on('removed', (id: string) => void remote.forgetServer(id).catch(() => undefined))
+  await remote.init().catch(() => undefined)
+  updateTray()
+
+  if (mainWindow) finishRelocation()
+  else createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -103,26 +287,47 @@ void app.whenReady().then(async () => {
  * Este es el punto donde un launcher mal hecho corrompe mundos.
  */
 app.on('before-quit', (event) => {
-  if (quitting || !service.hasRunningServers()) return
+  if (quitting) return
+  if (!service.hasRunningServers()) {
+    // Se marca igualmente: la ventana tiene que saber que esto es salir de
+    // verdad y no esconderse en la bandeja.
+    quitting = true
+    return
+  }
 
   event.preventDefault()
+  showWindow()
 
   const choice = dialog.showMessageBoxSync({
     type: 'question',
-    buttons: ['Cerrar servidores y salir', 'Cancelar'],
+    buttons: [t('main.quit.confirm'), t('main.quit.cancel')],
     defaultId: 0,
     cancelId: 1,
-    title: 'Hay servidores arrancados',
-    message: 'Tienes servidores en marcha.',
-    detail:
-      'Se cerrarán correctamente para no dañar el mundo. Puede tardar unos segundos ' +
-      'mientras guardan la partida.'
+    title: t('main.quit.title'),
+    message: t('main.quit.message'),
+    detail: t('main.quit.detail')
   })
 
   if (choice !== 0) return
 
   quitting = true
   void service.stopAll().finally(() => app.quit())
+})
+
+/**
+ * Lo último: el acceso remoto deja de escuchar y guarda lo pendiente, todo
+ * síncrono.
+ *
+ * No se cancela la salida para esperar a nada. Se probó: con `will-quit`
+ * cancelado, un segundo `app.quit()` no hace nada (la app se quedaba viva y sin
+ * ventana), y forzarla con `app.exit()` dejaba a veces procesos de Chromium
+ * huérfanos (medido con Playwright, ANALISIS.md §19.31).
+ */
+app.on('will-quit', () => {
+  if (!primary) return
+  tray?.destroy()
+  tray = null
+  remote.shutdownNow()
 })
 
 app.on('window-all-closed', () => {

@@ -11,6 +11,7 @@ import {
   type ValheimGlobalKey,
   type ValheimPreset
 } from '@shared/games/valheim/types'
+import { Rich, t } from '../../i18n'
 
 /**
  * Ajustes de un servidor de Valheim.
@@ -71,11 +72,7 @@ export function ValheimSettingsPanel({ state, mode, onSaved }: Props): React.JSX
     setError(null)
     try {
       await window.qubiq.instances.update(manifest.id, { data } as ManifestChanges)
-      setNotice(
-        running
-          ? 'Guardado. Los cambios entran la próxima vez que arranques el servidor.'
-          : 'Guardado.'
-      )
+      setNotice(running ? t('vh.settings.savedRunning') : t('vh.settings.saved'))
       onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -88,7 +85,7 @@ export function ValheimSettingsPanel({ state, mode, onSaved }: Props): React.JSX
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo guardar</strong>
+          <strong>{t('common.saveFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -96,43 +93,34 @@ export function ValheimSettingsPanel({ state, mode, onSaved }: Props): React.JSX
 
       {running && (
         <div className="alert info">
-          <strong>El servidor está arrancado</strong>
-          <p>
-            Valheim lee toda su configuración al arrancar y no la vuelve a mirar. Puedes cambiar lo
-            que quieras, pero no se notará hasta que lo pares y lo vuelvas a arrancar.
-          </p>
+          <strong>{t('vh.settings.running')}</strong>
+          <p>{t('vh.settings.runningText')}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Quién puede entrar</h3>
+        <h3>{t('vh.settings.whoJoins')}</h3>
 
         <div className="field">
-          <label>Contraseña del servidor</label>
+          <label>{t('vh.settings.password')}</label>
           <input
             type="text"
             value={data.password}
             maxLength={40}
-            placeholder="Vacío = sin contraseña"
+            placeholder={t('wizard.password.emptyNone')}
             onChange={(e) => set({ password: e.target.value })}
           />
-          <div className="help">
-            La que escriben tus amigos al entrar. Se ve a propósito: es tuya y la vas a tener que
-            repartir.
-          </div>
+          <div className="help">{t('vh.settings.passwordHelp')}</div>
           {!passwordOk && (
             <div className="alert error" style={{ marginTop: 10 }}>
-              <strong>Demasiado corta</strong>
-              <p>Valheim pide al menos {MIN_PASSWORD_LENGTH} caracteres, o ninguno.</p>
+              <strong>{t('vh.settings.tooShort')}</strong>
+              <p>{t('vh.settings.tooShortText', { min: MIN_PASSWORD_LENGTH })}</p>
             </div>
           )}
           {passwordInName && (
             <div className="alert error" style={{ marginTop: 10 }}>
-              <strong>La contraseña está dentro del nombre del servidor</strong>
-              <p>
-                El nombre lo ve cualquiera que mire la lista de servidores, así que la contraseña
-                dejaría de serlo. Cambia una de las dos cosas.
-              </p>
+              <strong>{t('vh.settings.inName')}</strong>
+              <p>{t('vh.settings.inNameText')}</p>
             </div>
           )}
         </div>
@@ -144,24 +132,22 @@ export function ValheimSettingsPanel({ state, mode, onSaved }: Props): React.JSX
             onChange={(e) => set({ listed: e.target.checked })}
             style={{ width: 16, height: 16, flexShrink: 0 }}
           />
-          <span>Que aparezca en la lista pública de servidores de Steam</span>
+          <span>{t('vh.create.listed')}</span>
         </label>
         <div className="help">
-          Con esto cualquiera puede encontrar tu servidor buscándolo en Steam, y ahí sale tu
-          dirección de internet. A cambio, la app puede preguntarle cuánta gente hay dentro y
-          comprobar desde fuera que se llega. Sin esto, el servidor <strong>no contesta</strong> a
-          esas preguntas ni desde tu propio equipo.
+          <Rich
+            k="vh.settings.listedHelp"
+            values={{ noAnswer: <strong>{t('vh.settings.noAnswer')}</strong> }}
+          />
         </div>
       </div>
 
       <div className="card">
-        <h3>Dificultad</h3>
-        <p className="hint">
-          Cambia cómo de duro es el mundo. Afecta a la partida entera, no a cada jugador.
-        </p>
+        <h3>{t('mc.wizard.summary.difficulty')}</h3>
+        <p className="hint">{t('vh.settings.difficultyHint')}</p>
 
         <div className="field">
-          <label>Preajuste</label>
+          <label>{t('vh.create.preset')}</label>
           <select
             value={data.preset}
             onChange={(e) => set({ preset: e.target.value as ValheimPreset })}
@@ -198,11 +184,8 @@ export function ValheimSettingsPanel({ state, mode, onSaved }: Props): React.JSX
 
       {advanced && (
         <div className="card">
-          <h3>Reglas del mundo</h3>
-          <p className="hint">
-            Son de sí o no, y se aplican a todo el mundo a la vez. Cambiarlas altera bastante la
-            partida.
-          </p>
+          <h3>{t('vh.create.rules')}</h3>
+          <p className="hint">{t('vh.settings.rulesHint')}</p>
           {GLOBAL_KEYS.map((rule) => (
             <label className="row" key={rule.key} style={{ cursor: 'pointer', marginBottom: 10 }}>
               <input
@@ -224,10 +207,10 @@ export function ValheimSettingsPanel({ state, mode, onSaved }: Props): React.JSX
 
       {advanced && (
         <div className="card">
-          <h3>Guardado</h3>
+          <h3>{t('vh.settings.saving')}</h3>
 
           <div className="field">
-            <label>Guardar el mundo cada</label>
+            <label>{t('vh.settings.saveEvery')}</label>
             <select
               value={data.saveIntervalSeconds}
               onChange={(e) => set({ saveIntervalSeconds: Number(e.target.value) })}
@@ -240,14 +223,11 @@ export function ValheimSettingsPanel({ state, mode, onSaved }: Props): React.JSX
                 )
               )}
             </select>
-            <div className="help">
-              Cuanto más a menudo, menos se pierde si se va la luz. El servidor se queda un instante
-              clavado en cada guardado, así que tampoco conviene pasarse.
-            </div>
+            <div className="help">{t('vh.settings.saveEveryHelp')}</div>
           </div>
 
           <div className="field">
-            <label>Copias que guarda el propio juego</label>
+            <label>{t('vh.settings.gameBackups')}</label>
             <input
               type="number"
               min={0}
@@ -255,10 +235,7 @@ export function ValheimSettingsPanel({ state, mode, onSaved }: Props): React.JSX
               value={data.backups}
               onChange={(e) => set({ backups: Number(e.target.value) })}
             />
-            <div className="help">
-              Son las que hace Valheim por su cuenta, aparte de las de la app. No sustituyen a las
-              copias de seguridad de QubiQ: están en la misma carpeta que el mundo.
-            </div>
+            <div className="help">{t('vh.settings.gameBackupsHelp')}</div>
           </div>
         </div>
       )}
@@ -269,11 +246,11 @@ export function ValheimSettingsPanel({ state, mode, onSaved }: Props): React.JSX
           disabled={busy || !changed || !passwordOk || passwordInName}
           onClick={() => void save()}
         >
-          {busy ? 'Guardando…' : 'Guardar cambios'}
+          {busy ? t('common.saving') : t('common.saveChanges')}
         </button>
         {changed && (
           <button disabled={busy} onClick={() => setData(original)}>
-            Descartar
+            {t('cfg.discard')}
           </button>
         )}
       </div>

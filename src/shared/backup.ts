@@ -8,6 +8,7 @@
  */
 
 import type { BackupSettings, InstanceManifest } from './types'
+import { t, type MessageKey } from './i18n'
 
 /**
  * Menos de esto no se permite: cada copia pide guardar al servidor y comprime
@@ -32,12 +33,12 @@ export function minutesToHours(minutes: number): number {
 /** Por qué no vale un intervalo, o null si vale. */
 export function intervalProblem(minutes: number): string | null {
   if (!Number.isFinite(minutes) || !Number.isInteger(minutes)) {
-    return 'El intervalo tiene que ser un número entero de minutos.'
+    return t('backup.problem.integer')
   }
   if (minutes < MIN_BACKUP_MINUTES) {
-    return `El mínimo son ${MIN_BACKUP_MINUTES} minutos: más a menudo cargaría demasiado el servidor.`
+    return t('backup.problem.min', { min: MIN_BACKUP_MINUTES })
   }
-  if (minutes > MAX_BACKUP_MINUTES) return 'El máximo es una semana.'
+  if (minutes > MAX_BACKUP_MINUTES) return t('backup.problem.max')
   return null
 }
 
@@ -90,16 +91,16 @@ export function recommendedInterval(
   const bySize = step.minutes
   const sizeReason =
     worldBytes === 0
-      ? 'Todavía no hay nada guardado; se recalculará cuando crezca.'
+      ? t('backup.reason.empty')
       : bySize <= 30
-        ? 'Es ligero: cada copia tarda poco y se puede hacer a menudo.'
-        : 'Pesa bastante: cada copia comprime todo y ocupa el disco un rato.'
+        ? t('backup.reason.light')
+        : t('backup.reason.heavy')
 
   const save = gameSaveMinutes(manifest)
   if (save !== null && save > bySize) {
     return {
       minutes: Math.max(save, MIN_BACKUP_MINUTES),
-      reason: `El servidor solo guarda la partida cada ${formatMinutes(save)}: copias más frecuentes saldrían repetidas.`
+      reason: t('backup.reason.gameSaves', { interval: formatMinutes(save) })
     }
   }
   return { minutes: bySize, reason: sizeReason }
@@ -112,20 +113,53 @@ export function keepForRecommendedHistory(minutes: number): number {
 
 /** Minutos a texto: 5 -> "5 minutos", 90 -> "1 h 30 min", 120 -> "2 horas". */
 export function formatMinutes(minutes: number): string {
-  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`
+  if (minutes < 60) return t('time.minutes', { count: minutes })
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
-  if (rest === 0) return `${hours} ${hours === 1 ? 'hora' : 'horas'}`
-  return `${hours} h ${rest} min`
+  if (rest === 0) return t('time.hours', { count: hours })
+  return t('time.hoursMinutes', { h: hours, m: rest })
 }
 
 /** Tiempo largo a texto aproximado: 4320 -> "3 días". */
 export function formatSpan(minutes: number): string {
   if (minutes < 24 * 60) return formatMinutes(minutes)
   const days = Math.round(minutes / (24 * 60))
-  if (days < 7) return `${days} ${days === 1 ? 'día' : 'días'}`
+  if (days < 7) return t('time.days', { count: days })
   const weeks = Math.round(days / 7)
-  if (weeks < 5) return `${weeks} ${weeks === 1 ? 'semana' : 'semanas'}`
+  if (weeks < 5) return t('time.weeks', { count: weeks })
   const months = Math.round(days / 30)
-  return `${months} ${months === 1 ? 'mes' : 'meses'}`
+  return t('time.months', { count: months })
+}
+
+/**
+ * El motivo de una copia, en el idioma de la interfaz.
+ *
+ * El núcleo lo guarda dentro de la copia, en español (es un dato de la copia,
+ * y las ya hechas lo tienen así). Aquí se reconocen los que escribe la app y
+ * se traducen al enseñarlos; uno que no se reconozca se enseña tal cual.
+ */
+const REASONS: [RegExp, MessageKey][] = [
+  [/^Copia manual$/, 'backup.why.manual'],
+  [/^Copia programada$/, 'backup.why.scheduled'],
+  [/^Copia previa a reinstalar$/, 'backup.why.reinstall'],
+  [/^Copia previa a cambiar de versión$/, 'backup.why.version'],
+  [/^Estado previo a restaurar (.+)$/, 'backup.why.restore'],
+  [/^Copia previa a borrar el mundo (.+)$/, 'backup.why.deleteWorld'],
+  [/^Copia previa a borrar "(.+)"$/, 'backup.why.deleteWorld'],
+  [/^Antes de recuperar (.+)$/, 'backup.why.recover'],
+  [/^Copia previa al borrado del mapa$/, 'backup.why.wipe'],
+  [/^(?:Copia previa a actualizar|Antes de actualizar) (.+)$/, 'backup.why.update'],
+  [/^Copia previa a crear la partida (.+)$/, 'backup.why.newSession'],
+  [/^Copia previa a cargar (.+)$/, 'backup.why.load'],
+  [/^Copia previa a borrar la partida (.+)$/, 'backup.why.deleteSession'],
+  [/^Copia previa a cambiar las reglas de la partida$/, 'backup.why.rules'],
+  [/^Antes de poner la dificultad (.+)$/, 'backup.why.preset']
+]
+
+export function backupReasonLabel(reason: string): string {
+  for (const [pattern, key] of REASONS) {
+    const match = pattern.exec(reason)
+    if (match) return t(key, { name: match[1] ?? '' })
+  }
+  return reason
 }

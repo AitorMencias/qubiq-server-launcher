@@ -70,7 +70,16 @@ export const LOADER_PATHS = [
 const DEEPEST_FILE = 'valheim_server_Data\\Managed\\UnityEngine.GraphicsStateCollectionSerializerModule.dll'
 
 /** El límite de Windows para una ruta, con un margen por si el juego crece. */
-const MAX_PATH = 259
+export const MAX_PATH = 259
+
+/**
+ * Lo que mide la ruta que decide si BepInEx arranca, para una carpeta de
+ * servidor cualquiera. Aparte de `assertPathFits` porque cambiar la carpeta de
+ * datos de sitio tiene que medirlo ANTES de mover nada, en la ruta de destino.
+ */
+export function modsPathLength(serverFolder: string): number {
+  return join(serverFolder, DEEPEST_FILE).length
+}
 
 /** Carpetas de BepInEx a las que puede ir el contenido de un paquete. */
 const BEPINEX_DIRS = new Set(['plugins', 'patchers', 'monomod', 'core', 'config'])
@@ -428,13 +437,13 @@ export async function installLoader(
  * «Could not run preloader!» perdido en un registro que no va a leer.
  */
 export function assertPathFits(instanceId: string): void {
-  const largo = join(serverDir(instanceId), DEEPEST_FILE).length
+  const largo = modsPathLength(serverDir(instanceId))
   if (largo <= MAX_PATH) return
   throw new ThunderstoreError(
     'La carpeta de este servidor está demasiado metida en el disco para poder llevar mods: ' +
       `la ruta se va a ${largo} caracteres y Windows solo admite ${MAX_PATH}. BepInEx no llegaría ` +
       'a cargar y el servidor arrancaría sin ningún mod. Mueve la carpeta de datos de la app a ' +
-      'un sitio más corto (Ajustes → Carpeta de datos) y vuelve a intentarlo.'
+      'un sitio más corto (Configuración de la app → Carpeta de datos) y vuelve a intentarlo.'
   )
 }
 

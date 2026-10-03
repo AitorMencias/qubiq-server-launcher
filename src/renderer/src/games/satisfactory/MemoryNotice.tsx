@@ -1,4 +1,5 @@
 import { MEMORY_MIN_GB, MEMORY_RECOMMENDED_GB } from '@shared/games/satisfactory/types'
+import { t } from '../../i18n'
 
 /**
  * Aviso de memoria de Satisfactory.
@@ -28,15 +29,11 @@ export function MemoryNotice({
     <div className={`alert ${short ? 'error' : 'warn'}`} style={{ textAlign: 'left' }}>
       <strong>
         {short
-          ? `Tu equipo tiene ${totalGb.toFixed(0)} GB de memoria y Satisfactory pide ${needed}`
-          : `Tu equipo tiene ${totalGb.toFixed(0)} GB de memoria: irá justo`}
+          ? t('sf.memory.short', { gb: Math.round(totalGb), needed })
+          : t('sf.memory.tight', { gb: Math.round(totalGb) })}
       </strong>
       <p>
-        {short
-          ? 'Puedes crearlo igualmente, pero es probable que vaya a tirones o que el servidor se cierre solo. '
-          : 'Con partidas grandes o más de cuatro jugadores se recomiendan 16 GB. '}
-        Cierra otros programas mientras juguéis, y ten en cuenta que jugar en este mismo equipo
-        también consume lo suyo.
+        {short ? t('sf.memory.shortText') : t('sf.memory.tightText')} {t('sf.memory.closeApps')}
       </p>
     </div>
   )

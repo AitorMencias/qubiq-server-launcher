@@ -7,6 +7,7 @@ import type {
   ContentConfigInfo
 } from '@shared/games/minecraft/types'
 import { FloatingWindow } from '../../FloatingWindow'
+import { t } from '../../i18n'
 
 /**
  * Configuración de un plugin o mod instalado, en una ventana flotante (§19.20).
@@ -108,13 +109,11 @@ export function ContentConfigWindow({
 
   function confirmDiscard(): boolean {
     if (dirty === 0) return true
-    return window.confirm(
-      `Tienes ${dirty === 1 ? 'un cambio' : `${dirty} cambios`} sin guardar. ¿Descartarlos?`
-    )
+    return window.confirm(t('cfg.confirmDiscard', { count: dirty }))
   }
 
   const close = useCallback(() => {
-    if (dirty === 0 || window.confirm(`Tienes cambios sin guardar. ¿Cerrar sin guardarlos?`)) {
+    if (dirty === 0 || window.confirm(t('cfg.confirmClose'))) {
       onClose()
     }
   }, [dirty, onClose])
@@ -183,14 +182,14 @@ export function ContentConfigWindow({
       setDrafts({})
       setNotice(
         result.written === 0
-          ? 'No había nada distinto que guardar.'
-          : `Guardado (${result.written === 1 ? '1 opción' : `${result.written} opciones`}). ` +
-              `La versión anterior queda en ${result.backupPath}. ` +
-              'Se aplicará la próxima vez que arranque el servidor.'
+          ? t('cfg.nothingToSave')
+          : t('cfg.savedNotice', { count: result.written, backup: result.backupPath ?? '' })
       )
     } catch (err) {
       const text = message(err)
       setError(text)
+      // El núcleo todavía avisa en español (sus mensajes se traducirán en la
+      // segunda entrega de los idiomas): se reconoce por su frase.
       setStale(text.includes('ha cambiado desde que lo abriste'))
     } finally {
       setSaving(false)
@@ -205,26 +204,24 @@ export function ContentConfigWindow({
   const footer = doc ? (
     <>
       <span className="modal-footer-status">
-        {dirty > 0
-          ? `${dirty === 1 ? '1 cambio' : `${dirty} cambios`} sin guardar`
-          : `Se guarda en ${doc.path}`}
+        {dirty > 0 ? t('cfg.unsaved', { count: dirty }) : t('mc.official.savedIn', { path: doc.path })}
       </span>
       <div className="row">
         <button onClick={() => void api().open(instanceId, doc.path).catch((e) => setError(message(e)))}>
-          Abrir en el editor
+          {t('cfg.openEditor')}
         </button>
         {dirty > 0 && (
           <button disabled={saving} onClick={() => setDrafts({})}>
-            Descartar
+            {t('cfg.discard')}
           </button>
         )}
         <button
           className="primary"
           disabled={readOnly || saving || dirty === 0 || problems.length > 0}
-          title={running ? 'Para el servidor para poder guardar.' : undefined}
+          title={running ? t('cfg.stopToSave') : undefined}
           onClick={() => void save()}
         >
-          {saving ? 'Guardando…' : 'Guardar'}
+          {saving ? t('common.saving') : t('cfg.save')}
         </button>
       </div>
     </>
@@ -233,17 +230,19 @@ export function ContentConfigWindow({
   return (
     <FloatingWindow
       wide
-      title={`Configurar ${info?.name ?? fileName.replace(/\.jar(\.disabled)?$/i, '')}`}
+      title={t('mc.official.configureTitle', {
+        name: info?.name ?? fileName.replace(/\.jar(\.disabled)?$/i, '')
+      })}
       subtitle={fileName}
       onClose={close}
       footer={footer}
     >
       <div className="cfg-layout">
         <aside className="cfg-files">
-          <div className="cfg-files-title">Ficheros</div>
+          <div className="cfg-files-title">{t('cfg.files')}</div>
           {files.length === 0 && !loading && (
             <p className="hint" style={{ margin: 0 }}>
-              Ninguno todavía.
+              {t('cfg.noneYet')}
             </p>
           )}
           {files.map((file) => (
@@ -255,15 +254,12 @@ export function ContentConfigWindow({
             >
               <span className="cfg-file-name">{file.path.slice(prefix.length)}</span>
               {file.note && <span className="cfg-file-note">{file.note}</span>}
-              {!file.format && <span className="cfg-file-note">Se abre con otro programa</span>}
+              {!file.format && <span className="cfg-file-note">{t('cfg.otherProgram')}</span>}
             </button>
           ))}
           {(info?.hiddenClientFiles ?? 0) > 0 && (
             <p className="cfg-files-hint">
-              {info!.hiddenClientFiles === 1
-                ? 'Hay 1 fichero de cliente que no se enseña'
-                : `Hay ${info!.hiddenClientFiles} ficheros de cliente que no se enseñan`}
-              : solo cuentan en el Minecraft de cada jugador.
+              {t('cfg.hiddenClient', { count: info!.hiddenClientFiles })}
             </p>
           )}
           <button
@@ -273,18 +269,18 @@ export function ContentConfigWindow({
             }
             disabled={!info || (info.folder !== null && files.length === 0)}
           >
-            Abrir la carpeta
+            {t('cfg.openFolder')}
           </button>
         </aside>
 
         <section className="cfg-main">
           {error && (
             <div className="alert error">
-              <strong>{stale ? 'El fichero ha cambiado' : 'No se pudo completar la operación'}</strong>
+              <strong>{stale ? t('cfg.changedTitle') : t('backup.error')}</strong>
               <p>{error}</p>
               {stale && selected && (
                 <button style={{ marginTop: 10 }} onClick={() => void load(selected)}>
-                  Volver a abrirlo (se pierden los cambios sin guardar)
+                  {t('cfg.reopen')}
                 </button>
               )}
             </div>
@@ -292,30 +288,26 @@ export function ContentConfigWindow({
 
           {notice && !error && (
             <div className="alert info">
-              <strong>Listo</strong>
+              <strong>{t('backup.done')}</strong>
               <p>{notice}</p>
             </div>
           )}
 
           {info && files.length === 0 && <NothingYet info={info} />}
 
-          {loading && <p className="hint">Leyendo…</p>}
+          {loading && <p className="hint">{t('cfg.reading')}</p>}
 
           {doc && !loading && (
             <>
               {running && (
                 <div className="alert info">
-                  <strong>El servidor está en marcha: puedes mirar, pero no guardar</strong>
-                  <p>
-                    Muchos plugins y mods vuelven a escribir su configuración al cerrarse, y se
-                    llevarían tus cambios. Para el servidor, cambia lo que quieras y vuelve a
-                    arrancarlo.
-                  </p>
+                  <strong>{t('cfg.runningTitle')}</strong>
+                  <p>{t('cfg.runningText')}</p>
                 </div>
               )}
               {doc.readOnlyReason && (
                 <div className="alert error">
-                  <strong>Este fichero solo se puede mirar</strong>
+                  <strong>{t('cfg.readOnlyTitle')}</strong>
                   <p>{doc.readOnlyReason}</p>
                 </div>
               )}
@@ -323,24 +315,26 @@ export function ContentConfigWindow({
               <div className="cfg-toolbar">
                 <input
                   type="search"
-                  placeholder="Buscar opción o explicación…"
+                  placeholder={t('cfg.search')}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
                 <span className="cfg-count">
-                  {query ? `${filtered.length} de ${options.length}` : `${options.length} opciones`}
+                  {query
+                    ? t('cfg.countOf', { n: filtered.length, total: options.length })
+                    : t('cfg.count', { count: options.length })}
                 </span>
               </div>
 
               <p className="cfg-origin">
                 {described > 0
-                  ? 'Las explicaciones las escribe el autor en el propio fichero, casi siempre en inglés.'
+                  ? t('cfg.byAuthor')
                   : doc.config.format === 'json'
-                    ? 'Este fichero es JSON, que no admite comentarios: el autor no ha tenido dónde explicar las opciones. Si dudas de alguna, busca el mod en Modrinth o CurseForge.'
-                    : 'El autor no ha dejado explicaciones en este fichero.'}
+                    ? t('cfg.jsonNoComments')
+                    : t('cfg.noExplanations')}
               </p>
 
-              {options.length === 0 && <p className="hint">El fichero no tiene opciones.</p>}
+              {options.length === 0 && <p className="hint">{t('cfg.noOptions')}</p>}
 
               <OptionList
                 options={filtered.slice(0, MAX_SHOWN)}
@@ -351,9 +345,7 @@ export function ContentConfigWindow({
               />
 
               {filtered.length > MAX_SHOWN && (
-                <p className="hint">
-                  Hay {filtered.length - MAX_SHOWN} opciones más. Usa el buscador para llegar a ellas.
-                </p>
+                <p className="hint">{t('cfg.more', { count: filtered.length - MAX_SHOWN })}</p>
               )}
             </>
           )}
@@ -366,20 +358,13 @@ export function ContentConfigWindow({
 function NothingYet({ info }: { info: ContentConfigInfo }): React.JSX.Element {
   return info.folder !== null ? (
     <div className="alert info">
-      <strong>Todavía no hay configuración</strong>
-      <p>
-        Los plugins crean sus ficheros la primera vez que arrancan. Arranca el servidor una vez,
-        páralo y vuelve aquí.
-      </p>
+      <strong>{t('cfg.noConfigTitle')}</strong>
+      <p>{t('cfg.noConfigPlugin')}</p>
     </div>
   ) : (
     <div className="alert info">
-      <strong>No hemos encontrado configuración de este mod</strong>
-      <p>
-        Algunos mods no tienen, y otros la crean la primera vez que arranca el servidor. Si ya ha
-        arrancado y sabes que tiene, búscala en la carpeta config: puede que use un nombre distinto
-        al del mod.
-      </p>
+      <strong>{t('cfg.noConfigModTitle')}</strong>
+      <p>{t('cfg.noConfigMod')}</p>
     </div>
   )
 }
@@ -405,7 +390,7 @@ function OptionList({ options, sectionNotes, drafts, disabled, onChange }: ListP
           sectionKey !== previous && (section.length > 0 || previous !== null) ? (
             <div className="cfg-section">
               <div className="cfg-section-title">
-                {section.length > 0 ? section.map(humanize).join(' › ') : 'Opciones generales'}
+                {section.length > 0 ? section.map(humanize).join(' › ') : t('cfg.general')}
               </div>
               {sectionNotes.get(sectionKey) && (
                 <p className="cfg-section-desc">{sectionNotes.get(sectionKey)}</p>
@@ -449,7 +434,7 @@ function OptionRow({ option, label, draft, disabled, onChange }: RowProps): Reac
     <div className={`cfg-option ${modified ? 'modified' : ''}`}>
       <div className="cfg-option-head">
         <code className="cfg-key">{label}</code>
-        {modified && <span className="badge">Cambiado</span>}
+        {modified && <span className="badge">{t('cfg.changed')}</span>}
       </div>
       {option.description && <p className="cfg-desc">{option.description}</p>}
 
@@ -457,7 +442,7 @@ function OptionRow({ option, label, draft, disabled, onChange }: RowProps): Reac
         <div className="cfg-readonly">
           <code>{readOnlyValue(option)}</code>
           <div className="help">
-            No se puede cambiar desde aquí: {option.readOnlyReason}. Usa «Abrir en el editor».
+            {t('cfg.cannotEdit', { reason: option.readOnlyReason ?? '', button: t('cfg.openEditor') })}
           </div>
         </div>
       ) : (
@@ -469,10 +454,10 @@ function OptionRow({ option, label, draft, disabled, onChange }: RowProps): Reac
           {limits && <span>{limits}</span>}
           {option.defaultValue !== undefined && option.type !== 'list' && (
             <>
-              <span>Por defecto: {option.defaultValue}</span>
+              <span>{t('cfg.default', { value: option.defaultValue })}</span>
               {!disabled && !sameValue(option, value, defaultDraft(option)) && (
                 <button className="link" onClick={() => onChange(defaultDraft(option))}>
-                  Volver a este valor
+                  {t('cfg.backToDefault')}
                 </button>
               )}
             </>
@@ -505,7 +490,7 @@ function Control({
             disabled={disabled}
             onChange={(e) => onChange(e.target.checked)}
           />
-          <span>{value === true ? 'Activado (true)' : 'Desactivado (false)'}</span>
+          <span>{value === true ? t('cfg.on') : t('cfg.off')}</span>
         </label>
       )
     case 'integer':
@@ -530,7 +515,7 @@ function Control({
             spellCheck={false}
             onChange={(e) => onChange(e.target.value)}
           />
-          <div className="help">Uno por línea.</div>
+          <div className="help">{t('cfg.onePerLine')}</div>
         </>
       )
     case 'text':
@@ -597,26 +582,26 @@ function validate(option: ConfigOption, value: Draft): string | null {
   if (option.type === 'integer' || option.type === 'number') {
     const text = String(value).trim()
     const n = Number(text)
-    if (text === '' || !Number.isFinite(n)) return 'Tiene que ser un número.'
-    if (option.type === 'integer' && !/^[-+]?\d+$/.test(text)) return 'Tiene que ser un número entero, sin decimales.'
-    if (option.min !== undefined && n < option.min) return `No puede ser menor que ${option.min}.`
-    if (option.max !== undefined && n > option.max) return `No puede ser mayor que ${option.max}.`
+    if (text === '' || !Number.isFinite(n)) return t('cfg.mustBeNumber')
+    if (option.type === 'integer' && !/^[-+]?\d+$/.test(text)) return t('cfg.mustBeInteger')
+    if (option.min !== undefined && n < option.min) return t('cfg.min', { min: option.min })
+    if (option.max !== undefined && n > option.max) return t('cfg.max', { max: option.max })
   }
-  if (option.type === 'text' && /[\r\n]/.test(String(value))) return 'No admite saltos de línea.'
+  if (option.type === 'text' && /[\r\n]/.test(String(value))) return t('cfg.noNewlines')
   return null
 }
 
 function rangeText(option: ConfigOption): string | null {
   const { min, max } = option
-  if (min !== undefined && max !== undefined) return `Entre ${min} y ${max}`
-  if (min !== undefined) return `Desde ${min}`
-  if (max !== undefined) return `Hasta ${max}`
+  if (min !== undefined && max !== undefined) return t('cfg.between', { min, max })
+  if (min !== undefined) return t('cfg.from', { min })
+  if (max !== undefined) return t('cfg.upTo', { max })
   return null
 }
 
 function readOnlyValue(option: ConfigOption): string {
-  if (option.type === 'list') return (option.items ?? []).join(', ') || '(vacía)'
-  const text = option.value || '(vacío)'
+  if (option.type === 'list') return (option.items ?? []).join(', ') || t('cfg.emptyList')
+  const text = option.value || t('cfg.emptyValue')
   return text.length > 300 ? `${text.slice(0, 300)}…` : text
 }
 
@@ -636,7 +621,7 @@ function displayOf(option: ConfigOption): { label: string; section: string[] } {
 /** `#0` es el primer elemento de una lista de tablas. */
 function humanize(segment: string): string {
   const m = /^#(\d+)$/.exec(segment)
-  return m ? `nº ${Number(m[1]) + 1}` : segment
+  return m ? t('cfg.number', { n: Number(m[1]) + 1 }) : segment
 }
 
 /** Lo común a todas las rutas, para enseñar `config.yml` y no `plugins/Essentials/config.yml`. */

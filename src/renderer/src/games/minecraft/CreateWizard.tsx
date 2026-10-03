@@ -4,6 +4,7 @@ import { DISTRIBUTIONS, DISTRIBUTION_LABELS } from '@shared/games/minecraft/type
 import type { MemoryInfo } from '@shared/ipc'
 import { D20Loader } from '../../D20Loader'
 import { ImportWizard } from './ImportWizard'
+import { Rich, formatNumber, t, unitLabel } from '../../i18n'
 
 /**
  * Asistente de creación (§3, recorrido 1): tres pasos y a jugar.
@@ -17,7 +18,7 @@ interface Props {
 }
 
 export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JSX.Element {
-  const [name, setName] = useState('Mi servidor')
+  const [name, setName] = useState(() => t('mc.wizard.defaultName'))
   const [distribution, setDistribution] = useState<Distribution>('paper')
   const [versions, setVersions] = useState<DistributionVersion[]>([])
   const [version, setVersion] = useState('')
@@ -74,7 +75,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         setVersion((list.find((v) => v.recommended) ?? list[0])?.minecraftVersion ?? '')
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(`No se pudo cargar el catálogo: ${err.message}`)
+        if (!cancelled) setError(t('mc.create.catalogFailed', { error: err.message }))
       })
       .finally(() => {
         if (!cancelled) setLoadingVersions(false)
@@ -135,13 +136,10 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         <div className="card loading-card">
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
-            <p className="hint">
-              Estamos descargando Java y el servidor. La primera vez tarda más porque hay
-              que bajar bastantes megas.
-            </p>
+            <h3>{t('wizard.preparing')}</h3>
+            <p className="hint">{t('mc.create.preparingHint')}</p>
             <p style={{ margin: '10px 0 0', fontSize: 13 }}>
-              {progress?.detail ?? 'Trabajando...'}
+              {progress?.detail ?? t('panel.working')}
             </p>
             {/* Solo con un porcentaje real; sin él, el dado indica actividad. */}
             {progress?.progress != null && (
@@ -151,7 +149,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -165,20 +163,20 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>1. ¿Cómo se va a llamar?</h3>
-        <p className="hint">Es el nombre que verás tú en la lista. Puedes cambiarlo luego.</p>
+        <h3>1. {t('wizard.name.title')}</h3>
+        <p className="hint">{t('mc.import.nameHelp')}</p>
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
       </div>
 
       <div className="card">
-        <h3>2. ¿Qué tipo de servidor quieres?</h3>
-        <p className="hint">Si dudas, deja la opción recomendada.</p>
+        <h3>{t('mc.create.type')}</h3>
+        <p className="hint">{t('mc.create.typeHint')}</p>
         <div className="choice-grid">
           {DISTRIBUTIONS.map((d) => (
             <button
@@ -192,33 +190,29 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
           ))}
           {/* No es un tipo más: abre otro recorrido, el de traer una carpeta. */}
           <button className="choice" onClick={() => setImporting(true)}>
-            <div className="title">Uno que ya tengo (a medida)</div>
-            <div className="sub">
-              Un server pack o un servidor que ya tenías montado. Arranca con su propio run.bat.
-            </div>
+            <div className="title">{t('mc.wizard.type.custom')}</div>
+            <div className="sub">{t('mc.wizard.type.custom.sub')}</div>
           </button>
         </div>
       </div>
 
       <div className="card">
-        <h3>3. Versión y ajustes</h3>
-        <p className="hint">
-          Tus amigos tendrán que usar esta misma versión de Minecraft para poder entrar.
-        </p>
+        <h3>{t('mc.create.versionAndSettings')}</h3>
+        <p className="hint">{t('mc.create.versionHint')}</p>
 
         <div className="field">
-          <label>Versión de Minecraft</label>
+          <label>{t('mc.wizard.summary.version')}</label>
           <select
             value={version}
             onChange={(e) => setVersion(e.target.value)}
             disabled={loadingVersions}
           >
-            {loadingVersions && <option>Cargando versiones...</option>}
+            {loadingVersions && <option>{t('mc.create.loadingVersions')}</option>}
             {versions.map((v) => (
               <option key={v.minecraftVersion} value={v.minecraftVersion}>
                 {v.minecraftVersion}
-                {v.experimental ? '  (en pruebas)' : ''}
-                {v.recommended ? '  (la más reciente estable)' : ''}
+                {v.experimental ? `  ${t('mc.wizard.summary.testing')}` : ''}
+                {v.recommended ? `  ${t('mc.create.latestStable')}` : ''}
               </option>
             ))}
           </select>
@@ -226,18 +220,13 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
 
         {experimental && (
           <div className="alert warn">
-            <strong>La {version} todavía está en pruebas</strong>
-            <p>
-              Para la {version} aún no hay un servidor terminado: solo compilaciones de prueba
-              (alpha). Sirven para jugar ya con lo nuevo, pero pueden fallar, ir peor de
-              rendimiento o dar problemas con los plugins. Si prefieres ir a lo seguro, elige la
-              última estable de la lista.
-            </p>
+            <strong>{t('mc.create.testingTitle', { version })}</strong>
+            <p>{t('mc.create.testingText', { version })}</p>
           </div>
         )}
 
         <div className="field">
-          <label>¿Cuánta gente vais a ser? {expectedPlayers} jugadores</label>
+          <label>{t('mc.import.players', { count: expectedPlayers })}</label>
           <input
             type="range"
             min={2}
@@ -246,17 +235,17 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             value={expectedPlayers}
             onChange={(e) => setExpectedPlayers(Number(e.target.value))}
           />
-          <div className="help">
-            Cuenta las personas que estarán conectadas a la vez, no el total de amigos. Con esto
-            ajustamos la memoria y el límite de jugadores del servidor.
-          </div>
+          <div className="help">{t('mc.create.playersHelp')}</div>
         </div>
 
         <div className="field">
           <label>
-            Memoria asignada: {(memoryMb / 1024).toFixed(1)} GB
+            {t('mc.memory.label', { gb: gbText(memoryMb) })}
             {!memoryTouched && recommendedMb !== null && (
-              <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · recomendada</span>
+              <span style={{ color: 'var(--muted)', fontWeight: 400 }}>
+                {' '}
+                · {t('mc.create.recommended')}
+              </span>
             )}
           </label>
           <input
@@ -272,13 +261,15 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
           />
           <div className="help">
             {overMemory ? (
-              'Cuidado: estás asignando casi toda la memoria del equipo. Si además juegas en este PC, se puede quedar sin respuesta.'
+              t('mc.memory.over')
             ) : (
               <>
-                Para {expectedPlayers} jugadores con{' '}
-                {DISTRIBUTION_LABELS[distribution].name.toLowerCase()} recomendamos{' '}
-                {recommendedMb !== null ? `${(recommendedMb / 1024).toFixed(1)} GB` : '...'}. Tu
-                equipo tiene {memory ? (memory.totalMb / 1024).toFixed(0) : '?'} GB.
+                {t('mc.create.memoryAdvice', {
+                  count: expectedPlayers,
+                  type: DISTRIBUTION_LABELS[distribution].name,
+                  gb: recommendedMb !== null ? `${gbText(recommendedMb)} ${unitLabel('GB')}` : '...',
+                  total: memory ? Math.round(memory.totalMb / 1024) : '?'
+                })}
                 {memoryTouched && recommendedMb !== null && memoryMb !== recommendedMb && (
                   <>
                     {' '}
@@ -294,7 +285,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
                         marginTop: 4
                       }}
                     >
-                      Volver a la recomendada
+                      {t('mc.create.backToRecommended')}
                     </button>
                   </>
                 )}
@@ -304,7 +295,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         </div>
 
         <div className="field">
-          <label>Puerto</label>
+          <label>{t('help.router.port')}</label>
           <input
             type="number"
             value={port}
@@ -312,16 +303,13 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             max={65535}
             onChange={(e) => setPort(Number(e.target.value))}
           />
-          <div className="help">Déjalo en 25565 salvo que ya tengas otro servidor usándolo.</div>
+          <div className="help">{t('mc.import.portDefault')}</div>
         </div>
       </div>
 
       <div className="card">
-        <h3>Condiciones de Minecraft</h3>
-        <p className="hint">
-          Mojang exige aceptar su EULA para poder ejecutar un servidor. Solo hay que hacerlo
-          una vez por servidor.
-        </p>
+        <h3>{t('mc.wizard.eula.title')}</h3>
+        <p className="hint">{t('mc.wizard.eula.hint')}</p>
         <label className="row" style={{ cursor: 'pointer' }}>
           <input
             type="checkbox"
@@ -330,29 +318,40 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             style={{ width: 16, height: 16 }}
           />
           <span>
-            He leído y acepto el{' '}
-            <a
-              href="https://aka.ms/MinecraftEULA"
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: 'var(--accent)' }}
-            >
-              EULA de Minecraft
-            </a>
+            <Rich
+              k="mc.wizard.eula.accept"
+              values={{
+                link: (
+                  <a
+                    href="https://aka.ms/MinecraftEULA"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: 'var(--accent)' }}
+                  >
+                    {t('mc.wizard.eula.link')}
+                  </a>
+                )
+              }}
+            />
           </span>
         </label>
       </div>
 
       <div className="row between">
-        <button onClick={onCancel}>Cancelar</button>
+        <button onClick={onCancel}>{t('common.cancel')}</button>
         <button
           className="primary"
           disabled={!eula || !version || loadingVersions || name.trim().length === 0}
           onClick={() => void create()}
         >
-          Crear servidor
+          {t('wizard.create')}
         </button>
       </div>
     </div>
   )
+}
+
+/** Megas a gigas con un decimal y el separador del idioma. */
+function gbText(mb: number): string {
+  return formatNumber(mb / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ExposureMode } from '@shared/types'
-import { GAMES, defaultPortFor } from '@shared/games'
+import { defaultPortFor } from '@shared/games'
 import {
   MIN_PASSWORD_LENGTH,
   PRESETS,
@@ -8,7 +8,16 @@ import {
   type ValheimPreset
 } from '@shared/games/valheim/types'
 import { D20Loader } from '../../D20Loader'
-import { Choices, StepDots, StepFrame, SummaryRow, labelOf, type Option } from '../../WizardParts'
+import {
+  Choices,
+  StepDots,
+  StepFrame,
+  SteamAgreement,
+  SummaryRow,
+  labelOf,
+  type Option
+} from '../../WizardParts'
+import { Rich, t } from '../../i18n'
 
 /**
  * Asistente en modo básico de Valheim.
@@ -37,28 +46,15 @@ type Stage = Step | 'resumen'
 
 const STEPS: Step[] = ['nombre', 'mundo', 'clave', 'dificultad', 'conexion']
 
-const CONNECTIONS: Option<ExposureMode>[] = [
-  {
-    value: 'local',
-    title: 'Solo desde mi casa',
-    sub: 'Quien esté en tu mismo wifi o router. No hay que tocar nada más.'
-  },
-  {
-    value: 'crossplay',
-    title: 'Desde cualquier sitio, con el código del juego',
-    sub: 'Lo trae Valheim: sin router, funciona casi siempre y tus amigos entran con un código de 6 dígitos.'
-  },
-  {
-    value: 'router',
-    title: 'Desde cualquier sitio, abriendo el router',
-    sub: 'El mejor ping. Hay que abrir dos puertos y no funciona si tu compañía usa CGNAT.'
-  },
-  {
-    value: 'tunnel',
-    title: 'Desde cualquier sitio, con playit.gg',
-    sub: 'Sin tocar el router, pero dependiendo de un servicio de fuera. Con Valheim casi nunca hace falta.'
-  }
-]
+/** Se construyen al pintar, para que salgan en el idioma de ese momento. */
+function connections(): Option<ExposureMode>[] {
+  return [
+    { value: 'local', title: t('wizard.connection.local'), sub: t('wizard.connection.local.sub') },
+    { value: 'crossplay', title: t('vh.wizard.crossplay'), sub: t('vh.wizard.crossplay.sub') },
+    { value: 'router', title: t('wizard.connection.router'), sub: t('sf.wizard.routerSub') },
+    { value: 'tunnel', title: t('wizard.connection.tunnel'), sub: t('vh.wizard.tunnel.sub') }
+  ]
+}
 
 /** Los tres de siempre delante; el resto, para quien los busque. */
 const SIMPLE_PRESETS = PRESETS.filter((p) => ['casual', 'normal', 'hard'].includes(p.value))
@@ -68,7 +64,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
   /** true si se ha vuelto a un paso desde el resumen: al terminar, se regresa a él. */
   const [editing, setEditing] = useState(false)
 
-  const [name, setName] = useState('Mi Valheim')
+  const [name, setName] = useState(() => t('vh.wizard.defaultName'))
   const [worldName, setWorldName] = useState('')
   const [password, setPassword] = useState('')
   const [preset, setPreset] = useState<ValheimPreset>('normal')
@@ -156,12 +152,11 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
-            <p className="hint">
-              Valheim ocupa unos 2 GB, así que no tarda mucho. El mundo lo genera el servidor la
-              primera vez que arranque, y eso sí lleva medio minuto.
+            <h3>{t('wizard.preparing')}</h3>
+            <p className="hint">{t('vh.wizard.preparingHint')}</p>
+            <p style={{ margin: '10px 0 0', fontSize: 13 }}>
+              {progress?.detail ?? t('panel.working')}
             </p>
-            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
             {progress?.progress != null && (
               <div className="progress">
                 <div style={{ width: `${Math.round(progress.progress * 100)}%` }} />
@@ -169,7 +164,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -179,6 +174,8 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
     )
   }
 
+  const CONNECTIONS = connections()
+
   return (
     <div className="panel">
       <div className="wizard">
@@ -186,15 +183,15 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {error && (
           <div className="alert error">
-            <strong>Algo ha fallado</strong>
+            <strong>{t('catalog.error')}</strong>
             <p>{error}</p>
           </div>
         )}
 
         {stage === 'nombre' && (
           <StepFrame
-            title="¿Cómo se va a llamar?"
-            help="Es el nombre que verán tus amigos al añadir el servidor en su lista."
+            title={t('wizard.name.title')}
+            help={t('vh.wizard.name.help')}
           >
             <input
               value={name}
@@ -210,8 +207,8 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'mundo' && (
           <StepFrame
-            title="¿Y el mundo?"
-            help="El nombre decide cómo sale el terreno: dos mundos con el mismo nombre son idénticos. Si lo dejas vacío, se llama como el servidor."
+            title={t('vh.wizard.world.title')}
+            help={t('vh.wizard.world.help')}
           >
             <input
               value={worldName}
@@ -224,22 +221,22 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               }}
             />
             <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-              Más adelante podrás crear otros mundos y cambiar de uno a otro sin perder este.
+              {t('vh.wizard.world.more')}
             </div>
           </StepFrame>
         )}
 
         {stage === 'clave' && (
           <StepFrame
-            title="Ponle una contraseña"
-            help="La que tendrán que escribir tus amigos para entrar. En Valheim es obligatoria salvo que te la juegues con el servidor abierto."
+            title={t('vh.wizard.password.title')}
+            help={t('vh.wizard.password.help')}
           >
             <input
               type="text"
               value={password}
               maxLength={40}
               autoFocus
-              placeholder={`Al menos ${MIN_PASSWORD_LENGTH} caracteres`}
+              placeholder={t('vh.password.min', { min: MIN_PASSWORD_LENGTH })}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && canContinue) next()
@@ -247,29 +244,26 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
             />
             {password.trim().length > 0 && !passwordOk && (
               <div className="alert error" style={{ textAlign: 'left', marginTop: 14 }}>
-                <strong>Se queda corta</strong>
-                <p>Valheim pide al menos {MIN_PASSWORD_LENGTH} caracteres.</p>
+                <strong>{t('vh.password.short')}</strong>
+                <p>{t('vh.password.shortText', { min: MIN_PASSWORD_LENGTH })}</p>
               </div>
             )}
             {passwordInName && password.trim().length > 0 && (
               <div className="alert error" style={{ textAlign: 'left', marginTop: 14 }}>
-                <strong>Está dentro del nombre del servidor</strong>
-                <p>
-                  El nombre lo ve cualquiera, así que la contraseña dejaría de serlo. Cambia una de
-                  las dos.
-                </p>
+                <strong>{t('vh.password.inName')}</strong>
+                <p>{t('vh.password.inNameText')}</p>
               </div>
             )}
             <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-              Se ve a propósito: la vas a tener que repartir. Queda guardada en este ordenador.
+              {t('vh.wizard.password.visible')}
             </div>
           </StepFrame>
         )}
 
         {stage === 'dificultad' && (
           <StepFrame
-            title="¿Cómo de duro lo queréis?"
-            help="Afecta a todo el mundo por igual. Se puede cambiar después desde Configuración."
+            title={t('vh.wizard.difficulty.title')}
+            help={t('vh.wizard.difficulty.help', { section: t('panel.configuration') })}
           >
             <Choices
               options={SIMPLE_PRESETS.map((p) => ({
@@ -282,30 +276,36 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               columns={1}
             />
             <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-              En modo avanzado hay más ajustes: sin mapa, construir gratis, sin portales…
+              {t('vh.wizard.difficulty.more')}
             </div>
           </StepFrame>
         )}
 
         {stage === 'conexion' && (
           <StepFrame
-            title="¿Desde dónde se van a conectar?"
-            help="Si alguien jugará desde otra casa, el crossplay del propio juego es lo más sencillo."
+            title={t('wizard.connection.title')}
+            help={t('vh.wizard.connection.help')}
           >
             <Choices options={CONNECTIONS} value={connection} onChange={setConnection} columns={1} />
             {connection === 'crossplay' && (
               <div className="alert info" style={{ textAlign: 'left', marginTop: 14 }}>
-                <strong>Sin abrir nada en el router</strong>
-                <p>
-                  Al arrancar, el servidor da un código de 6 dígitos que verás en su pantalla. Tus
-                  amigos entran con él. Cambia cada vez que lo arrancas.
-                </p>
+                <strong>{t('vh.wizard.crossplayTitle')}</strong>
+                <p>{t('vh.wizard.crossplayText')}</p>
               </div>
             )}
             {connection === 'router' && (
               <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-                Valheim necesita <strong>dos puertos UDP</strong> seguidos, no uno. Cuando termines
-                tendrás la guía con los dos en <strong>Configuración → Conexión</strong>.
+                <Rich
+                  k="vh.wizard.twoPorts"
+                  values={{
+                    two: <strong>{t('vh.wizard.twoPortsBold')}</strong>,
+                    path: (
+                      <strong>
+                        {t('panel.configuration')} → {t('panel.tab.connection')}
+                      </strong>
+                    )
+                  }}
+                />
               </div>
             )}
           </StepFrame>
@@ -313,87 +313,64 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'resumen' && (
           <div className="step-frame">
-            <h2>Todo listo, revísalo</h2>
-            <p className="step-help">
-              Así va a quedar tu servidor. Si algo no cuadra, toca en &quot;cambiar&quot;.
-            </p>
+            <h2>{t('wizard.summary.title')}</h2>
+            <p className="step-help">{t('wizard.summary.help', { change: t('wizard.change') })}</p>
 
             <div className="card" style={{ textAlign: 'left' }}>
-              <SummaryRow label="Nombre" value={name} onEdit={() => edit('nombre')} />
-              <SummaryRow label="Mundo" value={world} onEdit={() => edit('mundo')} />
-              <SummaryRow label="Contraseña" value={password} onEdit={() => edit('clave')} />
+              <SummaryRow label={t('wizard.summary.name')} value={name} onEdit={() => edit('nombre')} />
+              <SummaryRow label={t('vh.summary.world')} value={world} onEdit={() => edit('mundo')} />
+              <SummaryRow label={t('vh.summary.password')} value={password} onEdit={() => edit('clave')} />
               <SummaryRow
-                label="Dificultad"
+                label={t('mc.wizard.summary.difficulty')}
                 value={PRESETS.find((p) => p.value === preset)?.label ?? preset}
                 onEdit={() => edit('dificultad')}
               />
               <SummaryRow
-                label="Se conectan"
+                label={t('wizard.summary.connect')}
                 value={labelOf(CONNECTIONS, connection)}
                 onEdit={() => edit('conexion')}
               />
               <SummaryRow
-                label="Puertos"
-                value={`${defaultPortFor('valheim')} y ${queryPortFor(defaultPortFor('valheim'))} (UDP)`}
-                autoNote="o los primeros libres"
+                label={t('vh.summary.ports')}
+                value={t('vh.summary.portsValue', {
+                  a: defaultPortFor('valheim'),
+                  b: queryPortFor(defaultPortFor('valheim'))
+                })}
+                autoNote={t('vh.summary.portsNote')}
               />
               <SummaryRow
-                label="Versión"
-                value="la última de Steam"
-                autoNote="la elige el juego"
+                label={t('version.title')}
+                value={t('wizard.summary.latestSteam')}
+                autoNote={t('wizard.summary.gameChooses')}
                 last
               />
             </div>
 
             <div className="alert info" style={{ textAlign: 'left' }}>
-              <strong>Son 2 GB de descarga</strong>
-              <p>
-                Es lo que ocupa el servidor de Valheim, el más ligero de todos. Se descarga una vez
-                por servidor y se queda en tu equipo.
-              </p>
+              <strong>{t('vh.wizard.download.title')}</strong>
+              <p>{t('vh.wizard.download.text')}</p>
             </div>
 
-            <div className="card" style={{ textAlign: 'left', marginBottom: 0 }}>
-              <h3>Condiciones</h3>
-              <p className="hint">
-                El servidor se descarga de Steam de forma anónima, sin cuenta ni contraseña. Steam
-                pide aceptar su acuerdo para usar sus descargas.
-              </p>
-              <label className="row" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  style={{ width: 16, height: 16, flexShrink: 0 }}
-                />
-                <span>
-                  He leído y acepto el{' '}
-                  <a
-                    href={GAMES.valheim.agreements[0]!.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: 'var(--accent)' }}
-                  >
-                    Acuerdo de Suscriptor de Steam
-                  </a>
-                </span>
-              </label>
-            </div>
+            <SteamAgreement basic agreed={agreed} onChange={setAgreed} />
           </div>
         )}
 
         <div className="row between wizard-nav">
           <button onClick={back}>
-            {editing ? 'Volver al resumen' : stepIndex <= 0 && onStep ? 'Cancelar' : 'Atrás'}
+            {editing
+              ? t('wizard.backToSummary')
+              : stepIndex <= 0 && onStep
+                ? t('common.cancel')
+                : t('wizard.back')}
           </button>
 
           {onStep ? (
             <button className="primary" disabled={!canContinue} onClick={next}>
-              {editing ? 'Listo' : 'Siguiente →'}
+              {editing ? t('wizard.done') : t('wizard.next')}
             </button>
           ) : (
             <button className="primary" disabled={!agreed || !claveOk} onClick={() => void create()}>
-              Crear servidor
+              {t('wizard.create')}
             </button>
           )}
         </div>

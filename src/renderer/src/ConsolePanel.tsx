@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { InstanceState, LogLine } from '@shared/types'
 import { capabilitiesFor, gameInfo } from '@shared/games'
+import { t } from './i18n'
 
 /**
  * Consola en vivo. La comparten los dos modos.
@@ -40,9 +41,7 @@ export function ConsolePanel({ state, logs, onRun }: Props): React.JSX.Element {
     <>
       <div className="console" ref={consoleRef}>
         {logs.length === 0 && (
-          <div style={{ color: 'var(--muted)' }}>
-            Sin actividad todavía. Arranca el servidor para ver el registro.
-          </div>
+          <div style={{ color: 'var(--muted)' }}>{t('console.empty')}</div>
         )}
         {logs.map((line, i) => (
           <div key={i} className={`line ${line.level}`}>
@@ -54,9 +53,7 @@ export function ConsolePanel({ state, logs, onRun }: Props): React.JSX.Element {
         <div className="console-input">
           <input
             className="grow"
-            placeholder={
-              running ? 'Escribe un comando y pulsa Enter' : 'El servidor no está arrancado'
-            }
+            placeholder={running ? t('console.placeholder') : t('players.notRunning')}
             disabled={!running}
             value={command}
             onChange={(e) => setCommand(e.target.value)}
@@ -65,14 +62,16 @@ export function ConsolePanel({ state, logs, onRun }: Props): React.JSX.Element {
             }}
           />
           <button disabled={!running} onClick={send}>
-            Enviar
+            {t('console.send')}
           </button>
         </div>
       ) : (
         <div className="console-input">
           <span className="hint">
-            El servidor de {gameInfo(manifest.game).name} no admite órdenes escritas: todo lo que se
-            le puede pedir está en Configuración.
+            {t('console.noCommands', {
+              game: gameInfo(manifest.game).name,
+              section: t('panel.configuration')
+            })}
           </span>
         </div>
       )}

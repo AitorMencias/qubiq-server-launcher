@@ -10,6 +10,7 @@ import {
   type ZomboidData
 } from '@shared/games/zomboid/types'
 import { ConfigTab } from './ConfigTab'
+import { Rich, formatNumber, t } from '../../i18n'
 
 /**
  * Ajustes de un servidor de Project Zomboid.
@@ -60,11 +61,7 @@ export function ZomboidSettingsPanel({ state, mode, onSaved }: Props): React.JSX
     setError(null)
     try {
       await window.qubiq.instances.update(manifest.id, { data } as ManifestChanges)
-      setNotice(
-        running
-          ? 'Guardado. Estos ajustes entran la próxima vez que arranques el servidor.'
-          : 'Guardado.'
-      )
+      setNotice(running ? t('pz.settings.savedRunning') : t('vh.settings.saved'))
       onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -77,7 +74,7 @@ export function ZomboidSettingsPanel({ state, mode, onSaved }: Props): React.JSX
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo guardar</strong>
+          <strong>{t('common.saveFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -85,20 +82,18 @@ export function ZomboidSettingsPanel({ state, mode, onSaved }: Props): React.JSX
 
       {running && (
         <div className="alert info">
-          <strong>El servidor está arrancado</strong>
+          <strong>{t('vh.settings.running')}</strong>
           <p>
-            Lo de esta pantalla se lee al arrancar: puedes cambiarlo, pero no se notará hasta que lo
-            pares y lo vuelvas a arrancar. Lo que sí tiene efecto al momento son los ajustes de la
-            pestaña <strong>Servidor</strong>.
+            <Rich k="pz.settings.runningText" values={{ tab: <strong>{t('pz.tab.server')}</strong> }} />
           </p>
         </div>
       )}
 
       <div className="card">
-        <h3>Quién puede entrar</h3>
+        <h3>{t('vh.settings.whoJoins')}</h3>
 
         <div className="field">
-          <label>Contraseña de administrador</label>
+          <label>{t('sf.wizard.summary.admin')}</label>
           <input
             type="text"
             value={data.adminPassword}
@@ -106,42 +101,35 @@ export function ZomboidSettingsPanel({ state, mode, onSaved }: Props): React.JSX
             onChange={(e) => set({ adminPassword: e.target.value })}
           />
           <div className="help">
-            Es la de la cuenta <code>admin</code>, con la que mandas dentro del juego. Entra con ese
-            usuario y esta contraseña desde el propio Zomboid.
+            <Rich k="pz.settings.adminHelp" values={{ admin: <code>admin</code> }} />
           </div>
           {!adminOk && (
             <div className="alert error" style={{ marginTop: 10 }}>
-              <strong>No vale</strong>
-              <p>
-                Tiene que tener al menos {MIN_PASSWORD_LENGTH} caracteres y no puede llevar espacios
-                ni comillas: viaja en la línea de órdenes del servidor.
-              </p>
+              <strong>{t('pz.password.invalid')}</strong>
+              <p>{t('pz.password.invalidText', { min: MIN_PASSWORD_LENGTH })}</p>
             </div>
           )}
         </div>
 
         <div className="field">
-          <label>Contraseña del servidor</label>
+          <label>{t('vh.settings.password')}</label>
           <input
             type="text"
             value={data.password}
             maxLength={40}
-            placeholder="Vacío = entra cualquiera que tenga la dirección"
+            placeholder={t('pz.create.passwordPlaceholder')}
             onChange={(e) => set({ password: e.target.value })}
           />
-          <div className="help">
-            La que escriben tus amigos al añadir el servidor. No es la de su cuenta: esa se la
-            inventan ellos la primera vez que entran.
-          </div>
+          <div className="help">{t('pz.settings.passwordHelp')}</div>
           {!passwordOk && (
             <div className="help" style={{ color: 'var(--danger)' }}>
-              Al menos {MIN_PASSWORD_LENGTH} caracteres, o ninguno.
+              {t('pz.create.passwordShort', { min: MIN_PASSWORD_LENGTH })}
             </div>
           )}
         </div>
 
         <div className="field">
-          <label>Jugadores como mucho</label>
+          <label>{t('details.maxPlayers')}</label>
           <input
             type="number"
             min={1}
@@ -149,10 +137,7 @@ export function ZomboidSettingsPanel({ state, mode, onSaved }: Props): React.JSX
             value={data.maxPlayers}
             onChange={(e) => set({ maxPlayers: Number(e.target.value) })}
           />
-          <div className="help">
-            El juego admite hasta 254, pero su propia configuración avisa de que por encima de{' '}
-            {MAX_PLAYERS} el mapa empieza a desincronizarse.
-          </div>
+          <div className="help">{t('pz.settings.maxPlayersHelp', { max: MAX_PLAYERS })}</div>
         </div>
 
         <label className="row" style={{ cursor: 'pointer', marginTop: 6 }}>
@@ -162,11 +147,10 @@ export function ZomboidSettingsPanel({ state, mode, onSaved }: Props): React.JSX
             onChange={(e) => set({ openToNewPlayers: e.target.checked })}
             style={{ width: 16, height: 16, flexShrink: 0 }}
           />
-          <span>Cualquiera puede crearse su cuenta al entrar</span>
+          <span>{t('pz.create.open')}</span>
         </label>
         <div className="help">
-          Es lo normal. Si lo quitas, el servidor pasa a funcionar por lista: tendrás que dar de
-          alta a cada jugador desde <strong>Moderación</strong>, con su usuario y su contraseña.
+          <Rich k="pz.settings.openHelp" values={{ tab: <strong>{t('tab.moderation')}</strong> }} />
         </div>
 
         <label className="row" style={{ cursor: 'pointer', marginTop: 12 }}>
@@ -176,14 +160,18 @@ export function ZomboidSettingsPanel({ state, mode, onSaved }: Props): React.JSX
             onChange={(e) => set({ pvp: e.target.checked })}
             style={{ width: 16, height: 16, flexShrink: 0 }}
           />
-          <span>Los jugadores pueden hacerse daño entre ellos (PvP)</span>
+          <span>{t('pz.create.pvp')}</span>
         </label>
       </div>
 
       <div className="card">
-        <h3>Memoria</h3>
+        <h3>{t('chooser.memory')}</h3>
         <div className="field">
-          <label>Memoria asignada: {(data.memoryMb / 1024).toFixed(1)} GB</label>
+          <label>
+            {t('mc.memory.label', {
+              gb: formatNumber(data.memoryMb / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+            })}
+          </label>
           <input
             type="range"
             min={MIN_MEMORY_MB}
@@ -192,11 +180,7 @@ export function ZomboidSettingsPanel({ state, mode, onSaved }: Props): React.JSX
             value={data.memoryMb}
             onChange={(e) => set({ memoryMb: Number(e.target.value) })}
           />
-          <div className="help">
-            Zomboid corre sobre Java, así que su memoria se reserva de antemano. Con {' '}
-            {MEMORY_RECOMMENDED_GB} GB va sobrado para una partida de amigos; lo que la dispara es
-            cuánto mapa tengáis explorado, no cuántos seáis.
-          </div>
+          <div className="help">{t('pz.settings.memoryHelp', { gb: MEMORY_RECOMMENDED_GB })}</div>
         </div>
       </div>
 
@@ -210,27 +194,27 @@ export function ZomboidSettingsPanel({ state, mode, onSaved }: Props): React.JSX
               onChange={(e) => set({ useSteam: e.target.checked })}
               style={{ width: 16, height: 16, flexShrink: 0 }}
             />
-            <span>Arrancar el servidor con Steam</span>
+            <span>{t('pz.create.useSteam')}</span>
           </label>
           <div className="alert info" style={{ marginTop: 10 }}>
-            <strong>Con Steam, tu servidor sale en la lista pública</strong>
+            <strong>{t('pz.steam.publicTitle')}</strong>
             <p>
-              Lo avisa el propio juego: un servidor con Steam <strong>siempre</strong> es visible en
-              el navegador de servidores de Steam, con tu dirección de internet, aunque no lo
-              publiques. A cambio tienes el antitrampas VAC y la app puede preguntarle su estado.
-              Sin Steam se entra igual, escribiendo la dirección a mano.
+              <Rich k="pz.steam.publicText" values={{ always: <strong>{t('pz.steam.always')}</strong> }} />
             </p>
           </div>
         </div>
       )}
 
       <div className="card">
-        <h3>Dificultad</h3>
+        <h3>{t('mc.wizard.summary.difficulty')}</h3>
         <p className="hint">
-          Se eligió al crear el servidor:{' '}
-          <strong>{PRESETS.find((p) => p.id === data.preset)?.name ?? data.preset}</strong>. Las
-          reglas concretas están en la pestaña <strong>Partida</strong>, donde se pueden cambiar una
-          a una con el servidor parado.
+          <Rich
+            k="pz.settings.difficulty"
+            values={{
+              preset: <strong>{PRESETS.find((p) => p.id === data.preset)?.name ?? data.preset}</strong>,
+              tab: <strong>{t('pz.tab.game')}</strong>
+            }}
+          />
         </p>
       </div>
 
@@ -240,11 +224,11 @@ export function ZomboidSettingsPanel({ state, mode, onSaved }: Props): React.JSX
           disabled={busy || !changed || !adminOk || !passwordOk}
           onClick={() => void save()}
         >
-          {busy ? 'Guardando…' : 'Guardar cambios'}
+          {busy ? t('common.saving') : t('common.saveChanges')}
         </button>
         {changed && (
           <button disabled={busy} onClick={() => setData(original)}>
-            Descartar
+            {t('cfg.discard')}
           </button>
         )}
       </div>
@@ -271,19 +255,11 @@ export function ZomboidServerPanel({ state }: { state: InstanceState }): React.J
       instanceId={id}
       load={load}
       save={save}
-      savedNotice={
-        running
-          ? 'Guardado. Con el servidor en marcha, los cambios se le mandan por su consola y ya están puestos.'
-          : 'Guardado en servertest.ini.'
-      }
+      savedNotice={running ? t('pz.server.savedRunning') : t('pz.server.saved')}
       intro={
         <>
-          Son los ajustes del servidor, tal y como están en <code>servertest.ini</code>. La
-          explicación de cada uno la escribe el propio Zomboid: si el juego se actualiza y añade
-          ajustes, aparecerán aquí solos.{' '}
-          {running
-            ? 'Con el servidor arrancado, los cambios se aplican al momento.'
-            : 'Los cambios entran la próxima vez que lo arranques.'}
+          <Rich k="pz.server.intro" values={{ file: <code>servertest.ini</code> }} />{' '}
+          {running ? t('pz.server.introRunning') : t('pz.server.introStopped')}
         </>
       }
     />

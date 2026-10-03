@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ExposureMode } from '@shared/types'
-import { GAMES, defaultPortFor } from '@shared/games'
+import { defaultPortFor } from '@shared/games'
 import {
   DEFAULT_QUERY_PORT,
   MAX_PLAYERS,
@@ -15,6 +15,8 @@ import { CheckRow } from '../../CheckRow'
 import { RolesEditor } from './RolesEditor'
 import { rolesFor } from './roles'
 import { suggestPassword } from './BasicWizard'
+import { SteamAgreement } from '../../WizardParts'
+import { t } from '../../i18n'
 
 /**
  * Asistente en modo avanzado de Enshrouded: un formulario con todo a la vista.
@@ -32,7 +34,7 @@ interface Props {
 }
 
 export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JSX.Element {
-  const [name, setName] = useState('Mi Enshrouded')
+  const [name, setName] = useState(() => t('en.wizard.defaultName'))
   const [worldName, setWorldName] = useState('')
   const [port, setPort] = useState(DEFAULT_QUERY_PORT)
   const [players, setPlayers] = useState(4)
@@ -53,7 +55,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
   const canCreate = agreed && name.trim().length > 0 && world.length > 0 && rolesProblem === null
 
   function toggleTag(value: string, on: boolean): void {
-    setTags((prev) => (on ? [...prev, value] : prev.filter((t) => t !== value)))
+    setTags((prev) => (on ? [...prev, value] : prev.filter((tag) => tag !== value)))
   }
 
   async function create(): Promise<void> {
@@ -82,9 +84,11 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
-            <p className="hint">Enshrouded ocupa 8,8 GB. Se descarga una vez por servidor.</p>
-            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
+            <h3>{t('wizard.preparing')}</h3>
+            <p className="hint">{t('en.create.preparingHint')}</p>
+            <p style={{ margin: '10px 0 0', fontSize: 13 }}>
+              {progress?.detail ?? t('panel.working')}
+            </p>
             {progress?.progress != null && (
               <div className="progress">
                 <div style={{ width: `${Math.round(progress.progress * 100)}%` }} />
@@ -92,7 +96,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -106,45 +110,38 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       <div className="alert warn">
-        <strong>Enshrouded se anuncia siempre</strong>
-        <p>
-          No hay forma de crear un servidor privado: en cuanto arranca sale en la lista de
-          servidores del juego con la dirección de tu casa. Lo que impide que entre cualquiera son
-          las contraseñas de los roles.
-        </p>
+        <strong>{t('en.create.publicTitle')}</strong>
+        <p>{t('en.create.publicText')}</p>
       </div>
 
       <div className="card">
-        <h3>El servidor</h3>
+        <h3>{t('en.create.server')}</h3>
 
         <div className="field">
-          <label>Nombre</label>
+          <label>{t('wizard.summary.name')}</label>
           <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
-          <div className="help">Con el que sale en la lista de servidores del juego.</div>
+          <div className="help">{t('en.create.nameHelp')}</div>
         </div>
 
         <div className="field">
-          <label>Mundo</label>
+          <label>{t('vh.summary.world')}</label>
           <input
             value={worldName}
             maxLength={40}
             placeholder={name}
             onChange={(e) => setWorldName(e.target.value)}
           />
-          <div className="help">
-            Es el nombre de la carpeta de la partida. Después se pueden tener varios y cambiar de
-            uno a otro.
-          </div>
+          <div className="help">{t('en.create.worldHelp')}</div>
         </div>
 
         <div className="field">
-          <label>Plazas</label>
+          <label>{t('en.summary.slots')}</label>
           <input
             type="number"
             min={1}
@@ -152,23 +149,21 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             value={players}
             onChange={(e) => setPlayers(Number(e.target.value))}
           />
-          <div className="help">Entre 1 y {MAX_PLAYERS}, que es el máximo del juego.</div>
+          <div className="help">{t('en.create.slotsHelp', { max: MAX_PLAYERS })}</div>
         </div>
 
         <div className="field">
-          <label>Puerto</label>
+          <label>{t('help.router.port')}</label>
           <input
             type="number"
             value={port}
             onChange={(e) => setPort(Number(e.target.value))}
           />
-          <div className="help">
-            Uno solo, y por UDP. Desde el Content Update #2 Enshrouded no usa ningún otro.
-          </div>
+          <div className="help">{t('en.create.portHelp')}</div>
         </div>
 
         <div className="field">
-          <label>Dificultad</label>
+          <label>{t('mc.wizard.summary.difficulty')}</label>
           <select value={preset} onChange={(e) => setPreset(e.target.value as EnshroudedPreset)}>
             {PRESETS.map((p) => (
               <option key={p.value} value={p.value}>
@@ -181,26 +176,20 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
       </div>
 
       <div className="card">
-        <h3>Roles y contraseñas</h3>
-        <p className="hint">
-          En Enshrouded no hay una contraseña del servidor: hay una por rol, y la que usas al entrar
-          decide lo que puedes hacer dentro.
-        </p>
+        <h3>{t('en.create.roles')}</h3>
+        <p className="hint">{t('en.wizard.passwords.help')}</p>
         <RolesEditor roles={roles} onChange={setRoles} />
         {rolesProblem && (
           <div className="alert error">
-            <strong>Así no arranca</strong>
+            <strong>{t('en.create.wontStart')}</strong>
             <p>{rolesProblem}</p>
           </div>
         )}
       </div>
 
       <div className="card">
-        <h3>En la lista de servidores</h3>
-        <p className="hint">
-          Las etiquetas ayudan a que la gente encuentre el servidor filtrando en el juego. Son las
-          que admite Enshrouded: una inventada se borraría sola.
-        </p>
+        <h3>{t('en.create.list')}</h3>
+        <p className="hint">{t('en.create.tagsHint')}</p>
         <div className="field">
           {TAGS.slice(0, 5).map((tag) => (
             <CheckRow
@@ -213,61 +202,43 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         </div>
 
         <CheckRow
-          label="Chat de texto"
-          help="Viene apagado de serie en Enshrouded. Aquí se deja puesto."
+          label={t('en.create.textChat')}
+          help={t('en.create.textChatHelp')}
           checked={textChat}
           onChange={setTextChat}
         />
       </div>
 
       <div className="card">
-        <h3>Cómo se conectan</h3>
+        <h3>{t('en.create.howConnect')}</h3>
         <div className="field">
-          <label>Desde dónde</label>
+          <label>{t('en.create.fromWhere')}</label>
           <select
             value={connection}
             onChange={(e) => setConnection(e.target.value as ExposureMode)}
           >
-            <option value="local">Solo desde mi red</option>
-            <option value="router">Abriendo el puerto en el router</option>
-            <option value="tunnel">Con playit.gg</option>
+            <option value="local">{t('wizard.short.local')}</option>
+            <option value="router">{t('fa.create.routerOption')}</option>
+            <option value="tunnel">{t('vh.create.tunnelOption')}</option>
           </select>
           <div className="help">
-            Se puede cambiar después en Configuración → Conexión, con su guía paso a paso.
+            {t('en.create.changeLater', {
+              path: `${t('panel.configuration')} → ${t('panel.tab.connection')}`
+            })}
           </div>
         </div>
       </div>
 
-      <div className="card">
-        <h3>Condiciones</h3>
-        <p className="hint">
-          El servidor se descarga de Steam de forma anónima, sin cuenta ni contraseña.
-        </p>
-        <label className="row" style={{ cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            style={{ width: 16, height: 16, flexShrink: 0 }}
-          />
-          <span>
-            He leído y acepto el{' '}
-            <a
-              href={GAMES.enshrouded.agreements[0]!.url}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: 'var(--accent)' }}
-            >
-              Acuerdo de Suscriptor de Steam
-            </a>
-          </span>
-        </label>
-      </div>
+      <SteamAgreement agreed={agreed} onChange={setAgreed} />
 
       <div className="row between">
-        <button onClick={onCancel}>Cancelar</button>
+        <button onClick={onCancel}>{t('common.cancel')}</button>
         <button className="primary" disabled={!canCreate} onClick={() => void create()}>
-          Crear servidor ({defaultPortFor('enshrouded') === port ? 'puerto de serie' : `puerto ${port}`})
+          {t('wizard.create')} (
+          {defaultPortFor('enshrouded') === port
+            ? t('en.create.defaultPort')
+            : t('en.create.port', { port })}
+          )
         </button>
       </div>
     </div>

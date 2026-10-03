@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { InstanceState, UiMode } from '@shared/types'
 import { capabilitiesFor, gameInfo } from '@shared/games'
 import { uiFor } from './games'
+import { t } from './i18n'
 
 /**
  * Moderación: quién está conectado y qué se le puede hacer.
@@ -45,8 +46,8 @@ export function PlayersPanel({
     return (
       <div className="panel">
         <div className="alert info">
-          <strong>El servidor no está arrancado</strong>
-          <p>Arráncalo para ver quién está conectado{capabilities.moderation && ' y poder moderar'}.</p>
+          <strong>{t('players.notRunning')}</strong>
+          <p>{capabilities.moderation ? t('players.startToModerate') : t('players.startToSee')}</p>
         </div>
       </div>
     )
@@ -60,19 +61,14 @@ export function PlayersPanel({
       <div className="panel">
         <div className="card">
           <h3>
-            {count === 0
-              ? 'No hay nadie conectado'
-              : `${count} jugador${count === 1 ? '' : 'es'} dentro`}
+            {count === 0 ? t('players.nobody') : t('players.inside', { count })}
           </h3>
-          <p className="hint">
-            {info.name} dice cuánta gente hay en la partida, pero no quién es: desde fuera del juego
-            no hay forma de saberlo. En la consola sí aparece quién entra.
-          </p>
+          <p className="hint">{t('players.countOnly', { game: info.name })}</p>
         </div>
 
         {info.moderationHint && (
           <div className="card">
-            <h3>Moderar</h3>
+            <h3>{t('players.moderate')}</h3>
             <p className="hint">{info.moderationHint}</p>
           </div>
         )}
@@ -90,7 +86,7 @@ export function PlayersPanel({
           parece que la app enseña un número por no saber el nombre. */}
       {!capabilities.playerNames && info.moderationHint && (
         <div className="alert info">
-          <strong>{info.name} no da nombres, da identificadores</strong>
+          <strong>{t('players.idsOnly', { game: info.name })}</strong>
           <p>{info.moderationHint}</p>
         </div>
       )}
@@ -99,11 +95,8 @@ export function PlayersPanel({
 
       {players.length === 0 && (
         <div className="alert info">
-          <strong>No hay nadie conectado</strong>
-          <p>
-            Cuando entre alguien aparecerá aquí
-            {capabilities.moderation ? ' con sus acciones de moderación.' : '.'}
-          </p>
+          <strong>{t('players.nobody')}</strong>
+          <p>{capabilities.moderation ? t('players.willAppearActions') : t('players.willAppear')}</p>
         </div>
       )}
 

@@ -4,16 +4,21 @@ import type { Dirent } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { BackupInfo, InstanceManifest } from '@shared/types'
-import { GAMES, theSave, type GameInfo } from '@shared/games'
+import { GAMES, type GameInfo, type SaveKind } from '@shared/games'
 import { backupsDir, serverDir, ensureDir, systemTarPath } from '../paths'
 
 /**
  * «el mapa», «el mundo», «la partida»: cómo se llama lo que se guarda en ese
  * juego. «la partida» si el juego no está en el catálogo (el falso del smoke).
+ *
+ * En español a propósito: los mensajes del núcleo aún no se traducen (llegará
+ * con la segunda entrega de los idiomas, pasándolos a códigos).
  */
+const SAVE_ES: Record<SaveKind, string> = { world: 'el mundo', game: 'la partida', map: 'el mapa' }
+
 function saveOf(manifest: InstanceManifest): string {
-  const noun = (GAMES as Record<string, GameInfo | undefined>)[manifest.game]?.save
-  return noun ? theSave(noun) : 'la partida'
+  const kind = (GAMES as Record<string, GameInfo | undefined>)[manifest.game]?.save
+  return kind ? SAVE_ES[kind] : 'la partida'
 }
 
 const execFileAsync = promisify(execFile)

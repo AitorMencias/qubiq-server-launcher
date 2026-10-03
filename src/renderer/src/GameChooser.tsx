@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { GameId } from '@shared/types'
 import { GAME_IDS, gameInfo } from '@shared/games'
 import { GameIcon } from './GameIcon'
+import { t, unitLabel } from './i18n'
 
 /**
  * Elección de juego al crear un servidor: el paso previo a elegir modo.
@@ -40,8 +41,8 @@ export function GameChooser({ onChoose, onCancel }: Props): React.JSX.Element {
   return (
     <div className="panel">
       <div className="chooser-intro">
-        <h2>¿De qué juego es el servidor?</h2>
-        <p>Cada juego tiene su asistente. Tus amigos necesitarán ese mismo juego para entrar.</p>
+        <h2>{t('chooser.title')}</h2>
+        <p>{t('chooser.text')}</p>
       </div>
 
       <div className="game-grid">
@@ -66,16 +67,18 @@ export function GameChooser({ onChoose, onCancel }: Props): React.JSX.Element {
               <div className="game-card-tag">{card.tagline}</div>
 
               <dl className="game-facts">
-                <dt>Jugadores</dt>
+                <dt>{t('chooser.players')}</dt>
                 <dd>{card.players}</dd>
-                <dt>Memoria</dt>
+                <dt>{t('chooser.memory')}</dt>
                 <dd>
-                  {card.memoryGb.min}–{card.memoryGb.recommended} GB
+                  {card.memoryGb.min}–{card.memoryGb.recommended} {unitLabel('GB')}
                 </dd>
-                <dt>Descarga</dt>
+                <dt>{t('chooser.download')}</dt>
                 <dd>
                   {card.download}
-                  {!card.downloadMeasured && <span className="game-fact-note"> (aprox.)</span>}
+                  {!card.downloadMeasured && (
+                    <span className="game-fact-note"> {t('chooser.approx')}</span>
+                  )}
                 </dd>
               </dl>
 
@@ -96,17 +99,17 @@ export function GameChooser({ onChoose, onCancel }: Props): React.JSX.Element {
           para poder comparar de un vistazo. Todo medido en la fase de cada
           juego, no copiado de sus webs. */}
       <details className="card requirements-guide">
-        <summary>Comparar lo que pide cada juego</summary>
+        <summary>{t('chooser.compare')}</summary>
         <div className="requirements-scroll">
           <table className="requirements-table">
             <thead>
               <tr>
-                <th>Juego</th>
-                <th>Memoria</th>
-                <th>Descarga</th>
-                <th>Arranque</th>
-                <th>Para jugar desde fuera</th>
-                <th>Además</th>
+                <th>{t('chooser.col.game')}</th>
+                <th>{t('chooser.memory')}</th>
+                <th>{t('chooser.download')}</th>
+                <th>{t('chooser.col.startup')}</th>
+                <th>{t('chooser.col.ports')}</th>
+                <th>{t('chooser.col.extra')}</th>
               </tr>
             </thead>
             <tbody>
@@ -122,7 +125,7 @@ export function GameChooser({ onChoose, onCancel }: Props): React.JSX.Element {
                       </span>
                     </td>
                     <td>
-                      {card.memoryGb.min}–{card.memoryGb.recommended} GB
+                      {card.memoryGb.min}–{card.memoryGb.recommended} {unitLabel('GB')}
                     </td>
                     <td>{card.download}</td>
                     <td>{card.requirements.startup}</td>
@@ -135,16 +138,14 @@ export function GameChooser({ onChoose, onCancel }: Props): React.JSX.Element {
           </table>
         </div>
         <p className="hint" style={{ marginBottom: 0 }}>
-          La memoria es la del servidor solo, sin contar Windows ni el propio juego si juegas en el
-          mismo equipo. Con varios servidores encendidos a la vez se suman: la app avisa antes de
-          arrancar uno más si no caben.
+          {t('chooser.memoryNote')}
         </p>
       </details>
 
       <div className="row between wizard-nav">
-        <button onClick={onCancel}>Cancelar</button>
+        <button onClick={onCancel}>{t('common.cancel')}</button>
         <button className="primary" disabled={selected === null} onClick={() => onChoose(selected!)}>
-          {selected ? `Crear un servidor de ${gameInfo(selected).name} →` : 'Elige un juego'}
+          {selected ? t('chooser.create', { game: gameInfo(selected).name }) : t('chooser.pick')}
         </button>
       </div>
     </div>
@@ -163,10 +164,10 @@ function memoryChip(
   const totalGb = Math.round(totalMemoryMb / 1024)
 
   if (totalGb < memoryGb.min) {
-    return { text: `Tu equipo tiene ${totalGb} GB: no le llega`, tone: 'bad' }
+    return { text: t('chooser.memoryBad', { gb: totalGb }), tone: 'bad' }
   }
   if (totalGb < memoryGb.recommended + 4) {
-    return { text: `Tu equipo tiene ${totalGb} GB: irá justo`, tone: 'warn' }
+    return { text: t('chooser.memoryTight', { gb: totalGb }), tone: 'warn' }
   }
-  return { text: 'Tu equipo va sobrado', tone: 'good' }
+  return { text: t('chooser.memoryGood'), tone: 'good' }
 }

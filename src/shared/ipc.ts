@@ -11,6 +11,15 @@ export const IPC = {
   // Ajustes de la aplicación
   getSettings: 'app:getSettings',
   updateSettings: 'app:updateSettings',
+  bootInfo: 'app:boot',
+
+  // Carpeta de datos de la app y su traslado
+  dataFolderInfo: 'app:dataFolder:info',
+  dataFolderChoose: 'app:dataFolder:choose',
+  dataFolderPlan: 'app:dataFolder:plan',
+  dataFolderApply: 'app:dataFolder:apply',
+  dataFolderOpen: 'app:dataFolder:open',
+  relocationDismiss: 'app:relocation:dismiss',
 
   // Instancias
   listInstances: 'instances:list',
@@ -292,6 +301,18 @@ export const RUST_IPC = {
   openPluginsFolder: 'rust:plugins:openFolder'
 } as const
 
+/** Acceso remoto por órdenes (§19.31). */
+export const REMOTE_IPC = {
+  status: 'remote:status',
+  activity: 'remote:activity',
+  setEnabled: 'remote:setEnabled',
+  setPort: 'remote:setPort',
+  createInvite: 'remote:invite:create',
+  cancelInvite: 'remote:invite:cancel',
+  updateDevice: 'remote:device:update',
+  revokeDevice: 'remote:device:revoke'
+} as const
+
 /** Eventos que el núcleo empuja hacia la interfaz. */
 export const EVENTS = {
   log: 'event:log',
@@ -299,7 +320,11 @@ export const EVENTS = {
   players: 'event:players',
   joinCode: 'event:joinCode',
   progress: 'event:progress',
-  diagnosis: 'event:diagnosis'
+  diagnosis: 'event:diagnosis',
+  /** Cómo va el traslado de la carpeta de datos, en el arranque que lo hace. */
+  relocation: 'event:relocation',
+  /** Ha cambiado algo del acceso remoto (estado, dispositivos, actividad). */
+  remote: 'event:remote'
 } as const
 
 export interface MemoryInfo {

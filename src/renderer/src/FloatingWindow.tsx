@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { t } from './i18n'
 
 /**
  * Ventana flotante encima del panel, con la misma pinta que las guías de
@@ -49,7 +50,7 @@ export function FloatingWindow({
             <h3>{title}</h3>
             {subtitle && <div className="modal-subtitle">{subtitle}</div>}
           </div>
-          <button onClick={onClose}>Cerrar</button>
+          <button onClick={onClose}>{t('common.close')}</button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}

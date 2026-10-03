@@ -47,7 +47,15 @@ sus datos compartidos (nombre, condiciones, capacidades, puertos) en `src/shared
    actualizar README (comandos, número de comprobaciones del smoke, reglas nuevas).
 
 **Estado:** las fases 0 a 7 de la hoja de ruta están hechas (la 7, Rust, cierra con la revisión
-general de la 0.10.0). No hay decisiones pendientes; lo siguiente está en ANALISIS.md §19.29.
+general de la 0.10.0). Después, idiomas, Configuración de la app y carpeta de datos movible (§19.29,
+0.11.0): la interfaz está en diez idiomas, los mensajes del núcleo aún en español. **Control remoto por
+órdenes:** R1 (anfitrión y página web, 0.12.0) hecha; R2 (QubiQ como cliente, 0.13.0) por empezar.
+Hoja de ruta y ANALISIS.md §19.31; sin decisiones pendientes. Probarlo desde fuera de casa exige
+abrir un puerto: preguntar antes. Lo demás que viene está en §19.30.
+
+**Textos de la interfaz:** nunca a pelo en el código. Van con `t('clave')` a
+`src/shared/i18n/locales/es/<área>.ts` y a los otros nueve idiomas (el typecheck avisa si falta
+alguno; el smoke, si cambian las variables). Ver «Idiomas» en README.
 Rust, Enshrouded y Valheim publicado se anuncian solos en la lista de Steam: arrancarlos para probar
 sigue exigiendo preguntar antes, salvo lo ya autorizado para su fase.
 
@@ -60,6 +68,7 @@ sigue exigiendo preguntar antes, salvo lo ya autorizado para su fase.
 | `npm run e2e -- paper` y `npm run e2e:restart` | Al tocar núcleo, supervisor o Minecraft. **Minecraft no puede empeorar** |
 | `npm run e2e:custom` | Al tocar servidores a medida (`games/minecraft/custom/`), arranque con cmd o cierre forzado del supervisor |
 | `npm run e2e:steam` | Al tocar SteamCMD, parada o puertos. Caché en `%LOCALAPPDATA%\qubiq-dev\e2e-steam` |
+| `npm run e2e:remote` | Al tocar el control remoto (`core/remote/`, `shared/remote.ts`) o `service.restart`. Escucha solo en 127.0.0.1 |
 | `npm run e2e:rust` | Al tocar Rust o la sesión WebRCON. **Publica el servidor** (Rust se anuncia siempre) |
 | Recorrido de interfaz | Al tocar la interfaz: ver `%LOCALAPPDATA%\qubiq-dev\LEEME.md` (Playwright, capturas y comparación píxel a píxel) |
 

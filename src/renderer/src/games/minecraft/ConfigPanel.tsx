@@ -3,6 +3,7 @@ import type { InstanceState, UiMode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/games/minecraft/types'
 import { minecraftOf } from '@shared/games/minecraft/types'
 import { StartFileCard } from './StartFileCard'
+import { formatNumber, t } from '../../i18n'
 
 /** Claves que se gestionan dentro de otro control y no se pintan sueltas. */
 const COMPOSITE_KEYS = new Set(['hardcore'])
@@ -115,11 +116,7 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
   async function save(): Promise<void> {
     if (destructiveChanges.length > 0) {
       const names = destructiveChanges.map((d) => `· ${d.label}`).join('\n')
-      const ok = window.confirm(
-        `Vas a cambiar opciones que afectan al mundo ya generado:\n\n${names}\n\n` +
-          'El terreno existente no cambiará, pero el nuevo se generará distinto y puede ' +
-          'quedar un corte visible.\n\n¿Continuar?'
-      )
+      const ok = window.confirm(t('mc.config.destructiveConfirm', { names }))
       if (!ok) return
     }
 
@@ -165,25 +162,22 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
     <div className="panel">
       {running && (
         <div className="alert info">
-          <strong>Para el servidor para poder cambiar la configuración</strong>
-          <p>
-            Mientras está en marcha, el servidor mantiene estos ajustes en memoria y reescribe el
-            fichero al cerrarse, así que cualquier cambio se perdería.
-          </p>
+          <strong>{t('mc.config.stopFirst')}</strong>
+          <p>{t('mc.config.stopFirstText')}</p>
         </div>
       )}
 
       {error && (
         <div className="alert error">
-          <strong>No se pudo guardar</strong>
+          <strong>{t('common.saveFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       {saved && !dirty && (
         <div className="alert info">
-          <strong>Cambios guardados</strong>
-          <p>Se aplicarán la próxima vez que arranques el servidor.</p>
+          <strong>{t('common.saved')}</strong>
+          <p>{t('common.savedNextStart')}</p>
         </div>
       )}
 
@@ -194,9 +188,9 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
       <div className="card">
         <div className="row between" style={{ marginBottom: 14 }}>
           <div>
-            <h3>Ajustes del servidor</h3>
+            <h3>{t('mc.config.title')}</h3>
             <p className="hint" style={{ marginBottom: 0 }}>
-              Lo que verán y podrán hacer tus jugadores.
+              {t('mc.config.hint')}
             </p>
           </div>
           {/* En modo básico ni siquiera se ofrece: el interruptor sería una
@@ -209,7 +203,7 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
                 onChange={(e) => setAdvanced(e.target.checked)}
                 style={{ width: 16, height: 16 }}
               />
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>Mostrar avanzadas</span>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t('common.showAdvanced')}</span>
             </label>
           )}
         </div>
@@ -247,7 +241,7 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
               disabled={running || (def.key === 'difficulty' && hardcore)}
               lockedNote={
                 def.key === 'difficulty' && hardcore
-                  ? 'En modo extremo la dificultad es siempre Difícil.'
+                  ? t('mc.config.hardcoreDifficulty')
                   : undefined
               }
               onChange={(value) => update(def.key, value)}
@@ -257,16 +251,14 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
       </div>
 
       <div className="card">
-        <h3>{basic ? '¿Cuánta gente vais a ser?' : 'Jugadores y memoria'}</h3>
-        <p className="hint">
-          {basic
-            ? 'Ajustamos solos la memoria del servidor según lo que indiques. Se aplica en el siguiente arranque.'
-            : 'Se aplican en el siguiente arranque. La memoria recomendada depende de cuánta gente esperas a la vez y de si el servidor lleva mods.'}
-        </p>
+        <h3>{basic ? t('wizard.players.title') : t('mc.config.playersMemory')}</h3>
+        <p className="hint">{basic ? t('mc.config.basicMemoryHint') : t('mc.config.advancedMemoryHint')}</p>
 
         <div className="field" style={basic ? { marginBottom: 0 } : undefined}>
           <label>
-            {basic ? `${players} jugadores a la vez` : `Jugadores esperados a la vez: ${players}`}
+            {basic
+              ? t('mc.config.playersAtOnce', { count: players })
+              : t('mc.config.expectedPlayers', { count: players })}
           </label>
           <input
             type="range"
@@ -282,8 +274,8 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
           />
           <div className="help">
             {basic
-              ? 'Cuenta a quienes estaréis conectados a la vez, no el total de amigos.'
-              : 'Solo sirve para calcular la memoria. El límite real de conexiones es "Jugadores como máximo", ahí arriba.'}
+              ? t('wizard.players.help')
+              : t('mc.config.expectedHelp', { max: t('mc.prop.max-players.label') })}
           </div>
         </div>
 
@@ -293,16 +285,13 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
             que no llega a ningún sitio sería engañar: se dice dónde cambiarla. */}
         {!basic && manifest.data.custom?.memory === 'script' && (
           <div className="alert info" style={{ marginTop: 16, marginBottom: 0 }}>
-            <strong>La memoria la decide su archivo de inicio</strong>
-            <p>
-              {manifest.data.custom.startFile} la fija él mismo, así que para cambiarla hay que
-              editar ese archivo.
-            </p>
+            <strong>{t('mc.config.scriptMemory')}</strong>
+            <p>{t('mc.config.scriptMemoryText', { file: manifest.data.custom.startFile })}</p>
           </div>
         )}
         {!basic && manifest.data.custom?.memory !== 'script' && (
         <div className="field">
-          <label>Memoria asignada: {(memoryMb / 1024).toFixed(1)} GB</label>
+          <label>{t('mc.memory.label', { gb: gbText(memoryMb) })}</label>
           <input
             type="range"
             min={2048}
@@ -318,7 +307,7 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
           <div className="help">
             {recommendedMb !== null && (
               <>
-                Para {players} jugadores recomendamos {(recommendedMb / 1024).toFixed(1)} GB.{' '}
+                {t('mc.config.recommendFor', { count: players, gb: gbText(recommendedMb) })}{' '}
                 {memoryMb !== recommendedMb && !running && (
                   <button
                     onClick={() => {
@@ -327,13 +316,13 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
                     }}
                     style={{ padding: '2px 8px', fontSize: 11, borderRadius: 6 }}
                   >
-                    Usar la recomendada
+                    {t('mc.config.useRecommended')}
                   </button>
                 )}
                 <br />
               </>
             )}
-            Subirla sin necesidad no mejora nada y se la quita al resto del equipo.
+            {t('mc.config.memoryNote')}
           </div>
         </div>
         )}
@@ -341,10 +330,10 @@ export function ConfigPanel({ state, mode, onSaved }: Props): React.JSX.Element 
 
       <div className="row between">
         <button disabled={!dirty || saving} onClick={discard}>
-          Descartar cambios
+          {t('common.discard')}
         </button>
         <button className="primary" disabled={!dirty || saving || running} onClick={() => void save()}>
-          {saving ? 'Guardando...' : 'Guardar cambios'}
+          {saving ? t('common.saving') : t('common.saveChanges')}
         </button>
       </div>
     </div>
@@ -385,12 +374,10 @@ function GameModeField({
             {option.label}
           </option>
         ))}
-        <option value="hardcore">Extremo (hardcore)</option>
+        <option value="hardcore">{t('mc.config.hardcoreOption')}</option>
       </select>
       <div className="help">
-        {value === 'hardcore'
-          ? 'Supervivencia en dificultad Difícil y sin segundas oportunidades: al morir, el jugador pasa a espectador y ya no puede seguir jugando en ese mundo.'
-          : definition.help}
+        {value === 'hardcore' ? t('mc.config.hardcoreHelp') : definition.help}
       </div>
     </div>
   )
@@ -435,7 +422,7 @@ function PropertyField({
     <div className="field">
       <label>
         {label}
-        {destructive && <span style={{ color: 'var(--warn)' }}> · afecta al mundo</span>}
+        {destructive && <span style={{ color: 'var(--warn)' }}> · {t('mc.config.affectsWorld')}</span>}
       </label>
 
       {type === 'enum' && (
@@ -471,4 +458,9 @@ function PropertyField({
       <div className="help">{lockedNote ?? help}</div>
     </div>
   )
+}
+
+/** Megas a gigas con un decimal y el separador del idioma. */
+function gbText(mb: number): string {
+  return formatNumber(mb / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 }

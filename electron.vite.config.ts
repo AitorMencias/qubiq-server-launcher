@@ -37,7 +37,11 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        input: { index: resolve(__dirname, 'src/renderer/index.html') }
+        input: {
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          // La página del control remoto (§19.31): la sirve el propio anfitrión.
+          remote: resolve(__dirname, 'src/renderer/remote.html')
+        }
       }
     },
     plugins: [react()]

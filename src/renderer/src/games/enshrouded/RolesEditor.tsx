@@ -5,6 +5,7 @@ import {
   type EnshroudedRole
 } from '@shared/games/enshrouded/types'
 import { CheckRow } from '../../CheckRow'
+import { formatList, midSentence, t } from '../../i18n'
 
 /**
  * Los roles de un servidor de Enshrouded: contraseña y permisos de cada uno.
@@ -38,23 +39,20 @@ export function RolesEditor({ roles, onChange, disabled }: Props): React.JSX.Ele
         // márgenes y duplica las etiquetas.
         <div key={role.name} className="role-block">
           <div className="field">
-            <label>Contraseña de {roleLabel(role.name)}</label>
+            <label>{t('en.rolesEd.password', { role: roleLabel(role.name) })}</label>
             <input
               type="text"
               value={role.password}
               maxLength={40}
               disabled={disabled}
-              placeholder="Vacío = entra cualquiera con este rol"
+              placeholder={t('en.rolesEd.placeholder')}
               onChange={(e) => update(index, { password: e.target.value })}
             />
             <div className="help">
               {role.password.length === 0 ? (
-                <>
-                  Sin contraseña: quien entre sin escribir ninguna tendrá este rol. Como Enshrouded
-                  sale siempre en su lista pública, eso es dejar el servidor abierto.
-                </>
+                <>{t('en.rolesEd.open')}</>
               ) : role.password.length < MIN_PASSWORD_LENGTH ? (
-                <>Se queda corta: pon al menos {MIN_PASSWORD_LENGTH} caracteres.</>
+                <>{t('en.rolesEd.short', { min: MIN_PASSWORD_LENGTH })}</>
               ) : (
                 <>{permissionSummary(role)}</>
               )}
@@ -73,7 +71,7 @@ export function RolesEditor({ roles, onChange, disabled }: Props): React.JSX.Ele
           ))}
 
           <div className="field">
-            <label>Plazas reservadas para {roleLabel(role.name)}</label>
+            <label>{t('en.rolesEd.reserved', { role: roleLabel(role.name) })}</label>
             <input
               type="number"
               min={0}
@@ -82,10 +80,7 @@ export function RolesEditor({ roles, onChange, disabled }: Props): React.JSX.Ele
               disabled={disabled}
               onChange={(e) => update(index, { reservedSlots: Number(e.target.value) })}
             />
-            <div className="help">
-              Con una o más, el servidor aparece «lleno» para los demás roles antes de que se agoten
-              las plazas, para que este rol siempre pueda entrar.
-            </div>
+            <div className="help">{t('en.rolesEd.reservedHelp')}</div>
           </div>
         </div>
       ))}
@@ -95,7 +90,7 @@ export function RolesEditor({ roles, onChange, disabled }: Props): React.JSX.Ele
 
 /** Qué puede hacer este rol, en una frase. */
 function permissionSummary(role: EnshroudedRole): string {
-  const puede = PERMISSIONS.filter((p) => role[p.key]).map((p) => p.label.toLowerCase())
-  if (puede.length === 0) return 'Solo puede entrar, pelear y recoger cosas del mundo.'
-  return `Puede ${puede.join(', ')}.`
+  const puede = PERMISSIONS.filter((p) => role[p.key]).map((p) => midSentence(p.label))
+  if (puede.length === 0) return t('en.rolesEd.nothing')
+  return t('en.rolesEd.can', { list: formatList(puede) })
 }

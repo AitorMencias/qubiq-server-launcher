@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { MinecraftManifest } from '@shared/types'
 import type { StartFileInfo } from '@shared/games/minecraft/types'
+import { t } from '../../i18n'
 
 /**
  * Archivo de inicio de un servidor a medida (§19.x): con cuál arranca y
@@ -63,15 +64,12 @@ export function StartFileCard({ manifest, running, onChanged }: Props): React.JS
 
   return (
     <div className="card">
-      <h3>Archivo de inicio</h3>
-      <p className="hint">
-        Este servidor lo has traído tú y arranca con su propio archivo, con el Java que necesita su
-        versión de Minecraft.
-      </p>
+      <h3>{t('mc.start.title')}</h3>
+      <p className="hint">{t('mc.start.hint')}</p>
 
       {error && (
         <div className="alert error">
-          <strong>No se pudo cambiar</strong>
+          <strong>{t('mc.start.failed')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -95,23 +93,23 @@ export function StartFileCard({ manifest, running, onChanged }: Props): React.JS
             disabled={running || busy || chosen === custom.startFile}
             onClick={() => void save(chosen)}
           >
-            Usar este
+            {t('mc.start.use')}
           </button>
           <button disabled={running || busy} onClick={() => void pick()}>
-            Elegir otro…
+            {t('mc.start.other')}
           </button>
         </div>
 
         <div className="help">
           {running
-            ? 'Hay que parar el servidor para cambiarlo.'
+            ? t('mc.start.stopToChange')
             : selected?.restartLoop
-              ? 'Ojo: este archivo vuelve a arrancar el servidor cuando se cierra, y así Parar tiene que forzar el cierre.'
+              ? t('mc.start.loopWarning')
               : custom.memory === 'script'
-                ? 'La memoria la decide este archivo.'
+                ? t('mc.start.memoryByFile')
                 : custom.memory === 'jvm-args'
-                  ? 'La memoria la pone la app en su user_jvm_args.txt, cambiando solo esas líneas.'
-                  : 'La memoria la pone la app.'}
+                  ? t('mc.start.memoryByArgs')
+                  : t('mc.start.memoryByApp')}
         </div>
       </div>
     </div>

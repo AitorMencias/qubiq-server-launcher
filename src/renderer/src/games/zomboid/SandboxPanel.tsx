@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import { presetInfo } from '@shared/games/zomboid/types'
 import { ConfigTab } from './ConfigTab'
+import { quote, t } from '../../i18n'
 
 /**
  * Las reglas de la partida (`servertest_SandboxVars.lua`).
@@ -55,7 +56,7 @@ export function SandboxPanel({ state, onChanged }: Props): React.JSX.Element {
       {error && (
         <div className="panel" style={{ paddingBottom: 0 }}>
           <div className="alert error">
-            <strong>No se pudo restablecer</strong>
+            <strong>{t('pz.sandbox.resetFailed')}</strong>
             <p>{error}</p>
           </div>
         </div>
@@ -64,29 +65,20 @@ export function SandboxPanel({ state, onChanged }: Props): React.JSX.Element {
         instanceId={id}
         load={load}
         save={save}
-        savedNotice="Guardado. Se aplica la próxima vez que arranques el servidor."
-        intro={
-          <>
-            Son las reglas con las que se juega: cuántos zombis hay, cuándo se corta la luz, a qué
-            ritmo se sube de nivel. La explicación de cada una la escribe el propio Zomboid, así que
-            dice lo mismo que el menú del juego.
-          </>
-        }
+        savedNotice={t('pz.sandbox.saved')}
+        intro={t('pz.sandbox.intro')}
         blocked={
           running ? (
             <>
-              <strong>Hay que parar el servidor</strong>
-              <p>
-                Zomboid lee estas reglas al cargar el mundo y no las vuelve a mirar. Puedes verlas,
-                pero para cambiarlas hay que pararlo.
-              </p>
+              <strong>{t('pz.sandbox.stopFirst')}</strong>
+              <p>{t('pz.sandbox.stopFirstText')}</p>
             </>
           ) : undefined
         }
         extra={
           preset?.file ? (
             <button disabled={busy || running} onClick={() => void restablecer()}>
-              {busy ? 'Restableciendo…' : `Volver a «${preset.name}»`}
+              {busy ? t('pz.sandbox.resetting') : t('pz.sandbox.reset', { name: quote(preset.name) })}
             </button>
           ) : undefined
         }

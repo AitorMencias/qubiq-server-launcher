@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState, UiMode } from '@shared/types'
 import type { WorldInfo } from '@shared/games/minecraft/types'
 import { LEVEL_TYPES } from '@shared/games/minecraft/types'
+import { formatBytes, formatDate as formatDateTime, quote, t } from '../../i18n'
 
 /**
  * Gestión de mundos (§8).
@@ -68,7 +69,7 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
           seed: seed.trim() || undefined,
           levelType
         }),
-      `Mundo "${name.trim()}" creado. Se generará al arrancar el servidor.`
+      t('mc.worlds.created', { name: quote(name.trim()) })
     )
     setName('')
     setSeed('')
@@ -78,22 +79,19 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
   async function activate(world: WorldInfo): Promise<void> {
     await run(
       () => window.qubiq.minecraft.worlds.activate(manifest.id, world.name),
-      `Ahora se jugará en "${world.name}". Arranca el servidor para entrar.`
+      t('mc.worlds.activated', { name: quote(world.name) })
     )
   }
 
   async function remove(world: WorldInfo): Promise<void> {
     const ok = window.confirm(
-      `¿Borrar el mundo "${world.name}"?\n\n` +
-        `Se perderá todo lo construido en él (${formatSize(world.sizeBytes)}). ` +
-        'Esto no se puede deshacer.\n\n' +
-        'Si quieres conservarlo por si acaso, cancela y haz antes una copia de seguridad.'
+      t('mc.worlds.confirmDelete', { name: quote(world.name), size: formatSize(world.sizeBytes) })
     )
     if (!ok) return
 
     await run(
       () => window.qubiq.minecraft.worlds.remove(manifest.id, world.name),
-      `Mundo "${world.name}" borrado.`
+      t('mc.worlds.deleted', { name: quote(world.name) })
     )
   }
 
@@ -101,31 +99,28 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
     <div className="panel">
       {running && (
         <div className="alert info">
-          <strong>Para el servidor para gestionar los mundos</strong>
-          <p>
-            Cambiar de mundo, crear uno nuevo o borrarlo requiere que el servidor esté parado: en
-            marcha reescribe su configuración al cerrarse y se perderían los cambios.
-          </p>
+          <strong>{t('mc.worlds.stopFirst')}</strong>
+          <p>{t('mc.worlds.stopFirstText')}</p>
         </div>
       )}
 
       {error && (
         <div className="alert error">
-          <strong>No se pudo completar la operación</strong>
+          <strong>{t('backup.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       {notice && !error && (
         <div className="alert info">
-          <strong>Listo</strong>
+          <strong>{t('backup.done')}</strong>
           <p>{notice}</p>
         </div>
       )}
 
       <div className="card">
         <div className="row between" style={{ marginBottom: 4 }}>
-          <h3 style={{ margin: 0 }}>Mundos de este servidor</h3>
+          <h3 style={{ margin: 0 }}>{t('mc.worlds.title')}</h3>
           {!creating && (
             <button
               className="primary"
@@ -133,14 +128,11 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
               style={{ flexShrink: 0 }}
               onClick={() => setCreating(true)}
             >
-              + Crear mundo
+              + {t('mc.worlds.create')}
             </button>
           )}
         </div>
-        <p className="hint">
-          Puedes tener varios mundos guardados, pero solo se juega en uno cada vez. Cambiar de
-          mundo no borra los demás.
-        </p>
+        <p className="hint">{t('mc.worlds.hint')}</p>
 
         <div className="player-list">
           {worlds.map((world) => (
@@ -157,7 +149,7 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
                         fontWeight: 400
                       }}
                     >
-                      ● en uso
+                      ● {t('mc.worlds.inUse')}
                     </span>
                   )}
                 </div>
@@ -165,18 +157,19 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
                   {world.generated ? (
                     <>
                       {formatSize(world.sizeBytes)}
-                      {world.lastPlayed && ` · última partida ${formatDate(world.lastPlayed)}`}
-                      {world.legacyFolders.length > 0 && ' · incluye Nether y End aparte'}
+                      {world.lastPlayed &&
+                        ` · ${t('mc.worlds.lastPlayed', { date: formatDate(world.lastPlayed) })}`}
+                      {world.legacyFolders.length > 0 && ` · ${t('mc.worlds.legacy')}`}
                     </>
                   ) : (
-                    'Aún sin generar: se creará al arrancar el servidor'
+                    t('mc.worlds.notGenerated')
                   )}
                 </div>
               </div>
 
               {!world.active && world.generated && (
                 <button disabled={running || busy} onClick={() => void activate(world)}>
-                  Jugar en este
+                  {t('mc.worlds.playThis')}
                 </button>
               )}
               {!world.active && (
@@ -185,7 +178,7 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
                   disabled={running || busy}
                   onClick={() => void remove(world)}
                 >
-                  Borrar
+                  {t('backup.delete')}
                 </button>
               )}
             </div>
@@ -195,25 +188,22 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
 
       {creating && (
         <div className="card">
-          <h3>Crear un mundo nuevo</h3>
-          <p className="hint">
-            El mundo se genera la primera vez que arranques el servidor. El actual no se toca: se
-            queda guardado y puedes volver a él cuando quieras.
-          </p>
+          <h3>{t('mc.worlds.newTitle')}</h3>
+          <p className="hint">{t('mc.worlds.newHint')}</p>
 
           <div className="field">
-            <label>Nombre</label>
+            <label>{t('wizard.summary.name')}</label>
             <input
               value={name}
               maxLength={40}
-              placeholder="Por ejemplo: aventura-2"
+              placeholder={t('mc.worlds.namePlaceholder')}
               onChange={(e) => setName(e.target.value)}
             />
-            <div className="help">Es también el nombre de la carpeta, así que evita símbolos raros.</div>
+            <div className="help">{t('mc.worlds.nameHelp')}</div>
           </div>
 
           <div className="field">
-            <label>Tipo de mundo</label>
+            <label>{t('mc.prop.level-type.label')}</label>
             <select value={levelType} onChange={(e) => setLevelType(e.target.value)}>
               {LEVEL_TYPES.map((type) => (
                 <option key={type.value} value={type.value}>
@@ -222,23 +212,20 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
               ))}
             </select>
             <div className="help">
-              {LEVEL_TYPES.find((t) => t.value === levelType)?.help}
+              {LEVEL_TYPES.find((type) => type.value === levelType)?.help}
             </div>
           </div>
 
           {/* La semilla es un concepto de nicho: fuera del modo básico. */}
           {!basic && (
           <div className="field">
-            <label>Semilla (opcional)</label>
+            <label>{t('mc.worlds.seed')}</label>
             <input
               value={seed}
-              placeholder="Déjalo vacío para un mundo aleatorio"
+              placeholder={t('mc.worlds.seedPlaceholder')}
               onChange={(e) => setSeed(e.target.value)}
             />
-            <div className="help">
-              La semilla determina el terreno. Si repites la misma semilla y el mismo tipo,
-              obtienes exactamente el mismo mundo.
-            </div>
+            <div className="help">{t('mc.worlds.seedHelp')}</div>
           </div>
           )}
 
@@ -250,14 +237,14 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
                 setSeed('')
               }}
             >
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button
               className="primary"
               disabled={running || busy || name.trim().length === 0}
               onClick={() => void create()}
             >
-              Crear mundo
+              {t('mc.worlds.create')}
             </button>
           </div>
         </div>
@@ -267,14 +254,12 @@ export function WorldsPanel({ state, mode, onChanged }: Props): React.JSX.Elemen
 }
 
 function formatSize(bytes: number): string {
-  if (bytes === 0) return 'vacío'
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+  if (bytes === 0) return t('mc.worlds.empty')
+  return formatBytes(bytes)
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-ES', {
+  return formatDateTime(iso, {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',

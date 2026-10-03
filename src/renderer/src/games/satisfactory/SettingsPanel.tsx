@@ -5,6 +5,7 @@ import {
   SERVER_OPTIONS,
   type SatisfactoryOption
 } from '@shared/games/satisfactory/types'
+import { t } from '../../i18n'
 
 /**
  * Ajustes de un servidor de Satisfactory.
@@ -64,12 +65,8 @@ export function SettingsPanel({ state, mode, onSaved }: Props): React.JSX.Elemen
     return (
       <div className="panel">
         <div className="alert info">
-          <strong>Arranca el servidor para ver sus ajustes</strong>
-          <p>
-            Satisfactory no guarda su configuración en ficheros: se le piden los ajustes al servidor
-            y se le mandan los cambios mientras está en marcha. Con el servidor parado no hay a
-            quién preguntar.
-          </p>
+          <strong>{t('sf.settings.startFirst')}</strong>
+          <p>{t('sf.settings.startFirstText')}</p>
         </div>
       </div>
     )
@@ -90,7 +87,7 @@ export function SettingsPanel({ state, mode, onSaved }: Props): React.JSX.Elemen
       setValues(result.options)
       setOriginal(result.options)
       setPending(result.pending)
-      setNotice('Ajustes guardados.')
+      setNotice(t('sf.settings.saved'))
       onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -106,9 +103,7 @@ export function SettingsPanel({ state, mode, onSaved }: Props): React.JSX.Elemen
     try {
       await window.qubiq.satisfactory.setClientPassword(manifest.id, clientPassword.trim())
       setNotice(
-        clientPassword.trim().length > 0
-          ? 'Contraseña cambiada. Quien ya esté dentro sigue jugando.'
-          : 'Contraseña quitada: ahora puede entrar cualquiera que tenga la dirección.'
+        clientPassword.trim().length > 0 ? t('sf.settings.passwordChanged') : t('sf.settings.passwordRemoved')
       )
       onSaved()
     } catch (err) {
@@ -131,7 +126,7 @@ export function SettingsPanel({ state, mode, onSaved }: Props): React.JSX.Elemen
       const result = await window.qubiq.satisfactory.rules.set(manifest.id, updates)
       setRules(result.settings)
       setOriginalRules(result.settings)
-      setNotice('Reglas aplicadas. Se ha guardado una copia de la partida antes de cambiarlas.')
+      setNotice(t('sf.settings.rulesApplied'))
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -145,7 +140,7 @@ export function SettingsPanel({ state, mode, onSaved }: Props): React.JSX.Elemen
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo completar la acción</strong>
+          <strong>{t('panel.actionFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -157,17 +152,19 @@ export function SettingsPanel({ state, mode, onSaved }: Props): React.JSX.Elemen
 
       {Object.keys(pending).length > 0 && (
         <div className="alert warn">
-          <strong>Hay ajustes esperando a un reinicio</strong>
+          <strong>{t('sf.settings.pendingTitle')}</strong>
           <p>
-            El servidor ha aceptado {Object.keys(pending).length} ajuste(s) que no se aplican hasta
-            que se reinicie: {Object.keys(pending).join(', ')}.
+            {t('sf.settings.pending', {
+              count: Object.keys(pending).length,
+              list: Object.keys(pending).join(', ')
+            })}
           </p>
         </div>
       )}
 
       <div className="card">
-        <h3>Servidor</h3>
-        <p className="hint">Se aplican al momento, sin parar la partida.</p>
+        <h3>{t('panel.tab.server')}</h3>
+        <p className="hint">{t('sf.settings.serverHint')}</p>
 
         {visible.map((option) => (
           <OptionField
@@ -180,46 +177,37 @@ export function SettingsPanel({ state, mode, onSaved }: Props): React.JSX.Elemen
 
         <div className="row" style={{ marginTop: 12 }}>
           <button className="primary" disabled={busy || changed.length === 0} onClick={() => void save()}>
-            Guardar cambios
+            {t('common.saveChanges')}
           </button>
           {changed.length > 0 && (
-            <span className="hint">
-              {changed.length} cambio{changed.length > 1 ? 's' : ''} sin guardar
-            </span>
+            <span className="hint">{t('cfg.unsaved', { count: changed.length })}</span>
           )}
         </div>
       </div>
 
       <div className="card">
-        <h3>Contraseña para entrar</h3>
-        <p className="hint">
-          La que tienen que escribir tus amigos al añadir el servidor. Vacía significa que puede
-          entrar cualquiera que tenga la dirección.
-        </p>
+        <h3>{t('wizard.summary.joinPassword')}</h3>
+        <p className="hint">{t('sf.settings.passwordHint')}</p>
         <div className="field">
           <input
             type="text"
             value={clientPassword}
             maxLength={40}
-            placeholder="Sin contraseña"
+            placeholder={t('sf.settings.noPassword')}
             onChange={(e) => setClientPassword(e.target.value)}
           />
         </div>
         <button disabled={busy} onClick={() => void savePassword()}>
-          Cambiar contraseña
+          {t('sf.settings.changePassword')}
         </button>
       </div>
 
       {advanced && (
         <div className="card">
-          <h3>Reglas de la partida</h3>
+          <h3>{t('sf.settings.rules')}</h3>
           <div className="alert warn" style={{ textAlign: 'left' }}>
-            <strong>Esto marca la partida para siempre</strong>
-            <p>
-              En cuanto se activa cualquiera de estas reglas, el juego desactiva los logros de esa
-              partida y no hay vuelta atrás, ni aunque se vuelva a desactivar. Se guarda una copia
-              antes de aplicarlas.
-            </p>
+            <strong>{t('sf.settings.rulesWarning')}</strong>
+            <p>{t('sf.settings.rulesWarningText')}</p>
           </div>
 
           {GAME_RULES.map((rule) => (
@@ -232,7 +220,7 @@ export function SettingsPanel({ state, mode, onSaved }: Props): React.JSX.Elemen
           ))}
 
           <button className="primary" disabled={busy || !rulesChanged} onClick={() => void saveRules()}>
-            Aplicar reglas
+            {t('sf.settings.applyRules')}
           </button>
         </div>
       )}
@@ -286,7 +274,7 @@ function OptionField({ option, value, onChange }: FieldProps): React.JSX.Element
   return (
     <div className="field">
       <label>
-        {option.label}: cada {minutes} min
+        {t('sf.settings.every', { label: option.label, n: minutes })}
       </label>
       <input
         type="range"

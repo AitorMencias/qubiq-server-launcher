@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import { MODERATION_LISTS, type FactorioListKind } from '@shared/games/factorio/types'
+import { t } from '../../i18n'
 
 /**
  * Moderación de un servidor de Factorio.
@@ -71,19 +72,16 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo completar la acción</strong>
+          <strong>{t('panel.actionFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       <div className="alert info">
-        <strong>{running ? 'El servidor está en marcha' : 'El servidor está parado'}</strong>
+        <strong>{running ? t('fa.moderation.running') : t('fa.moderation.stopped')}</strong>
         <p>
-          {running
-            ? 'Vetar a alguien que está dentro lo echa al momento. Nombrar administrador a quien no está conectado se aplica la próxima vez que arranques el servidor: el juego no deja ascender a quien no ha entrado nunca.'
-            : 'Los cambios se aplican al arrancarlo.'}{' '}
-          Para moderar a quien está dentro ahora mismo, es más cómodo hacerlo desde «Jugadores», en
-          la pantalla del servidor.
+          {running ? t('fa.moderation.runningText') : t('fa.moderation.stoppedText')}{' '}
+          {t('fa.moderation.usePlayers', { tab: t('panel.tab.players') })}
         </p>
       </div>
 
@@ -96,7 +94,7 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
 
             {entries.length === 0 ? (
               <p className="hint" style={{ marginBottom: 14 }}>
-                Lista vacía.
+                {t('vh.mod.emptyList')}
               </p>
             ) : (
               entries.map((player) => (
@@ -111,7 +109,7 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                       )
                     }
                   >
-                    Quitar
+                    {t('catalog.remove')}
                   </button>
                 </div>
               ))
@@ -121,7 +119,7 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
               <input
                 className="grow"
                 value={drafts[list.kind] ?? ''}
-                placeholder="Nombre de la cuenta de Factorio"
+                placeholder={t('fa.moderation.placeholder')}
                 onChange={(e) =>
                   setDrafts((prev) => ({
                     ...prev,
@@ -137,7 +135,7 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                 disabled={busy || (drafts[list.kind] ?? '').trim().length === 0}
                 onClick={() => add(list.kind, drafts[list.kind] ?? '')}
               >
-                Añadir
+                {t('mc.official.add')}
               </button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import type { OfficialPlugin, OfficialPluginStatus } from '@shared/games/minecra
 import { officialPluginsFor } from '@shared/games/minecraft/officialPlugins'
 import { minecraftOf } from '@shared/games/minecraft/types'
 import { FloatingWindow } from '../../FloatingWindow'
+import { Rich, t } from '../../i18n'
 
 /**
  * Plugins oficiales: los que mantenemos nosotros (§4.8).
@@ -72,32 +73,27 @@ export function OfficialPlugins({ state, onChanged }: Props): React.JSX.Element 
 
   return (
     <div className="card">
-      <h3>Plugins oficiales</h3>
-      <p className="hint">
-        Los mantenemos nosotros, así que se instalan y se configuran desde aquí sin descargar nada.
-      </p>
+      <h3>{t('mc.official.title')}</h3>
+      <p className="hint">{t('mc.official.hint')}</p>
 
       {error && (
         <div className="alert error">
-          <strong>No se pudo completar la operación</strong>
+          <strong>{t('backup.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       {notice && !error && (
         <div className="alert info">
-          <strong>Listo</strong>
+          <strong>{t('backup.done')}</strong>
           <p>{notice}</p>
         </div>
       )}
 
       {running && (
         <div className="alert info">
-          <strong>Para el servidor para instalar o configurar</strong>
-          <p>
-            Los plugins se cargan al arrancar, y su configuración se lee en ese momento. Con el
-            servidor en marcha los cambios no tendrían efecto.
-          </p>
+          <strong>{t('mc.official.stopFirst')}</strong>
+          <p>{t('mc.official.stopFirstText')}</p>
         </div>
       )}
 
@@ -145,8 +141,8 @@ function OfficialPluginRow({
     await onRun(
       () => window.qubiq.minecraft.official.install(instanceId, plugin.id, role || undefined),
       chosenRole?.requiresHardcore
-        ? `${plugin.name} instalado, con modo extremo y los ajustes que necesita.`
-        : `${plugin.name} instalado con los ajustes que necesita.`
+        ? t('mc.official.installedHardcore', { name: plugin.name })
+        : t('mc.official.installed', { name: plugin.name })
     )
     setChoosing(false)
   }
@@ -162,20 +158,16 @@ function OfficialPluginRow({
   async function update(): Promise<void> {
     await onRun(
       () => window.qubiq.minecraft.official.install(instanceId, plugin.id, status?.role ?? undefined),
-      `${plugin.name} actualizado. Tu configuración se ha conservado.`
+      t('mc.official.updated', { name: plugin.name })
     )
   }
 
   async function uninstall(): Promise<void> {
-    const keep = window.confirm(
-      `¿Quitar ${plugin.name}?\n\n` +
-        'Se conservará su configuración (la clave compartida y las direcciones) por si vuelves a ' +
-        'instalarlo.\n\nAcepta para quitarlo.'
-    )
+    const keep = window.confirm(t('mc.official.confirmRemove', { name: plugin.name }))
     if (!keep) return
     await onRun(
       () => window.qubiq.minecraft.official.uninstall(instanceId, plugin.id, false),
-      `${plugin.name} retirado. Su configuración sigue guardada.`
+      t('mc.official.removed', { name: plugin.name })
     )
   }
 
@@ -186,41 +178,41 @@ function OfficialPluginRow({
           <div className="row" style={{ gap: 8 }}>
             <strong>{plugin.name}</strong>
             <span className="official-version">v{plugin.version}</span>
-            {installed && status?.enabled && <span className="badge">Instalado</span>}
+            {installed && status?.enabled && <span className="badge">{t('catalog.installed')}</span>}
             {installed && !status?.enabled && (
-              <span className="badge muted">Instalado pero desactivado</span>
+              <span className="badge muted">{t('mc.official.installedDisabled')}</span>
             )}
             {installed && status?.upToDate === false && (
-              <span className="badge warn">Hay una versión nueva</span>
+              <span className="badge warn">{t('version.newer')}</span>
             )}
           </div>
           <p className="official-summary">{plugin.summary}</p>
           {installed && currentRole && (
-            <p className="official-role">Papel: {currentRole.label}</p>
+            <p className="official-role">{t('mc.official.role', { role: currentRole.label })}</p>
           )}
         </div>
 
         <div className="row" style={{ flexShrink: 0 }}>
           {!installed && !choosing && (
             <button className="primary" disabled={running || busy} onClick={() => setChoosing(true)}>
-              Añadir
+              {t('mc.official.add')}
             </button>
           )}
           {installed && (
             <>
               <button disabled={running || busy} onClick={() => setConfiguring(true)}>
-                Configurar
+                {t('mc.content.configure')}
               </button>
               <button
                 className={status?.upToDate === false ? 'primary' : ''}
                 disabled={running || busy}
-                title="Vuelve a poner el plugin que trae la aplicación y añade las opciones nuevas, sin perder tu configuración."
+                title={t('mc.official.updateTitle')}
                 onClick={() => void update()}
               >
-                Actualizar
+                {t('version.update')}
               </button>
               <button className="danger" disabled={running || busy} onClick={() => void uninstall()}>
-                Quitar
+                {t('catalog.remove')}
               </button>
             </>
           )}
@@ -234,7 +226,7 @@ function OfficialPluginRow({
 
           {plugin.roles && (
             <div className="field">
-              <label>¿Qué papel tiene este servidor?</label>
+              <label>{t('mc.official.whichRole')}</label>
               <div className="role-grid">
                 {plugin.roles.map((option) => (
                   <button
@@ -253,32 +245,25 @@ function OfficialPluginRow({
           {/* El aviso que pediste: activar este papel cambia las reglas. */}
           {chosenRole?.requiresHardcore && (
             <div className="alert error" style={{ marginBottom: 14 }}>
-              <strong>El modo de juego pasará a Extremo (hardcore)</strong>
-              <p>
-                Este plugin solo tiene sentido en modo extremo, así que al instalarlo lo activamos:
-                la dificultad pasa a Difícil y, al morir, el jugador queda como espectador y el mundo
-                se reinicia con otra semilla. Si ya tenías una partida en curso aquí, lo construido
-                no se borra ahora, pero las reglas cambian en el siguiente arranque.
-              </p>
+              <strong>{t('mc.official.hardcoreTitle')}</strong>
+              <p>{t('mc.official.hardcoreText')}</p>
             </div>
           )}
 
           {/* Y lo que se toca en Ajustes, dicho antes de tocarlo. */}
           {plugin.serverPropertiesNote && (
             <div className="alert" style={{ marginBottom: 14 }}>
-              <strong>Ajustes del servidor que se van a cambiar</strong>
+              <strong>{t('mc.official.propsTitle')}</strong>
               <p>{plugin.serverPropertiesNote}</p>
             </div>
           )}
 
           <div className="row between">
             <button disabled={busy} onClick={() => setChoosing(false)}>
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button className="primary" disabled={busy || !role} onClick={() => void install()}>
-              {chosenRole?.requiresHardcore
-                ? 'Entendido, instalar y activar modo extremo'
-                : 'Instalar'}
+              {chosenRole?.requiresHardcore ? t('mc.official.installHardcore') : t('catalog.install')}
             </button>
           </div>
         </div>
@@ -286,8 +271,8 @@ function OfficialPluginRow({
 
       {installed && configuring && (
         <FloatingWindow
-          title={`Configurar ${plugin.name}`}
-          subtitle={`Plugin oficial · v${plugin.version}`}
+          title={t('mc.official.configureTitle', { name: plugin.name })}
+          subtitle={t('mc.official.subtitle', { version: plugin.version })}
           onClose={() => setConfiguring(false)}
         >
           <PluginConfigForm
@@ -335,7 +320,7 @@ function PluginConfigForm({
   if (!status?.hasConfig) {
     return (
       <p className="hint" style={{ marginBottom: 0 }}>
-        Todavía no hay configuración. Vuelve a instalar el plugin para que se cree.
+        {t('mc.official.noConfig')}
       </p>
     )
   }
@@ -368,7 +353,7 @@ function PluginConfigForm({
 
     const problem = await onRun(
       () => window.qubiq.minecraft.official.setConfig(instanceId, plugin.id, payload),
-      'Configuración guardada. Se aplicará en el siguiente arranque.'
+      t('mc.official.configSaved')
     )
     setError(problem)
     if (problem === null) onSaved()
@@ -378,25 +363,23 @@ function PluginConfigForm({
     <div>
       {error && (
         <div className="alert error">
-          <strong>No se pudo guardar</strong>
+          <strong>{t('common.saveFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       {stale && (
         <div className="alert" style={{ marginBottom: 14 }}>
-          <strong>Este servidor tiene una versión anterior del plugin</strong>
+          <strong>{t('mc.official.staleTitle')}</strong>
           <p>
-            Puedes configurarlo igual, pero las opciones que sean nuevas no le harán efecto hasta
-            que pulses <b>Actualizar</b> en la tarjeta del plugin. No perderás nada de lo que tengas
-            configurado.
+            <Rich k="mc.official.staleText" values={{ button: <b>{t('version.update')}</b> }} />
           </p>
         </div>
       )}
 
       {plugin.roles && (
         <div className="field">
-          <label>Papel de este servidor</label>
+          <label>{t('mc.official.roleLabel')}</label>
           <select value={role} onChange={(e) => setRole(e.target.value)}>
             {plugin.roles.map((option) => (
               <option key={option.value} value={option.value}>
@@ -446,10 +429,10 @@ function PluginConfigForm({
 
       <div className="row between">
         <span className="help" style={{ margin: 0 }}>
-          Se guarda en {plugin.configFolder}/{plugin.configFileName}
+          {t('mc.official.savedIn', { path: `${plugin.configFolder}/${plugin.configFileName}` })}
         </span>
         <button className="primary" disabled={busy} onClick={() => void save()}>
-          Guardar configuración
+          {t('mc.official.saveConfig')}
         </button>
       </div>
     </div>

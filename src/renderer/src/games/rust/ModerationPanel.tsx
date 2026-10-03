@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import { validSteamId, type RustAdmin, type RustBan } from '@shared/games/rust/types'
+import { t } from '../../i18n'
 
 /**
  * Administradores y vetados de un servidor de Rust.
@@ -82,41 +83,34 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('rust.mod.failed')}</strong>
           <p>{error}</p>
         </div>
       )}
       {notice && <div className="alert info">{notice}</div>}
 
       <div className="alert info">
-        <strong>En Rust se modera por el identificador de Steam</strong>
+        <strong>{t('rust.mod.steamIdTitle')}</strong>
         <p>
-          Son 17 cifras que empiezan por 7656 (el SteamID64). Con alguien dentro no hace falta
-          saberlo: en la lista de jugadores está el botón. Para quien no ha entrado nunca, se busca
-          su perfil de Steam en una web como steamid.io.
-          {running
-            ? ' Con el servidor en marcha, los cambios valen al momento.'
-            : ' Con el servidor parado se guardan en sus ficheros y valen al arrancar.'}
+          {t('rust.mod.steamIdText')}{' '}
+          {running ? t('rust.mod.whenRunning') : t('rust.mod.whenStopped')}
         </p>
       </div>
 
       <div className="card">
-        <h3>Administradores</h3>
-        <p className="hint">
-          Un administrador puede usar la consola del juego (F1) para lo que haga falta: echar,
-          vetar, teletransportarse… El moderador puede moderar pero no tocar la configuración.
-        </p>
+        <h3>{t('rust.mod.admins')}</h3>
+        <p className="hint">{t('rust.mod.adminsHint')}</p>
         {loading ? (
-          <p className="hint">Cargando…</p>
+          <p className="hint">{t('rust.mod.loading')}</p>
         ) : admins.length === 0 ? (
-          <p className="hint">Todavía no hay ninguno. Hazte administrador a ti mismo para empezar.</p>
+          <p className="hint">{t('rust.mod.noAdmins')}</p>
         ) : (
           admins.map((admin) => (
             <div className="row between" key={admin.steamId} style={{ marginBottom: 8, gap: 10 }}>
               <div className="grow" style={{ minWidth: 0 }}>
                 <strong>{admin.name || admin.steamId}</strong>
                 <div className="help" style={{ margin: 0 }}>
-                  {admin.level === 'owner' ? 'Administrador' : 'Moderador'} · {admin.steamId}
+                  {admin.level === 'owner' ? t('rust.mod.owner') : t('rust.mod.moderator')} · {admin.steamId}
                 </div>
               </div>
               <button
@@ -125,11 +119,13 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                 onClick={() =>
                   void run(
                     () => window.qubiq.rust.moderation.removeAdmin(id, admin.steamId),
-                    `${admin.name || admin.steamId} ya no es ${admin.level === 'owner' ? 'administrador' : 'moderador'}.`
+                    admin.level === 'owner'
+                      ? t('rust.mod.removedOwner', { name: admin.name || admin.steamId })
+                      : t('rust.mod.removedModerator', { name: admin.name || admin.steamId })
                   )
                 }
               >
-                Quitar
+                {t('rust.mod.remove')}
               </button>
             </div>
           ))
@@ -145,7 +141,7 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
           />
           <input
             className="grow"
-            placeholder="Nombre, para reconocerlo"
+            placeholder={t('rust.mod.namePlaceholder')}
             value={adminName}
             disabled={busy}
             onChange={(e) => setAdminName(e.target.value)}
@@ -156,8 +152,8 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
             disabled={busy}
             onChange={(e) => setAdminLevel(e.target.value as RustAdmin['level'])}
           >
-            <option value="owner">Administrador</option>
-            <option value="moderator">Moderador</option>
+            <option value="owner">{t('rust.mod.owner')}</option>
+            <option value="moderator">{t('rust.mod.moderator')}</option>
           </select>
           <button
             style={{ flex: 'none' }}
@@ -167,23 +163,23 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                 await window.qubiq.rust.moderation.setAdmin(id, adminId, adminName.trim(), adminLevel)
                 setAdminId('')
                 setAdminName('')
-              }, running ? 'Añadido. Si está dentro, le vale al momento.' : 'Añadido. Le valdrá en cuanto arranques el servidor.')
+              }, running ? t('rust.mod.addedRunning') : t('rust.mod.addedStopped'))
             }
           >
-            Añadir
+            {t('rust.mod.add')}
           </button>
         </div>
         {adminId.length > 0 && !adminIdOk && (
-          <div className="help">Eso no es un SteamID64: son 17 cifras que empiezan por 7656.</div>
+          <div className="help">{t('rust.mod.badSteamId')}</div>
         )}
       </div>
 
       <div className="card">
-        <h3>Vetados</h3>
+        <h3>{t('rust.mod.bans')}</h3>
         {loading ? (
-          <p className="hint">Cargando…</p>
+          <p className="hint">{t('rust.mod.loading')}</p>
         ) : bans.length === 0 ? (
-          <p className="hint">Nadie. Quien se vete desde la lista de jugadores aparecerá aquí.</p>
+          <p className="hint">{t('rust.mod.noBans')}</p>
         ) : (
           bans.map((ban) => (
             <div className="row between" key={ban.steamId} style={{ marginBottom: 8, gap: 10 }}>
@@ -200,11 +196,11 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                 onClick={() =>
                   void run(
                     () => window.qubiq.rust.moderation.unban(id, ban.steamId),
-                    'Veto levantado. Ya puede volver a entrar.'
+                    t('rust.mod.unbanned')
                   )
                 }
               >
-                Levantar el veto
+                {t('rust.mod.unban')}
               </button>
             </div>
           ))
@@ -220,7 +216,7 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
           />
           <input
             className="grow"
-            placeholder="Motivo (opcional)"
+            placeholder={t('rust.mod.reasonPlaceholder')}
             value={banReason}
             disabled={busy}
             onChange={(e) => setBanReason(e.target.value)}
@@ -234,10 +230,10 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                 await window.qubiq.rust.moderation.ban(id, banId, banReason)
                 setBanId('')
                 setBanReason('')
-              }, 'Vetado. Si estaba dentro, se le ha echado.')
+              }, t('rust.mod.banned'))
             }
           >
-            Vetar
+            {t('rust.mod.ban')}
           </button>
         </div>
       </div>

@@ -11,7 +11,7 @@ import { service } from '../core/service'
 import { serverDir } from '../core/paths'
 import { describeStartFile, inspectFolder } from '../core/games/minecraft/custom/inspect'
 import * as catalog from '../core/games/minecraft/versions/catalog'
-import { PROPERTY_CATALOG } from '../core/games/minecraft/config/properties'
+import { localizedCatalog } from '../core/games/minecraft/config/properties'
 import {
   suggestedMemoryMb,
   totalMemoryMb,
@@ -52,7 +52,7 @@ export function registerMinecraftIpc(): void {
     MINECRAFT_IPC.setProperties,
     async (_e, id: string, values: Record<string, string>) => mc.setProperties(id, values)
   )
-  ipcMain.handle(MINECRAFT_IPC.propertyCatalog, () => PROPERTY_CATALOG)
+  ipcMain.handle(MINECRAFT_IPC.propertyCatalog, () => localizedCatalog())
 
   // --- Plugins y mods -------------------------------------------------------
 

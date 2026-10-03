@@ -1,6 +1,8 @@
 import type { ExposureMode, InstanceManifest } from '@shared/types'
 import { PROTOCOL_LABELS, gameInfo, serverPorts, type ServerPort } from '@shared/games'
+import { listParts } from '@shared/i18n'
 import { uiFor } from './games'
+import { Rich, quote, t } from './i18n'
 
 /**
  * Guías de configuración para cada forma de exponer el servidor (§10).
@@ -33,8 +35,8 @@ export function ExposureHelp({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{TITLES[mode]}</h3>
-          <button onClick={onClose}>Cerrar</button>
+          <h3>{t(`help.title.${mode}`)}</h3>
+          <button onClick={onClose}>{t('common.close')}</button>
         </div>
 
         <div className="modal-body">
@@ -57,13 +59,6 @@ export function ExposureHelp({
   )
 }
 
-const TITLES: Record<ExposureMode, string> = {
-  local: 'Jugar en la misma casa',
-  crossplay: 'Jugar desde fuera con el crossplay del juego',
-  router: 'Abrir el puerto en el router',
-  tunnel: 'Usar playit.gg'
-}
-
 /**
  * El crossplay del propio juego: sin router, sin túnel y sin dirección. Es la
  * opción buena para quien tiene CGNAT, que es justo donde abrir puertos no
@@ -73,21 +68,27 @@ function CrossplayHelp({ game }: { game: string }): React.JSX.Element {
   return (
     <>
       <p>
-        No hay nada que configurar: {game} trae su propia forma de jugar entre casas. El servidor se
-        conecta hacia fuera y tus amigos entran con un <strong>código de 6 dígitos</strong>, sin
-        tocar el router ni instalar nada.
+        <Rich
+          k="help.crossplay.intro"
+          vars={{ game }}
+          values={{ code: <strong>{t('help.crossplay.code')}</strong> }}
+        />
       </p>
       <ol>
-        <li>Arranca el servidor y espera unos segundos: el código aparece en la pantalla principal.</li>
-        <li>Pásaselo a tus amigos junto con la contraseña del servidor.</li>
+        <li>{t('help.crossplay.step1')}</li>
+        <li>{t('help.crossplay.step2')}</li>
         <li>
-          Ellos entran por <strong>Unirse a partida → Unirse con código</strong> y lo escriben ahí.
+          <Rich
+            k="help.crossplay.step3"
+            values={{ path: <strong>{t('help.crossplay.path')}</strong> }}
+          />
         </li>
       </ol>
       <p className="note">
-        <strong>El código cambia cada vez que arrancas el servidor</strong>, así que hay que volver a
-        pasarlo. A cambio, funciona aunque tu compañía use CGNAT, que es cuando abrir puertos no
-        sirve de nada.
+        <Rich
+          k="help.crossplay.note"
+          values={{ changes: <strong>{t('help.crossplay.changes')}</strong> }}
+        />
       </p>
     </>
   )
@@ -97,27 +98,20 @@ function LocalHelp(): React.JSX.Element {
   return (
     <>
       <p>
-        No hay nada que configurar. Cualquiera que esté conectado a tu mismo router —por wifi o por
-        cable— puede entrar usando la dirección que empieza por <code>192.168.</code>
+        <Rich k="help.local.text" values={{ prefix: <code>192.168.</code> }} />
       </p>
-      <p className="note">
-        Si alguien intenta entrar desde otra casa, no funcionará: para eso necesitas una de las otras
-        dos opciones.
-      </p>
+      <p className="note">{t('help.local.note')}</p>
     </>
   )
 }
 
-/** «25565», «2456 y 2457», «7777, 8888 y 15000». */
+/** «25565», «2456 y 2457», «7777, 8888 y 15000», con la «y» de cada idioma. */
 function portList(ports: ServerPort[]): React.JSX.Element {
   return (
     <>
-      {ports.map((p, i) => (
-        <span key={p.port}>
-          {i > 0 && (i === ports.length - 1 ? ' y ' : ', ')}
-          <strong>{p.port}</strong>
-        </span>
-      ))}
+      {listParts(ports.map((p) => String(p.port))).map((part, i) =>
+        part.type === 'element' ? <strong key={i}>{part.value}</strong> : <span key={i}>{part.value}</span>
+      )}
     </>
   )
 }
@@ -137,32 +131,30 @@ function RouterHelp({
   return (
     <>
       <p>
-        Por defecto, tu router bloquea todo lo que llega de internet. Hay que decirle que las
-        conexiones {single ? 'al puerto' : 'a los puertos'} {portList(ports)} se las pase a este
-        ordenador. Se hace una sola vez.
+        <Rich k="help.router.intro" vars={{ count: ports.length }} values={{ ports: portList(ports) }} />
       </p>
 
-      <h4>Lo que necesitas tener a mano</h4>
+      <h4>{t('help.router.need')}</h4>
       <dl className="data-list">
         <div>
-          <dt>Dirección de tu router</dt>
+          <dt>{t('help.router.gateway')}</dt>
           <dd>
             {gateway ? (
               <>
-                <code>{gateway}</code> — ábrela en el navegador
+                <code>{gateway}</code> {t('help.router.gatewayOpen')}
               </>
             ) : (
-              'No se ha podido detectar. Suele ser 192.168.1.1 o 192.168.0.1'
+              t('help.router.gatewayUnknown')
             )}
           </dd>
         </div>
         <div>
-          <dt>IP de este ordenador</dt>
-          <dd>{localAddress ? <code>{localAddress}</code> : 'No detectada'}</dd>
+          <dt>{t('help.router.localIp')}</dt>
+          <dd>{localAddress ? <code>{localAddress}</code> : t('help.router.notDetected')}</dd>
         </div>
         {ports.map((p) => (
           <div key={p.port}>
-            <dt>{single ? 'Puerto' : `Puerto: ${p.label}`}</dt>
+            <dt>{single ? t('help.router.port') : t('help.router.portOf', { label: p.label })}</dt>
             <dd>
               <code>{p.port}</code> ({PROTOCOL_LABELS[p.protocol]})
             </dd>
@@ -170,53 +162,66 @@ function RouterHelp({
         ))}
       </dl>
 
-      <h4>Pasos</h4>
+      <h4>{t('help.steps')}</h4>
       <ol>
         <li>
-          Abre <code>{gateway ?? '192.168.1.1'}</code> en el navegador. Te pedirá usuario y
-          contraseña: suelen estar en una pegatina del propio router.
+          <Rich k="help.router.step1" values={{ gateway: <code>{gateway ?? '192.168.1.1'}</code> }} />
         </li>
         <li>
-          Busca una sección llamada <strong>Port Forwarding</strong>, <strong>Redirección de
-          puertos</strong>, <strong>NAT</strong> o <strong>Servidores virtuales</strong>. El nombre
-          cambia según la marca.
+          <Rich
+            k="help.router.step2"
+            values={{
+              a: <strong>Port Forwarding</strong>,
+              b: <strong>{t('help.router.sectionB')}</strong>,
+              c: <strong>NAT</strong>,
+              d: <strong>{t('help.router.sectionD')}</strong>
+            }}
+          />
         </li>
         {ports.map((p) => (
           <li key={p.port}>
-            {single ? 'Crea una regla nueva con estos datos:' : `Crea una regla para «${p.label}»:`}
+            {single ? t('help.router.ruleOne') : t('help.router.ruleFor', { label: quote(p.label) })}
             <ul>
               <li>
-                Puerto externo e interno: <code>{p.port}</code>
+                <Rich k="help.router.extInt" values={{ port: <code>{p.port}</code> }} />
               </li>
               <li>
-                Protocolo: <strong>{PROTOCOL_LABELS[p.protocol]}</strong>
-                {p.protocol === 'tcp+udp' && ' (algunos routers lo llaman «Ambos»)'}
+                <Rich
+                  k="help.router.protocol"
+                  values={{ protocol: <strong>{PROTOCOL_LABELS[p.protocol]}</strong> }}
+                />
+                {p.protocol === 'tcp+udp' && ` ${t('help.router.both')}`}
               </li>
               <li>
-                IP de destino: <code>{localAddress ?? 'la IP de este ordenador'}</code>
+                <Rich
+                  k="help.router.destIp"
+                  values={{ ip: <code>{localAddress ?? t('help.router.thisIp')}</code> }}
+                />
               </li>
             </ul>
           </li>
         ))}
-        <li>Guarda y, si el router lo pide, reinícialo.</li>
+        <li>{t('help.router.save')}</li>
         <li>
-          Vuelve aquí y pulsa <strong>Comprobar desde internet</strong>.
+          <Rich
+            k="help.router.check"
+            values={{ button: <strong>{t('connection.checkButton')}</strong> }}
+          />
         </li>
       </ol>
 
-      <h4>Si sigue sin funcionar</h4>
+      <h4>{t('help.router.stillTitle')}</h4>
       <p>
-        Lo más probable es que tu operador te tenga detrás de <strong>CGNAT</strong>: varios clientes
-        comparten la misma IP pública y <em>no hay ningún puerto que abrir</em>. Es habitual en fibra
-        barata y en conexiones móviles.
+        <Rich
+          k="help.router.cgnat"
+          values={{ cgnat: <strong>CGNAT</strong>, noPort: <em>{t('help.router.noPort')}</em> }}
+        />
       </p>
       <p className="note">
-        No es culpa de tu configuración y no tiene arreglo desde el router. La solución es usar
-        <strong> playit.gg</strong>, que funciona igualmente. Puedes confirmarlo llamando a tu
-        operador y preguntando si tienes IP pública.
+        <Rich k="help.router.cgnatNote" values={{ playit: <strong>playit.gg</strong> }} />
       </p>
 
-      <h4>Antes de abrir un puerto, ten en cuenta</h4>
+      <h4>{t('help.router.safetyTitle')}</h4>
       <p className="note">{safetyNote}</p>
     </>
   )
@@ -232,68 +237,69 @@ function TunnelHelp({
   return (
     <>
       <p>
-        playit.gg es un servicio gratuito que te da una dirección pública{' '}
-        <strong>sin tocar el router</strong>. Funciona incluso si tu operador usa CGNAT, que es
-        cuando abrir puertos resulta imposible.
+        <Rich
+          k="help.tunnel.intro"
+          values={{ noRouter: <strong>{t('help.tunnel.noRouter')}</strong> }}
+        />
       </p>
 
-      <h4>Cómo funciona</h4>
+      <h4>{t('help.tunnel.howTitle')}</h4>
       <p>
-        Un programa pequeño se ejecuta en tu ordenador y abre una conexión <em>de salida</em> hacia
-        playit.gg. Las conexiones de salida no las bloquea nadie, igual que no configuras nada para
-        navegar. Tus amigos se conectan a playit.gg y este reenvía el tráfico por ese túnel hasta tu
-        servidor.
+        <Rich k="help.tunnel.how" values={{ outgoing: <em>{t('help.tunnel.outgoing')}</em> }} />
       </p>
 
-      <h4>Pasos</h4>
+      <h4>{t('help.steps')}</h4>
       <ol>
         <li>
-          Entra en <code>https://playit.gg</code> y crea una cuenta gratuita.
+          <Rich k="help.tunnel.step1" values={{ url: <code>https://playit.gg</code> }} />
         </li>
-        <li>Descarga su programa para Windows e instálalo. Déjalo abierto mientras juegas.</li>
+        <li>{t('help.tunnel.step2')}</li>
         {ports.length === 1 ? (
           <li>
-            En su panel, crea un túnel de tipo <strong>{ports[0].tunnelType}</strong> apuntando al
-            puerto <code>{ports[0].port}</code> de tu ordenador.
+            <Rich
+              k="help.tunnel.step3one"
+              values={{
+                type: <strong>{ports[0]!.tunnelType}</strong>,
+                port: <code>{ports[0]!.port}</code>
+              }}
+            />
           </li>
         ) : (
           <li>
-            En su panel, crea un túnel por cada puerto de tu ordenador:
+            {t('help.tunnel.step3many')}
             <ul>
               {ports.map((p) => (
                 <li key={p.port}>
-                  {p.label}: tipo <strong>{p.tunnelType}</strong>, puerto <code>{p.port}</code>
+                  <Rich
+                    k="help.tunnel.portLine"
+                    vars={{ label: p.label }}
+                    values={{ type: <strong>{p.tunnelType}</strong>, port: <code>{p.port}</code> }}
+                  />
                 </li>
               ))}
             </ul>
           </li>
         )}
         <li>
-          Te dará una dirección parecida a <code>{addressExample}</code>. Cópiala.
+          <Rich k="help.tunnel.step4" values={{ example: <code>{addressExample}</code> }} />
         </li>
-        <li>Pégala aquí abajo, en el campo de dirección, y pulsa Comprobar.</li>
+        <li>{t('help.tunnel.step5', { button: t('connection.checkButton') })}</li>
       </ol>
 
-      <h4>Lo que hay que saber</h4>
+      <h4>{t('help.tunnel.knowTitle')}</h4>
       <ul>
         <li>
-          <strong>Va algo más lento.</strong> El tráfico da un rodeo por sus servidores, así que
-          notarás algo más de ping que abriendo el puerto.
+          <strong>{t('help.tunnel.slowTitle')}</strong> {t('help.tunnel.slow')}
         </li>
         <li>
-          <strong>Todos llegan con la misma IP.</strong> Banear por IP deja de servir: usa la lista
-          de invitados para controlar quién entra.
+          <strong>{t('help.tunnel.sameIpTitle')}</strong> {t('help.tunnel.sameIp')}
         </li>
         <li>
-          <strong>El programa tiene que estar abierto.</strong> Si lo cierras, la dirección deja de
-          funcionar.
+          <strong>{t('help.tunnel.openTitle')}</strong> {t('help.tunnel.open')}
         </li>
       </ul>
 
-      <p className="note">
-        No instalamos ese programa por ti: es de otra empresa y preferimos que lo descargues tú desde
-        su web oficial, sabiendo qué estás instalando.
-      </p>
+      <p className="note">{t('help.tunnel.note')}</p>
     </>
   )
 }

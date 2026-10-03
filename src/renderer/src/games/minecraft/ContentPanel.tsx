@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState, UiMode } from '@shared/types'
 import type { ContentInfo, ContentItem } from '@shared/games/minecraft/types'
-import {
-  CONTENT_SOURCES,
-  DISTRIBUTION_LABELS,
-  contentKindFor,
-  minecraftOf
-} from '@shared/games/minecraft/types'
+import type { Distribution } from '@shared/games/minecraft/types'
+import { CONTENT_SOURCES, contentKindFor, minecraftOf } from '@shared/games/minecraft/types'
 import { OfficialPlugins } from './OfficialPlugins'
 import { ContentConfigWindow } from './ContentConfigWindow'
+import { Rich, formatBytes, formatDateOnly, t } from '../../i18n'
 
 /**
  * Plugins y mods (§4.8).
@@ -36,6 +33,8 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
   const kind = contentKindFor(manifest.data.distribution)
   const isMods = kind === 'mods'
   const label = isMods ? 'mods' : 'plugins'
+  /** Las frases que nombran plugins o mods tienen una variante para cada uno. */
+  const kindKey = isMods ? 'mods' : 'plugins'
 
   const [info, setInfo] = useState<ContentInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -86,22 +85,18 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo completar la operación</strong>
+          <strong>{t('backup.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       {/* Lo primero, el aviso que decide si esto va a funcionar o no. */}
       <div className={`alert ${isMods ? 'error' : 'info'}`}>
-        <strong>
-          {isMods
-            ? 'Los mods hay que instalarlos también en el Minecraft de cada jugador'
-            : 'Los plugins se instalan solo aquí, en el servidor'}
-        </strong>
+        <strong>{isMods ? t('mc.content.modsTitle') : t('mc.content.pluginsTitle')}</strong>
         <p>
           {isMods
-            ? `Todos tenéis que tener exactamente los mismos mods y la misma versión (${manifest.data.minecraftVersion}). Quien no los tenga no podrá entrar. Los mods de aspecto —shaders, minimapas— van solo en su Minecraft, no aquí.`
-            : 'Tus amigos no tienen que instalar nada: entran con su Minecraft normal. Por eso los plugins son lo más cómodo para jugar con gente.'}
+            ? t('mc.content.modsText', { version: manifest.data.minecraftVersion })
+            : t('mc.content.pluginsText')}
         </p>
       </div>
 
@@ -109,22 +104,19 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
       <OfficialPlugins state={state} onChanged={() => void refresh()} />
 
       <div className="card">
-        <h3>1. Descarga el archivo</h3>
+        <h3>{t('mc.content.step1')}</h3>
         <p className="hint">
-          Busca en estas webs y descarga el <code>.jar</code>. Fíjate bien en dos cosas antes de
-          bajarlo.
+          <Rich k="mc.content.step1Hint" values={{ jar: <code>.jar</code> }} />
         </p>
 
         <div className="requirements">
           <div>
-            <span className="req-label">Versión de Minecraft</span>
+            <span className="req-label">{t('mc.wizard.summary.version')}</span>
             <span className="req-value">{manifest.data.minecraftVersion}</span>
           </div>
           <div>
-            <span className="req-label">Tipo</span>
-            <span className="req-value">
-              {DISTRIBUTION_LABELS[manifest.data.distribution].name.replace(/^Mods \(|\)$/g, '')}
-            </span>
+            <span className="req-label">{t('mc.wizard.summary.type')}</span>
+            <span className="req-value">{LOADER_NAMES[manifest.data.distribution]}</span>
           </div>
         </div>
 
@@ -139,7 +131,7 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
             >
               <div className="source-head">
                 <span className="source-name">{source.name}</span>
-                {source.primary && <span className="badge">Recomendada</span>}
+                {source.primary && <span className="badge">{t('mc.content.recommended')}</span>}
               </div>
               <span className="source-desc">{source.description}</span>
             </a>
@@ -148,17 +140,16 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
 
         {manifest.data.distribution === 'fabric' && (
           <div className="alert info" style={{ marginTop: 14, marginBottom: 0 }}>
-            <strong>Casi todos los mods de Fabric necesitan Fabric API</strong>
+            <strong>{t('mc.content.fabricApi')}</strong>
             <p>
-              Es un mod más, que se instala igual que los demás. Si un mod no arranca, suele ser
-              porque falta.{' '}
+              {t('mc.content.fabricApiText')}{' '}
               <a
                 href="https://modrinth.com/mod/fabric-api"
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: 'var(--accent)' }}
               >
-                Descargar Fabric API
+                {t('mc.content.fabricApiLink')}
               </a>
             </p>
           </div>
@@ -166,42 +157,42 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
       </div>
 
       <div className="card">
-        <h3>2. Pega el archivo en la carpeta</h3>
+        <h3>{t('mc.content.step2')}</h3>
         <p className="hint">
-          Se abre la carpeta <code>{info?.folderName ?? label}</code> del servidor. Arrastra ahí el{' '}
-          <code>.jar</code> que has descargado. No hace falta descomprimir nada.
+          <Rich
+            k="mc.content.step2Hint"
+            values={{ folder: <code>{info?.folderName ?? label}</code>, jar: <code>.jar</code> }}
+          />
         </p>
         <div className="row">
           <button className="primary" onClick={() => void openFolder()}>
-            Abrir la carpeta de {label}
+            {t(`mc.content.openFolder.${kindKey}`)}
           </button>
-          <button onClick={() => void refresh()}>Actualizar lista</button>
+          <button onClick={() => void refresh()}>{t('mc.content.refresh')}</button>
         </div>
       </div>
 
       <div className="card">
-        <h3>3. Reinicia el servidor</h3>
+        <h3>{t('mc.content.step3')}</h3>
         <p className="hint" style={{ marginBottom: 0 }}>
           {running
-            ? `El servidor está en marcha: los ${label} nuevos no se cargan hasta que lo pares y lo vuelvas a arrancar.`
-            : `Arranca el servidor y los ${label} se cargarán solos. Si no arranca, casi siempre es por uno incompatible: desactívalo aquí abajo y prueba otra vez.`}
+            ? t(`mc.content.step3Running.${kindKey}`)
+            : t(`mc.content.step3Stopped.${kindKey}`)}
         </p>
       </div>
 
       <div className="card">
         <div className="row between" style={{ marginBottom: 4 }}>
           <h3 style={{ margin: 0 }}>
-            Instalados {items.length > 0 && <span style={{ color: 'var(--muted)' }}>({items.length})</span>}
+            {t('catalog.installedTitle')}{' '}
+            {items.length > 0 && <span style={{ color: 'var(--muted)' }}>({items.length})</span>}
           </h3>
         </div>
-        <p className="hint">
-          Lo que hay ahora mismo en la carpeta. Si acabas de pegar un archivo y no aparece, pulsa
-          &quot;Actualizar lista&quot;.
-        </p>
+        <p className="hint">{t('mc.content.installedHint', { button: t('mc.content.refresh') })}</p>
 
         {items.length === 0 ? (
           <p className="hint" style={{ marginBottom: 0 }}>
-            Todavía no hay ningún {isMods ? 'mod' : 'plugin'} instalado.
+            {t(`mc.content.none.${kindKey}`)}
           </p>
         ) : (
           <div className="player-list">
@@ -219,9 +210,7 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
                   )
                 }
                 onRemove={() => {
-                  const ok = window.confirm(
-                    `¿Borrar "${item.fileName}"?\n\nSe elimina el archivo. Siempre puedes volver a descargarlo.`
-                  )
+                  const ok = window.confirm(t('mc.content.confirmDelete', { file: item.fileName }))
                   if (ok) void act(() => window.qubiq.minecraft.content.remove(manifest.id, item.fileName))
                 }}
               />
@@ -231,8 +220,7 @@ export function ContentPanel({ state, mode }: Props): React.JSX.Element {
 
         {running && items.length > 0 && (
           <div className="help" style={{ marginTop: 12 }}>
-            Para activar, desactivar o borrar hay que parar el servidor antes. La configuración se
-            puede mirar, pero para guardarla también hay que pararlo.
+            {t('mc.content.runningHelp')}
           </div>
         )}
       </div>
@@ -277,41 +265,49 @@ function ContentRow({
           {name}
           {!item.enabled && (
             <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--warn)', fontWeight: 400 }}>
-              desactivado
+              {t('mc.content.disabled')}
             </span>
           )}
         </div>
         <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-          {formatSize(item.sizeBytes)} · añadido {formatDate(item.addedAt)}
+          {formatSize(item.sizeBytes)} · {t('mc.content.added', { date: formatDate(item.addedAt) })}
         </div>
       </div>
 
       {/* Mirar se puede siempre; la ventana ya impide guardar en marcha. */}
       <button disabled={busy} onClick={onConfigure}>
-        Configurar
+        {t('mc.content.configure')}
       </button>
 
       {/* Desactivar es la salida cuando un mod impide arrancar: se conserva el
           fichero y el servidor deja de cargarlo. */}
       <button disabled={busy || running} onClick={onToggle}>
-        {item.enabled ? 'Desactivar' : 'Activar'}
+        {item.enabled ? t('mc.content.disable') : t('mc.content.enable')}
       </button>
       {!basic && (
         <button className="danger" disabled={busy || running} onClick={onRemove}>
-          Borrar
+          {t('backup.delete')}
         </button>
       )}
     </div>
   )
 }
 
+/** El nombre del cargador, que es lo que se busca en las webs: no se traduce. */
+const LOADER_NAMES: Record<Distribution, string> = {
+  vanilla: 'Vanilla',
+  paper: 'Paper',
+  fabric: 'Fabric',
+  forge: 'Forge',
+  neoforge: 'NeoForge'
+}
+
 function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return formatBytes(bytes)
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-ES', {
+  return formatDateOnly(iso, {
     day: '2-digit',
     month: 'short',
     year: 'numeric'

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Rich, t } from '../../i18n'
 
 /**
  * De dónde sale el Factorio de este servidor.
@@ -96,7 +97,7 @@ export function GameSource({ value, onChange }: Props): React.JSX.Element {
   }
 
   if (locals === null) {
-    return <p className="hint">Mirando si ya tienes Factorio en el equipo…</p>
+    return <p className="hint">{t('fa.source.looking')}</p>
   }
 
   // Sin instalaciones en el equipo, descargar es el único camino.
@@ -122,10 +123,14 @@ export function GameSource({ value, onChange }: Props): React.JSX.Element {
               })
             }}
           >
-            <div className="title">Usar el Factorio que ya tienes</div>
+            <div className="title">{t('fa.source.useLocal')}</div>
             <div className="sub">
-              {local.version ? `Versión ${local.version}` : 'Versión desconocida'}
-              {local.spaceAge ? ' · con Space Age' : ' · sin Space Age'} · no descarga nada
+              {local.version
+                ? t('catalog.version', { version: local.version })
+                : t('fa.source.unknownVersion')}
+              {' · '}
+              {local.spaceAge ? t('fa.source.withSpaceAge') : t('fa.source.withoutSpaceAge')} ·{' '}
+              {t('fa.source.noDownload')}
               <br />
               {local.path}
             </div>
@@ -140,11 +145,9 @@ export function GameSource({ value, onChange }: Props): React.JSX.Element {
             onChange(null)
           }}
         >
-          <div className="title">Descargarlo de Steam con mi cuenta</div>
+          <div className="title">{t('fa.source.download')}</div>
           <div className="sub">
-            {locals.length > 0
-              ? 'Para tener una versión distinta de la que juegas, sin tocar tu instalación.'
-              : 'Hacen falta unos 5 GB de descarga. El servidor se queda luego en unos 250 MB.'}
+            {locals.length > 0 ? t('fa.source.downloadOther') : t('fa.source.downloadSize')}
           </div>
         </button>
       </div>
@@ -153,19 +156,17 @@ export function GameSource({ value, onChange }: Props): React.JSX.Element {
         // El paso del asistente centra el texto; los formularios van alineados a
         // la izquierda, igual que el recuadro de condiciones de los demás juegos.
         <div className="card" style={{ textAlign: 'left', marginBottom: 0 }}>
-          <h3>Tu cuenta de Steam</h3>
+          <h3>{t('fa.source.account')}</h3>
           <p className="hint">
-            Tiene que ser la que tiene Factorio comprado. La contraseña se usa una vez para que
-            Steam te reconozca y <strong>no se guarda</strong>: ni en la app, ni en el servidor, ni
-            en ningún fichero.
+            <Rich k="fa.source.accountHint" values={{ notSaved: <strong>{t('fa.source.notSaved')}</strong> }} />
           </p>
 
           <div className="field">
-            <label>Usuario</label>
+            <label>{t('fa.source.user')}</label>
             <input
               type="text"
               value={user}
-              placeholder="El nombre con el que entras en Steam"
+              placeholder={t('fa.source.userPlaceholder')}
               onChange={(e) => {
                 setUser(e.target.value)
                 setLoggedIn(false)
@@ -174,20 +175,18 @@ export function GameSource({ value, onChange }: Props): React.JSX.Element {
           </div>
 
           <div className="field">
-            <label>Contraseña</label>
+            <label>{t('vh.summary.password')}</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            <div className="help">
-              Solo la primera vez en este equipo. Después Steam ya te recuerda y basta el usuario.
-            </div>
+            <div className="help">{t('fa.source.passwordHelp')}</div>
           </div>
 
           {needsGuard && (
             <div className="field">
-              <label>Código de Steam Guard</label>
+              <label>{t('fa.source.guard')}</label>
               <input
                 type="text"
                 value={guardCode}
-                placeholder="El de la aplicación de Steam o el del correo"
+                placeholder={t('fa.source.guardPlaceholder')}
                 onChange={(e) => setGuardCode(e.target.value)}
               />
             </div>
@@ -195,13 +194,13 @@ export function GameSource({ value, onChange }: Props): React.JSX.Element {
 
           {loggedIn && (
             <div className="alert info">
-              <strong>Cuenta comprobada</strong>
-              <p>Steam te ha reconocido. La descarga irá con esta cuenta.</p>
+              <strong>{t('fa.source.checked')}</strong>
+              <p>{t('fa.source.checkedText')}</p>
             </div>
           )}
           {loginError && (
             <div className="alert error">
-              <strong>No se ha podido entrar</strong>
+              <strong>{t('fa.source.loginFailed')}</strong>
               <p>{loginError}</p>
             </div>
           )}
@@ -211,7 +210,7 @@ export function GameSource({ value, onChange }: Props): React.JSX.Element {
             disabled={checking || user.trim().length === 0}
             onClick={() => void checkAccount()}
           >
-            {checking ? 'Comprobando…' : 'Comprobar la cuenta'}
+            {checking ? t('connection.checking') : t('fa.source.check')}
           </button>
         </div>
       )}

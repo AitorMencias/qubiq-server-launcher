@@ -1,4 +1,5 @@
 import type { UiMode } from '@shared/types'
+import { t } from './i18n'
 
 /**
  * Elección de modo al crear un servidor.
@@ -20,46 +21,41 @@ interface ModeCard {
   title: string
   tagline: string
   points: string[]
+  cta: string
   recommended?: boolean
 }
 
-const MODES: ModeCard[] = [
-  {
-    mode: 'basic',
-    title: 'Básico',
-    tagline: 'Te guiamos paso a paso',
-    points: [
-      'Una pregunta por pantalla: el nombre, cuánta gente sois, lo que pida el juego y cómo os conectáis',
-      'Lo técnico lo ponemos nosotros: versión, memoria y puerto',
-      'Después, solo un botón para encender y apagar, tus jugadores y la consola'
-    ],
-    recommended: true
-  },
-  {
-    mode: 'advanced',
-    title: 'Avanzado',
-    tagline: 'Tú decides todo',
-    points: [
-      'Eliges versión concreta, memoria y puerto',
-      'La misma pantalla, con toda la configuración desbloqueada y ficha técnica',
-      'Copias con intervalo y retención, semillas y todos los ajustes del juego'
-    ]
-  }
-]
+/** Se construye al pintar: con los textos en una constante no cambiarían de idioma. */
+function modeCards(): ModeCard[] {
+  return [
+    {
+      mode: 'basic',
+      title: t('mode.basic'),
+      tagline: t('mode.basic.tagline'),
+      points: [t('mode.basic.point1'), t('mode.basic.point2'), t('mode.basic.point3')],
+      cta: t('mode.basic.cta'),
+      recommended: true
+    },
+    {
+      mode: 'advanced',
+      title: t('mode.advanced'),
+      tagline: t('mode.advanced.tagline'),
+      points: [t('mode.advanced.point1'), t('mode.advanced.point2'), t('mode.advanced.point3')],
+      cta: t('mode.advanced.cta')
+    }
+  ]
+}
 
 export function ModeChooser({ current, onChoose, onCancel }: Props): React.JSX.Element {
   return (
     <div className="panel">
       <div className="chooser-intro">
-        <h2>¿Cómo quieres crearlo?</h2>
-        <p>
-          Puedes cambiar de modo cuando quieras desde la barra de la izquierda. No afecta al
-          servidor, solo a cuánto te preguntamos.
-        </p>
+        <h2>{t('mode.chooser.title')}</h2>
+        <p>{t('mode.chooser.text')}</p>
       </div>
 
       <div className="mode-choice-grid">
-        {MODES.map((card) => (
+        {modeCards().map((card) => (
           <button
             key={card.mode}
             className={`mode-card ${current === card.mode ? 'current' : ''}`}
@@ -67,9 +63,9 @@ export function ModeChooser({ current, onChoose, onCancel }: Props): React.JSX.E
           >
             <div className="mode-card-head">
               <span className="mode-card-title">{card.title}</span>
-              {card.recommended && <span className="badge">Recomendado</span>}
+              {card.recommended && <span className="badge">{t('mode.recommended')}</span>}
               {current === card.mode && !card.recommended && (
-                <span className="badge muted">Tu modo actual</span>
+                <span className="badge muted">{t('mode.current')}</span>
               )}
             </div>
 
@@ -81,13 +77,13 @@ export function ModeChooser({ current, onChoose, onCancel }: Props): React.JSX.E
               ))}
             </ul>
 
-            <span className="mode-card-cta">Crear en modo {card.title.toLowerCase()} →</span>
+            <span className="mode-card-cta">{card.cta}</span>
           </button>
         ))}
       </div>
 
       <div className="row" style={{ justifyContent: 'center', marginTop: 4 }}>
-        <button onClick={onCancel}>Cancelar</button>
+        <button onClick={onCancel}>{t('common.cancel')}</button>
       </div>
     </div>
   )

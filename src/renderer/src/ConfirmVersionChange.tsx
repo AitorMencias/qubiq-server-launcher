@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import type { InstallableVersion } from '@shared/games'
-import { gameInfo, theSave } from '@shared/games'
+import { gameInfo } from '@shared/games'
 import { uiFor } from './games'
+import { Rich, t } from './i18n'
 
 /**
  * Confirmación para llevar un servidor a otra versión.
@@ -63,66 +64,62 @@ export function ConfirmVersionChange({
     <div className="modal-backdrop" onClick={busy ? undefined : onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Cambiar a {version.label}</h3>
+          <h3>{t('versionChange.title', { version: version.label })}</h3>
           <button disabled={busy} onClick={onCancel}>
-            Cancelar
+            {t('common.cancel')}
           </button>
         </div>
 
         <div className="modal-body">
           <p>
-            El servidor pasa de <strong>{from?.label ?? 'la versión que tiene'}</strong> a{' '}
-            <strong>{version.label}</strong>. Se vuelve a instalar entero, y{' '}
-            {theSave(save)} se queda donde está.
+            <Rich
+              k={`versionChange.intro.${save}`}
+              values={{
+                from: <strong>{from?.label ?? t('versionChange.currentVersion')}</strong>,
+                to: <strong>{version.label}</strong>
+              }}
+            />
           </p>
 
           {goingBack && (
             <div className="alert warn">
-              <strong>Vas a una versión anterior</strong>
+              <strong>{t('versionChange.olderTitle')}</strong>
               <p>
-                Lo que tienes guardado{loss ? ` —${lowerFirst(loss)}—` : ''} se creó con una
-                versión posterior. Puede que la anterior no sepa abrirlo, y en algunos juegos eso
-                estropea la partida sin avisar. Si lo que quieres es probar, hazlo con un servidor
-                nuevo.
+                {loss
+                  ? t('versionChange.olderWithLoss', { loss: lowerFirst(loss) })
+                  : t('versionChange.older')}
               </p>
             </div>
           )}
 
           {unknown && (
             <div className="alert warn">
-              <strong>No se sabe cuál es más nueva</strong>
-              <p>
-                No se ha podido comparar esta versión con la que tienes, así que podría ser
-                anterior. Si lo es, {theSave(save)} podría no abrirse.
-              </p>
+              <strong>{t('versionChange.unknownTitle')}</strong>
+              <p>{t(`versionChange.unknown.${save}`)}</p>
             </div>
           )}
 
           {version.experimental && (
             <div className="alert warn">
-              <strong>Esta versión está en pruebas</strong>
-              <p>
-                No está terminada: puede fallar, ir peor de rendimiento o dar problemas con lo que
-                tengas instalado. La de siempre es la opción segura.
-              </p>
+              <strong>{t('versionChange.experimentalTitle')}</strong>
+              <p>{t('versionChange.experimental')}</p>
             </div>
           )}
 
           <p className="note">
-            Antes de tocar nada se guarda una copia de seguridad, así que si sale mal puedes
-            recuperar {theSave(save)} de ahora desde la pestaña «Copias».
+            {t(`versionChange.backupNote.${save}`, { tab: t('panel.tab.backups') })}
           </p>
 
           <div className="row between" style={{ marginTop: 20 }}>
             <button disabled={busy} onClick={onCancel}>
-              Mejor no
+              {t('common.betterNot')}
             </button>
             <button
               className={goingBack || unknown ? 'danger' : 'primary'}
               disabled={busy}
               onClick={onConfirm}
             >
-              {busy ? 'Cambiando...' : `Cambiar a ${version.label}`}
+              {busy ? t('versionChange.changing') : t('versionChange.title', { version: version.label })}
             </button>
           </div>
         </div>

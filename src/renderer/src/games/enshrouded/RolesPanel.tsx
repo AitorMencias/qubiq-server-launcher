@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import { roleProblems, type EnshroudedRole } from '@shared/games/enshrouded/types'
 import { RolesEditor } from './RolesEditor'
+import { t } from '../../i18n'
 
 /**
  * Los roles de un servidor de Enshrouded, que son su forma de dar permisos.
@@ -49,11 +50,11 @@ export function RolesPanel({ state, onSaved }: Props): React.JSX.Element {
       <div className="panel">
         {error ? (
           <div className="alert error">
-            <strong>No se pudieron leer los roles</strong>
+            <strong>{t('en.rolesPanel.readFailed')}</strong>
             <p>{error}</p>
           </div>
         ) : (
-          <p className="hint">Leyendo los roles…</p>
+          <p className="hint">{t('en.rolesPanel.reading')}</p>
         )}
       </div>
     )
@@ -69,7 +70,7 @@ export function RolesPanel({ state, onSaved }: Props): React.JSX.Element {
       const saved = await window.qubiq.enshrouded.config.set(manifest.id, { roles })
       setOriginal(saved.roles)
       setRoles(saved.roles)
-      setNotice('Guardado. Las contraseñas nuevas valen desde el próximo arranque.')
+      setNotice(t('en.rolesPanel.saved'))
       onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -82,7 +83,7 @@ export function RolesPanel({ state, onSaved }: Props): React.JSX.Element {
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo guardar</strong>
+          <strong>{t('common.saveFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -90,37 +91,31 @@ export function RolesPanel({ state, onSaved }: Props): React.JSX.Element {
 
       {running && (
         <div className="alert info">
-          <strong>El servidor está arrancado</strong>
-          <p>
-            Los roles se leen al arrancar, y el servidor reescribe su fichero al cerrarse. Para el
-            servidor para poder cambiarlos.
-          </p>
+          <strong>{t('vh.settings.running')}</strong>
+          <p>{t('en.rolesPanel.runningText')}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Quién puede hacer qué</h3>
-        <p className="hint">
-          Enshrouded no tiene cuentas: la contraseña con la que entras es la que decide tu rol. Dale
-          a cada persona la que corresponda.
-        </p>
+        <h3>{t('en.rolesPanel.title')}</h3>
+        <p className="hint">{t('en.rolesPanel.hint')}</p>
         <RolesEditor roles={roles} onChange={setRoles} disabled={running} />
         {problem && (
           <div className="alert error">
-            <strong>Así el servidor no arranca</strong>
+            <strong>{t('en.create.wontStart')}</strong>
             <p>{problem}</p>
           </div>
         )}
       </div>
 
       <div className="row between">
-        <span className="hint">{changed ? 'Hay cambios sin guardar.' : 'Todo guardado.'}</span>
+        <span className="hint">{changed ? t('en.settings.unsaved') : t('en.settings.allSaved')}</span>
         <button
           className="primary"
           disabled={!changed || busy || running || problem !== null}
           onClick={() => void save()}
         >
-          {busy ? 'Guardando…' : 'Guardar'}
+          {busy ? t('common.saving') : t('cfg.save')}
         </button>
       </div>
     </div>

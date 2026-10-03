@@ -6,6 +6,7 @@ import {
   type AllowCommands,
   type FactorioData
 } from '@shared/games/factorio/types'
+import { Rich, quote, t } from '../../i18n'
 
 /**
  * Ajustes de un servidor de Factorio.
@@ -56,11 +57,7 @@ export function FactorioSettingsPanel({ state, mode, onSaved }: Props): React.JS
       await window.qubiq.instances.update(manifest.id, {
         data
       } as ManifestChanges)
-      setNotice(
-        running
-          ? 'Guardado. Los cambios entran la próxima vez que arranques el servidor.'
-          : 'Guardado.'
-      )
+      setNotice(running ? t('vh.settings.savedRunning') : t('vh.settings.saved'))
       onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -73,7 +70,7 @@ export function FactorioSettingsPanel({ state, mode, onSaved }: Props): React.JS
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo guardar</strong>
+          <strong>{t('common.saveFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -81,49 +78,40 @@ export function FactorioSettingsPanel({ state, mode, onSaved }: Props): React.JS
 
       {running && (
         <div className="alert info">
-          <strong>El servidor está arrancado</strong>
-          <p>
-            Factorio lee sus ajustes al arrancar. Puedes cambiar lo que quieras, pero no se notará
-            hasta que lo pares y lo vuelvas a arrancar.
-          </p>
+          <strong>{t('vh.settings.running')}</strong>
+          <p>{t('fa.settings.runningText')}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Quién puede entrar</h3>
+        <h3>{t('vh.settings.whoJoins')}</h3>
 
         <div className="field">
-          <label>Contraseña del servidor</label>
+          <label>{t('vh.settings.password')}</label>
           <input
             type="text"
             value={data.password}
             maxLength={40}
-            placeholder="Vacío = sin contraseña"
+            placeholder={t('wizard.password.emptyNone')}
             onChange={(e) => set({ password: e.target.value })}
           />
-          <div className="help">
-            La que escriben tus amigos al entrar. Se ve a propósito: es tuya y la vas a tener que
-            repartir.
-          </div>
+          <div className="help">{t('vh.settings.passwordHelp')}</div>
           {!passwordOk && (
             <div className="alert error" style={{ marginTop: 10 }}>
-              <strong>Demasiado corta</strong>
-              <p>Hacen falta al menos {MIN_PASSWORD_LENGTH} caracteres, o ninguno.</p>
+              <strong>{t('vh.settings.tooShort')}</strong>
+              <p>{t('fa.create.passwordShort', { min: MIN_PASSWORD_LENGTH })}</p>
             </div>
           )}
           {passwordInName && (
             <div className="alert error" style={{ marginTop: 10 }}>
-              <strong>La contraseña está dentro del nombre del servidor</strong>
-              <p>
-                El nombre lo ve cualquiera que se conecte, así que la contraseña dejaría de serlo.
-                Cambia una de las dos cosas.
-              </p>
+              <strong>{t('vh.settings.inName')}</strong>
+              <p>{t('fa.settings.inNameText')}</p>
             </div>
           )}
         </div>
 
         <div className="field">
-          <label>Jugadores como mucho</label>
+          <label>{t('details.maxPlayers')}</label>
           <input
             type="number"
             min={1}
@@ -131,10 +119,7 @@ export function FactorioSettingsPanel({ state, mode, onSaved }: Props): React.JS
             value={data.maxPlayers}
             onChange={(e) => set({ maxPlayers: Number(e.target.value) })}
           />
-          <div className="help">
-            Factorio no pone un límite propio. El de verdad lo marcan tu conexión y tu equipo,
-            porque cada jugador simula la partida entera.
-          </div>
+          <div className="help">{t('fa.settings.maxPlayersHelp')}</div>
         </div>
 
         <label className="row" style={{ cursor: 'pointer', marginTop: 6 }}>
@@ -145,18 +130,16 @@ export function FactorioSettingsPanel({ state, mode, onSaved }: Props): React.JS
             style={{ width: 16, height: 16, flexShrink: 0 }}
           />
           <span>
-            <strong>Comprobar con factorio.com quién entra</strong>
+            <strong>{t('fa.create.verify')}</strong>
             <div className="help" style={{ margin: 0 }}>
-              Así nadie puede entrar con el nombre de otro. A cambio, el servidor consulta a{' '}
-              <code>auth.factorio.com</code> cada vez que arranca. Sin esto no sale nada hacia
-              fuera, pero el nombre de cada jugador lo pone su propio juego.
+              <Rich k="fa.settings.verifyHelp" values={{ host: <code>auth.factorio.com</code> }} />
             </div>
           </span>
         </label>
       </div>
 
       <div className="card">
-        <h3>La partida</h3>
+        <h3>{t('fa.settings.game')}</h3>
 
         <label className="row" style={{ cursor: 'pointer', marginBottom: 10 }}>
           <input
@@ -166,16 +149,15 @@ export function FactorioSettingsPanel({ state, mode, onSaved }: Props): React.JS
             style={{ width: 16, height: 16, flexShrink: 0 }}
           />
           <span>
-            <strong>Pausar cuando no queda nadie dentro</strong>
+            <strong>{t('fa.settings.autoPause')}</strong>
             <div className="help" style={{ margin: 0 }}>
-              Es lo que hace el juego de serie: sin nadie, los enemigos no evolucionan y la fábrica
-              no gasta recursos.
+              {t('fa.settings.autoPauseHelp')}
             </div>
           </span>
         </label>
 
         <div className="field">
-          <label>Guardar solo cada</label>
+          <label>{t('fa.settings.autosave')}</label>
           <select
             value={data.autosaveMinutes}
             onChange={(e) => set({ autosaveMinutes: Number(e.target.value) })}
@@ -184,19 +166,16 @@ export function FactorioSettingsPanel({ state, mode, onSaved }: Props): React.JS
               .sort((a, b) => a - b)
               .map((minutes) => (
                 <option key={minutes} value={minutes}>
-                  {minutes} min
+                  {t('panel.uptime.minutes', { m: minutes })}
                 </option>
               ))}
           </select>
-          <div className="help">
-            Cuanto más a menudo, menos se pierde si se va la luz. La partida se queda un instante
-            clavada en cada guardado, y con una fábrica grande se nota.
-          </div>
+          <div className="help">{t('fa.settings.autosaveHelp')}</div>
         </div>
 
         {advanced && (
           <div className="field">
-            <label>Autoguardados que conserva el juego</label>
+            <label>{t('fa.settings.slots')}</label>
             <input
               type="number"
               min={1}
@@ -204,53 +183,50 @@ export function FactorioSettingsPanel({ state, mode, onSaved }: Props): React.JS
               value={data.autosaveSlots}
               onChange={(e) => set({ autosaveSlots: Number(e.target.value) })}
             />
-            <div className="help">
-              Se sobrescriben por turnos. Son aparte de las copias de seguridad de QubiQ y se pueden
-              recuperar desde Partidas.
-            </div>
+            <div className="help">{t('fa.settings.slotsHelp', { tab: t('tab.saves') })}</div>
           </div>
         )}
       </div>
 
       {advanced && (
         <div className="card">
-          <h3>Comandos y descripción</h3>
+          <h3>{t('fa.settings.commandsTitle')}</h3>
 
           <div className="field">
-            <label>Quién puede usar los comandos del juego</label>
+            <label>{t('fa.settings.commands')}</label>
             <select
               value={data.allowCommands}
               onChange={(e) => set({ allowCommands: e.target.value as AllowCommands })}
             >
-              <option value="admins-only">Solo los administradores</option>
-              <option value="true">Cualquiera</option>
-              <option value="false">Nadie</option>
+              <option value="admins-only">{t('fa.settings.commands.admins')}</option>
+              <option value="true">{t('fa.settings.commands.anyone')}</option>
+              <option value="false">{t('fa.settings.commands.nobody')}</option>
             </select>
             <div className="help">
-              Los comandos de Factorio incluyen darse objetos y ver el mapa entero. Con
-              «Cualquiera», el que entre puede usarlos.
+              {t('fa.settings.commandsHelp', { anyone: t('fa.settings.commands.anyone') })}
             </div>
           </div>
 
           <div className="field">
-            <label>Descripción</label>
+            <label>{t('fa.create.description')}</label>
             <input
               type="text"
               value={data.description}
               maxLength={200}
               onChange={(e) => set({ description: e.target.value })}
             />
-            <div className="help">La ven los jugadores al conectarse.</div>
+            <div className="help">{t('fa.settings.descriptionHelp')}</div>
           </div>
         </div>
       )}
 
       <div className="card">
-        <h3>Lo que ya no se puede cambiar</h3>
+        <h3>{t('fa.settings.fixedTitle')}</h3>
         <p className="hint">
-          {data.spaceAge ? 'Con Space Age' : 'Sin Space Age'} · mapa «{presetInfo(data.preset).name}
-          »{data.seed ? ` · semilla ${data.seed}` : ''}. Todo eso quedó grabado dentro de la partida
-          al generarla: para tenerlo de otra forma hay que crear otro servidor.
+          {data.spaceAge ? t('fa.wizard.spaceAge') : t('fa.settings.noSpaceAge')} ·{' '}
+          {t('fa.settings.map', { name: quote(presetInfo(data.preset).name) })}
+          {data.seed ? ` · ${t('fa.settings.seed', { seed: data.seed })}` : ''}.{' '}
+          {t('fa.settings.fixedText')}
         </p>
       </div>
 
@@ -260,11 +236,11 @@ export function FactorioSettingsPanel({ state, mode, onSaved }: Props): React.JS
           disabled={busy || !changed || !passwordOk || passwordInName}
           onClick={() => void save()}
         >
-          {busy ? 'Guardando…' : 'Guardar cambios'}
+          {busy ? t('common.saving') : t('common.saveChanges')}
         </button>
         {changed && (
           <button disabled={busy} onClick={() => setData(original)}>
-            Descartar
+            {t('cfg.discard')}
           </button>
         )}
       </div>

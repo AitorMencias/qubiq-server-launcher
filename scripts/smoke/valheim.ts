@@ -436,7 +436,7 @@ export async function valheimSmoke(): Promise<void> {
         info.joinStepsCrossplay?.every((p) => !p.includes('pega la dirección')) === true
     )
     check('dice cómo se modera, ya que no hay nombres', info.moderationHint !== undefined)
-    check('habla de mundos, no de partidas', info.save.singular === 'mundo')
+    check('habla de mundos, no de partidas', info.save === 'world')
     check('el identificador de Steam del juego es el suyo, no el del servidor',
       VALHEIM_GAME_APP_ID === 892970)
   })

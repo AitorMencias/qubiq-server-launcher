@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import { registerAppIpc } from './app'
 import { registerCommonIpc } from './common'
 import { registerMinecraftIpc } from './minecraft'
 import { registerSatisfactoryIpc } from './satisfactory'
@@ -15,6 +16,7 @@ import { registerRustIpc } from './rust'
  * mensaje intacto para que la interfaz pueda mostrarlo tal cual (§7).
  */
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
+  registerAppIpc(getWindow)
   registerCommonIpc(getWindow)
   registerMinecraftIpc()
   registerSatisfactoryIpc()

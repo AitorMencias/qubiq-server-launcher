@@ -1,5 +1,6 @@
 import type { InstanceManifest } from '@shared/types'
 import { gameInfo } from '@shared/games'
+import { t } from './i18n'
 
 /**
  * Cómo se entra, paso a paso, en los juegos donde no basta con pegar la
@@ -22,7 +23,7 @@ export function JoinSteps({ manifest }: { manifest: InstanceManifest }): React.J
 
   return (
     <div className="card">
-      <h3>Cómo entran en el servidor</h3>
+      <h3>{t('join.title')}</h3>
       <ol className="join-steps">
         {steps.map((step) => (
           <li key={step}>{step}</li>
@@ -30,7 +31,7 @@ export function JoinSteps({ manifest }: { manifest: InstanceManifest }): React.J
       </ol>
       {info.joinWarning && !crossplay && (
         <div className="alert warn" style={{ textAlign: 'left', marginBottom: 0 }}>
-          <strong>Ojo con la conexión directa</strong>
+          <strong>{t('join.warningTitle')}</strong>
           <p>{info.joinWarning}</p>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import type { EnshroudedBan } from '@shared/games/enshrouded/types'
+import { Rich, formatDateOnly, t } from '../../i18n'
 
 /**
  * Vetados de un servidor de Enshrouded.
@@ -56,43 +57,42 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Lo que Enshrouded no deja hacer desde fuera</h3>
+        <h3>{t('en.mod.cannotTitle')}</h3>
+        <p className="hint">{t('en.mod.cannotText')}</p>
         <p className="hint">
-          No es una limitación de esta app: el servidor de Enshrouded no sabe expulsar a nadie
-          —tiene la orden sin terminar— y tampoco admite vetar desde su configuración.
-        </p>
-        <p className="hint">
-          Para echar o vetar a alguien, entra tú al servidor con la contraseña de{' '}
-          <strong>Administrador</strong> y hazlo desde la pestaña <strong>Social</strong> del propio
-          juego. Si hace falta cortar de raíz, para el servidor o cámbiale las contraseñas de los
-          roles en <strong>Configuración → Roles</strong>.
+          <Rich
+            k="en.mod.howTo"
+            values={{
+              admin: <strong>{t('en.role.Admin')}</strong>,
+              social: <strong>Social</strong>,
+              path: (
+                <strong>
+                  {t('panel.configuration')} → {t('en.tab.roles')}
+                </strong>
+              )
+            }}
+          />
         </p>
       </div>
 
       <div className="card">
-        <h3>Vetados</h3>
+        <h3>{t('en.tab.bans')}</h3>
         {bans === null ? (
-          <p className="hint">Leyendo la lista…</p>
+          <p className="hint">{t('en.mod.reading')}</p>
         ) : bans.length === 0 ? (
-          <p className="hint">
-            No hay nadie vetado. Los que vetes desde el juego aparecerán aquí la próxima vez que
-            pares el servidor.
-          </p>
+          <p className="hint">{t('en.mod.none')}</p>
         ) : (
           <>
             {running && (
               <div className="alert info">
-                <strong>Con el servidor arrancado solo se puede mirar</strong>
-                <p>
-                  Enshrouded reescribe su fichero de configuración al cerrarse, así que un veto
-                  quitado ahora volvería solo. Para el servidor para poder quitarlo.
-                </p>
+                <strong>{t('catalog.lookOnly')}</strong>
+                <p>{t('en.mod.runningText')}</p>
               </div>
             )}
             {bans.map((ban) => (
@@ -100,18 +100,20 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
               // clase `.help` solo tiene estilo dentro de un campo, de un paso
               // del asistente o de una casilla.
               <div className="field" key={ban.accountId}>
-                <label>{ban.displayName || `Cuenta de Steam #${ban.accountId}`}</label>
+                <label>
+                  {ban.displayName || t('en.mod.steamAccount', { id: String(ban.accountId) })}
+                </label>
                 <div className="row between">
                   <span className="help">
-                    {ban.characterName ? `Personaje: ${ban.characterName}. ` : ''}
-                    Vetado el {formatDate(ban.banDate)}.
+                    {ban.characterName ? `${t('en.mod.character', { name: ban.characterName })} ` : ''}
+                    {t('en.mod.bannedOn', { date: formatDate(ban.banDate) })}
                   </span>
                   <button
                     style={{ flexShrink: 0 }}
                     disabled={busy || running}
                     onClick={() => void unban(ban)}
                   >
-                    Quitar el veto
+                    {t('en.mod.unban')}
                   </button>
                 </div>
               </div>
@@ -126,7 +128,7 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
 /** La fecha de un veto, que el servidor guarda en segundos desde 1970. */
 function formatDate(seconds: number): string {
   if (!seconds) return '—'
-  return new Date(seconds * 1000).toLocaleDateString('es-ES', {
+  return formatDateOnly(seconds * 1000, {
     day: 'numeric',
     month: 'long',
     year: 'numeric'

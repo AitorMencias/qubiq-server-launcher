@@ -1,3 +1,5 @@
+import { STEAM_AGREEMENT } from '@shared/games'
+import { Rich, t } from './i18n'
 /**
  * Piezas comunes del asistente en modo básico.
  *
@@ -59,7 +61,7 @@ export function StepDots({
         <span key={i} className={`step-dot ${i < current ? 'done' : i === current ? 'now' : ''}`} />
       ))}
       <span className="step-label">
-        {current >= total ? 'Todo listo' : `Paso ${current + 1} de ${total}`}
+        {current >= total ? t('wizard.allSet') : t('wizard.step', { n: current + 1, total })}
       </span>
     </div>
   )
@@ -103,11 +105,69 @@ export function SummaryRow({
       <span className="summary-value">{value}</span>
       {onEdit ? (
         <button className="link" onClick={onEdit}>
-          cambiar
+          {t('wizard.change')}
         </button>
       ) : (
         <span className="summary-auto">{autoNote ?? ''}</span>
       )}
+    </div>
+  )
+}
+
+interface SteamAgreementProps {
+  agreed: boolean
+  onChange: (agreed: boolean) => void
+  /** En el asistente básico va al final del resumen, alineada a la izquierda. */
+  basic?: boolean
+  /** Para cuando el juego no se baja de forma anónima (Factorio). */
+  hint?: string
+  /** Los asistentes avanzados numeran sus tarjetas: «5. Condiciones». */
+  number?: number
+}
+
+/**
+ * Las condiciones de Steam, al final del asistente de cada juego de Steam.
+ * Eran el mismo bloque copiado en doce asistentes; así se traduce una vez.
+ */
+export function SteamAgreement({
+  agreed,
+  onChange,
+  basic,
+  hint,
+  number
+}: SteamAgreementProps): React.JSX.Element {
+  return (
+    <div className="card" style={basic ? { textAlign: 'left', marginBottom: 0 } : undefined}>
+      <h3>
+        {number !== undefined && `${number}. `}
+        {t('wizard.steam.title')}
+      </h3>
+      <p className="hint">{hint ?? (basic ? t('wizard.steam.hintBasic') : t('wizard.steam.hint'))}</p>
+      <label className="row" style={{ cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(e) => onChange(e.target.checked)}
+          style={{ width: 16, height: 16, flexShrink: 0 }}
+        />
+        <span>
+          <Rich
+            k="wizard.steam.accept"
+            values={{
+              link: (
+                <a
+                  href={STEAM_AGREEMENT.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  {t('wizard.steam.link')}
+                </a>
+              )
+            }}
+          />
+        </span>
+      </label>
     </div>
   )
 }

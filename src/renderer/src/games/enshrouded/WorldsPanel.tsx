@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import type { EnshroudedWorld } from '@shared/games/enshrouded/types'
+import { formatBytes, formatDate as formatDateTime, quote, t } from '../../i18n'
 
 /**
  * Mundos de un servidor de Enshrouded.
@@ -58,37 +59,31 @@ export function WorldsPanel({ state, onChanged }: Props): React.JSX.Element {
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo completar la acción</strong>
+          <strong>{t('panel.actionFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       {running && (
         <div className="alert info">
-          <strong>El servidor está arrancado</strong>
-          <p>
-            Para cambiar de mundo, crear otro o borrar alguno hay que pararlo: el que se carga se
-            decide al arrancar.
-          </p>
+          <strong>{t('vh.settings.running')}</strong>
+          <p>{t('vh.worlds.runningText')}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Mundos de este servidor</h3>
-        <p className="hint">
-          El marcado es el que carga el servidor. Los demás siguen guardados y se puede volver a
-          ellos cuando quieras.
-        </p>
+        <h3>{t('mc.worlds.title')}</h3>
+        <p className="hint">{t('vh.worlds.hint')}</p>
 
         {worlds.map((world) => (
           <div className="row between" key={world.name} style={{ marginBottom: 12 }}>
             <div>
               <strong>{world.name}</strong>
-              {world.active && <span className="badge"> en uso</span>}
+              {world.active && <span className="badge"> {t('mc.worlds.inUse')}</span>}
               <div className="help" style={{ margin: 0 }}>
                 {world.savedAt === null
-                  ? 'Sin empezar: el mundo se crea la primera vez que arranques con él.'
-                  : `${formatSize(world.sizeBytes)} · guardado ${formatDate(world.savedAt)}`}
+                  ? t('en.worlds.notStarted')
+                  : `${formatSize(world.sizeBytes)} · ${t('vh.worlds.savedAt', { date: formatDate(world.savedAt) })}`}
               </div>
             </div>
             <div className="row" style={{ flexShrink: 0 }}>
@@ -99,7 +94,7 @@ export function WorldsPanel({ state, onChanged }: Props): React.JSX.Element {
                     run(() => window.qubiq.enshrouded.worlds.activate(manifest.id, world.name))
                   }
                 >
-                  Jugar en este
+                  {t('mc.worlds.playThis')}
                 </button>
               )}
               {!world.active && (
@@ -108,7 +103,7 @@ export function WorldsPanel({ state, onChanged }: Props): React.JSX.Element {
                   disabled={busy || running}
                   onClick={() => setConfirming(world.name)}
                 >
-                  Borrar
+                  {t('backup.delete')}
                 </button>
               )}
             </div>
@@ -118,11 +113,8 @@ export function WorldsPanel({ state, onChanged }: Props): React.JSX.Element {
 
       {confirming && (
         <div className="card danger-zone">
-          <h3>¿Borrar el mundo «{confirming}»?</h3>
-          <p className="hint">
-            Se pierde todo lo construido en él. Antes de borrarlo se hace una copia de seguridad
-            automática, así que se podría recuperar desde Copias.
-          </p>
+          <h3>{t('vh.worlds.confirmDelete', { name: quote(confirming) })}</h3>
+          <p className="hint">{t('vh.worlds.confirmDeleteText', { tab: t('panel.tab.backups') })}</p>
           <div className="row">
             <button
               className="danger"
@@ -131,27 +123,24 @@ export function WorldsPanel({ state, onChanged }: Props): React.JSX.Element {
                 run(() => window.qubiq.enshrouded.worlds.remove(manifest.id, confirming))
               }
             >
-              {busy ? 'Borrando…' : 'Sí, borrarlo'}
+              {busy ? t('delete.deleting') : t('vh.worlds.yesDelete')}
             </button>
             <button disabled={busy} onClick={() => setConfirming(null)}>
-              Cancelar
+              {t('common.cancel')}
             </button>
           </div>
         </div>
       )}
 
       <div className="card">
-        <h3>Empezar un mundo nuevo</h3>
-        <p className="hint">
-          El de ahora no se borra: se queda guardado y puedes volver cuando quieras. En Enshrouded
-          el terreno es siempre el mismo mapa, así que el nombre es solo el de la partida.
-        </p>
+        <h3>{t('vh.worlds.newTitle')}</h3>
+        <p className="hint">{t('en.worlds.newHint')}</p>
         <div className="row">
           <input
             className="grow"
             value={newName}
             maxLength={40}
-            placeholder="Nombre del mundo"
+            placeholder={t('vh.worlds.namePlaceholder')}
             disabled={running}
             onChange={(e) => setNewName(e.target.value)}
           />
@@ -167,7 +156,7 @@ export function WorldsPanel({ state, onChanged }: Props): React.JSX.Element {
               })
             }
           >
-            Crear y usarlo
+            {t('vh.worlds.createUse')}
           </button>
         </div>
       </div>
@@ -176,12 +165,11 @@ export function WorldsPanel({ state, onChanged }: Props): React.JSX.Element {
 }
 
 function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(Math.round(bytes / 1024), 1)} KB`
-  return `${(bytes / 1024 ** 2).toFixed(1)} MB`
+  return formatBytes(Math.max(bytes, 1024))
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-ES', {
+  return formatDateTime(iso, {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',

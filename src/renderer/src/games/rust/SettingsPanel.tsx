@@ -11,6 +11,7 @@ import {
   type RustSettings
 } from '@shared/games/rust/types'
 import { CheckRow } from '../../CheckRow'
+import { t } from '../../i18n'
 
 /**
  * Ajustes de un servidor de Rust.
@@ -70,11 +71,11 @@ export function RustSettingsPanel({ state, mode, onSaved }: Props): React.JSX.El
       <div className="panel">
         {error ? (
           <div className="alert error">
-            <strong>No se pudo leer la configuración</strong>
+            <strong>{t('rust.settings.readError')}</strong>
             <p>{error}</p>
           </div>
         ) : (
-          <p className="hint">Leyendo la configuración…</p>
+          <p className="hint">{t('rust.settings.reading')}</p>
         )}
       </div>
     )
@@ -107,9 +108,7 @@ export function RustSettingsPanel({ state, mode, onSaved }: Props): React.JSX.El
       setView(saved)
       setSettings(saved.settings)
       setNotice(
-        running
-          ? 'Guardado. El servidor está en marcha: los cambios valen desde el próximo arranque.'
-          : 'Guardado. Se aplica al arrancar el servidor.'
+        running ? t('rust.settings.savedRunning') : t('rust.settings.savedStopped')
       )
       onSaved()
     } catch (err) {
@@ -125,7 +124,7 @@ export function RustSettingsPanel({ state, mode, onSaved }: Props): React.JSX.El
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo guardar</strong>
+          <strong>{t('rust.settings.saveError')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -133,18 +132,15 @@ export function RustSettingsPanel({ state, mode, onSaved }: Props): React.JSX.El
 
       {running && (
         <div className="alert info">
-          <strong>Se puede guardar con el servidor en marcha</strong>
-          <p>
-            Los ajustes se le pasan a Rust al arrancar, así que lo que cambies aquí vale desde el
-            próximo arranque.
-          </p>
+          <strong>{t('rust.settings.runningTitle')}</strong>
+          <p>{t('rust.settings.runningText')}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>El servidor</h3>
+        <h3>{t('en.create.server')}</h3>
         <div className="field">
-          <label>Plazas</label>
+          <label>{t('en.summary.slots')}</label>
           <input
             type="number"
             min={1}
@@ -152,21 +148,24 @@ export function RustSettingsPanel({ state, mode, onSaved }: Props): React.JSX.El
             value={maxPlayers}
             onChange={(e) => setMaxPlayers(Number(e.target.value))}
           />
-          <div className="help">Cuánta gente puede estar dentro a la vez, entre 1 y {MAX_PLAYERS}.</div>
+          <div className="help">{t('rust.settings.slotsHelp', { max: MAX_PLAYERS })}</div>
         </div>
         <div className="field">
-          <label>Descripción</label>
+          <label>{t('fa.create.description')}</label>
           <input
             value={description}
             maxLength={200}
-            placeholder="Sale en la ficha del servidor dentro del juego"
+            placeholder={t('rust.settings.descriptionPlaceholder')}
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
         {advanced && (
           <CheckRow
-            label="Rust+ (la app del móvil)"
-            help={`Deja ver el mapa y recibir avisos de la base en el móvil. Desde fuera de casa necesita abrir un puerto TCP más, el ${rustPlusPortFor(manifest.port)}, que sale en Configuración → Conexión en cuanto lo enciendes.`}
+            label={t('rust.create.rustPlus')}
+            help={t('rust.settings.rustPlusHelp', {
+              port: rustPlusPortFor(manifest.port),
+              path: `${t('panel.configuration')} → ${t('panel.tab.connection')}`
+            })}
             checked={rustPlus}
             onChange={setRustPlus}
           />
@@ -192,18 +191,15 @@ export function RustSettingsPanel({ state, mode, onSaved }: Props): React.JSX.El
       })}
 
       {!advanced && (
-        <p className="hint">
-          En modo avanzado hay más: radiación, fabricar al instante, equipos, la imagen de la ficha
-          del servidor…
-        </p>
+        <p className="hint">{t('rust.settings.moreAdvanced')}</p>
       )}
 
       <div className="row between">
         <span className="hint" style={{ margin: 0 }}>
-          {changed ? 'Hay cambios sin guardar.' : 'Sin cambios.'}
+          {changed ? t('rust.settings.unsaved') : t('rust.settings.noChanges')}
         </span>
         <button className="primary" disabled={!changed || busy} onClick={() => void save()}>
-          {busy ? 'Guardando…' : 'Guardar'}
+          {busy ? t('rust.settings.saving') : t('rust.settings.save')}
         </button>
       </div>
     </div>
@@ -260,11 +256,16 @@ function SettingField({
         {/* Con estilo propio: un `.hint` suelto en una fila sale a tamaño
             normal (la lección de la fase 6). */}
         <span style={{ color: 'var(--muted)', fontSize: 13 }}>
-          {minutes ? 'minutos' : kind.type === 'number' ? (kind.unit ?? '') : ''}
+          {minutes ? t('rust.settings.minutes') : kind.type === 'number' ? (kind.unit ?? '') : ''}
         </span>
       </div>
       <div className="help">
-        {info.help} De serie: {minutes ? `${Math.round(Number(info.default) / 60)} minutos` : String(info.default)}.
+        {info.help}{' '}
+        {t('rust.settings.default', {
+          value: minutes
+            ? t('rust.settings.minutesValue', { count: Math.round(Number(info.default) / 60) })
+            : String(info.default)
+        })}
       </div>
     </div>
   )

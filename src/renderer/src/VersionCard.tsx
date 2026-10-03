@@ -4,6 +4,7 @@ import type { InstallableVersion, UpdateCheck } from '@shared/games'
 import { capabilitiesFor, versionLabel } from '@shared/games'
 import { ConfirmVersionChange } from './ConfirmVersionChange'
 import { D20Loader } from './D20Loader'
+import { t } from './i18n'
 
 /**
  * Versión del servidor: en cuál va, si hay una más nueva y cómo cambiarla.
@@ -70,13 +71,10 @@ export function VersionCard({ state, mode, onRefresh }: Props): React.JSX.Elemen
   if (!managed) {
     return (
       <div className="card">
-        <h3>Versión</h3>
-        <p className="hint">
-          Tus amigos tienen que jugar con la misma versión que el servidor. Este servidor lo has
-          traído tú, así que la app no lo actualiza: su versión la deciden sus ficheros.
-        </p>
+        <h3>{t('version.title')}</h3>
+        <p className="hint">{t('version.customHint')}</p>
         <div className="row between">
-          <span style={{ color: 'var(--muted)' }}>Ahora mismo</span>
+          <span style={{ color: 'var(--muted)' }}>{t('version.now')}</span>
           <span>{versionLabel(manifest)}</span>
         </div>
       </div>
@@ -128,15 +126,11 @@ export function VersionCard({ state, mode, onRefresh }: Props): React.JSX.Elemen
 
   return (
     <div className="card">
-      <h3>Versión</h3>
-      <p className="hint">
-        {advanced
-          ? 'Cambiarla vuelve a instalar el servidor. La partida no se toca, pero se guarda una copia antes por si acaso.'
-          : 'Tus amigos tienen que jugar con la misma versión que el servidor.'}
-      </p>
+      <h3>{t('version.title')}</h3>
+      <p className="hint">{advanced ? t('version.advancedHint') : t('version.basicHint')}</p>
 
       <div className="row between" style={{ marginBottom: 12 }}>
-        <span style={{ color: 'var(--muted)' }}>Ahora mismo</span>
+        <span style={{ color: 'var(--muted)' }}>{t('version.now')}</span>
         <span>
           {versionLabel(manifest)}
           {installed && installed.label !== installed.id && ` · ${installed.label}`}
@@ -145,7 +139,7 @@ export function VersionCard({ state, mode, onRefresh }: Props): React.JSX.Elemen
 
       {error && (
         <div className="alert error">
-          <strong>No se pudo cambiar la versión</strong>
+          <strong>{t('version.changeFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -153,7 +147,7 @@ export function VersionCard({ state, mode, onRefresh }: Props): React.JSX.Elemen
       {checking ? (
         <div className="row" style={{ gap: 10, color: 'var(--muted)' }}>
           <D20Loader size={22} />
-          <span>Comprobando si hay una versión más nueva...</span>
+          <span>{t('version.checking')}</span>
         </div>
       ) : (
         <UpdateLine
@@ -167,7 +161,7 @@ export function VersionCard({ state, mode, onRefresh }: Props): React.JSX.Elemen
 
       {advanced && versions.length > 0 && (
         <div className="field" style={{ marginTop: 18, marginBottom: 0 }}>
-          <label>Cambiar a otra versión</label>
+          <label>{t('version.changeTo')}</label>
           <div className="row" style={{ gap: 10 }}>
             <select
               value={chosen}
@@ -185,12 +179,12 @@ export function VersionCard({ state, mode, onRefresh }: Props): React.JSX.Elemen
               disabled={!canChange || working || !stopped}
               onClick={() => target && request(target)}
             >
-              {working ? 'Cambiando...' : 'Cambiar'}
+              {working ? t('versionChange.changing') : t('version.change')}
             </button>
           </div>
           <div className="help">
             {!stopped
-              ? 'Hay que parar el servidor para cambiarle la versión.'
+              ? t('version.stopToChange')
               : (target?.description ?? describeRelation(target))}
           </div>
         </div>
@@ -213,10 +207,10 @@ export function VersionCard({ state, mode, onRefresh }: Props): React.JSX.Elemen
 /** Cómo se lee una versión en la lista: nombre, y qué es respecto a la de ahora. */
 function optionLabel(v: InstallableVersion): string {
   const marks = [
-    v.installed ? 'la que tienes' : null,
-    v.experimental ? 'en pruebas' : null,
-    !v.installed && v.relation === 'older' ? 'anterior' : null,
-    !v.installed && v.relation === 'newer' ? 'más nueva' : null
+    v.installed ? t('version.mark.installed') : null,
+    v.experimental ? t('version.mark.experimental') : null,
+    !v.installed && v.relation === 'older' ? t('version.mark.older') : null,
+    !v.installed && v.relation === 'newer' ? t('version.mark.newer') : null
   ].filter(Boolean)
   const name = v.label === v.id ? v.label : `${v.label} (${v.id})`
   return marks.length > 0 ? `${name} — ${marks.join(', ')}` : name
@@ -224,16 +218,16 @@ function optionLabel(v: InstallableVersion): string {
 
 function describeRelation(v: InstallableVersion | undefined): string {
   if (!v) return ''
-  if (v.installed) return 'Es la que ya tienes instalada.'
+  if (v.installed) return t('version.rel.installed')
   switch (v.relation) {
     case 'newer':
-      return 'Es posterior a la que tienes.'
+      return t('version.rel.newer')
     case 'older':
-      return 'Es anterior a la que tienes: te devuelve a una versión de antes.'
+      return t('version.rel.older')
     case 'same':
-      return 'Tiene la misma versión del juego que la que tienes.'
+      return t('version.rel.same')
     default:
-      return 'No se puede saber si es anterior o posterior a la que tienes.'
+      return t('version.rel.unknown')
   }
 }
 
@@ -256,9 +250,9 @@ function UpdateLine({
     return (
       <div className="row between">
         <span className="hint" style={{ margin: 0 }}>
-          Este juego no avisa de versiones nuevas.
+          {t('version.noUpdates')}
         </span>
-        <button onClick={onRecheck}>Volver a comprobar</button>
+        <button onClick={onRecheck}>{t('version.recheck')}</button>
       </div>
     )
   }
@@ -267,10 +261,10 @@ function UpdateLine({
     return (
       <div className="row between">
         <span className="hint" style={{ margin: 0 }}>
-          Está al día. No hay nada más nuevo que instalar.
+          {t('version.upToDate')}
         </span>
         <button disabled={working} onClick={onRecheck}>
-          Volver a comprobar
+          {t('version.recheck')}
         </button>
       </div>
     )
@@ -278,19 +272,17 @@ function UpdateLine({
 
   return (
     <div className="alert warn">
-      <strong>Hay una versión más nueva{check.latest ? `: ${check.latest}` : ''}</strong>
-      <p>
-        {stopped
-          ? 'Se descarga y se instala encima. Antes se guarda una copia de seguridad.'
-          : 'Hay que parar el servidor para actualizarlo.'}
-      </p>
+      <strong>
+        {check.latest ? t('version.newerNamed', { version: check.latest }) : t('version.newer')}
+      </strong>
+      <p>{stopped ? t('version.updateHint') : t('version.stopToUpdate')}</p>
       <button
         className="primary"
         style={{ marginTop: 10 }}
         disabled={working || !stopped}
         onClick={onUpdate}
       >
-        {working ? 'Actualizando...' : 'Actualizar'}
+        {working ? t('version.updating') : t('version.update')}
       </button>
     </div>
   )

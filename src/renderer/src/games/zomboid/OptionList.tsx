@@ -1,5 +1,6 @@
 import type { ConfigChange, ConfigOption, EditableConfig } from '@shared/editableConfig'
 import { pathKey } from '@shared/editableConfig'
+import { t } from '../../i18n'
 
 /**
  * Lista editable de opciones de un fichero de configuración de Zomboid.
@@ -76,14 +77,14 @@ function OptionRow({
     <div className={`cfg-option ${modified ? 'modified' : ''}`}>
       <div className="cfg-option-head">
         <code className="cfg-key">{option.path[option.path.length - 1]}</code>
-        {modified && <span className="badge">Cambiado</span>}
+        {modified && <span className="badge">{t('cfg.changed')}</span>}
       </div>
       {option.description && <p className="cfg-desc">{option.description}</p>}
 
       {!option.editable ? (
         <div className="cfg-readonly">
           <code>{option.value}</code>
-          <div className="help">No se puede cambiar aquí: {option.readOnlyReason}.</div>
+          <div className="help">{t('pz.cfg.cannotEdit', { reason: option.readOnlyReason ?? '' })}</div>
         </div>
       ) : (
         <Control option={option} value={value} disabled={disabled} onChange={onChange} />
@@ -94,10 +95,10 @@ function OptionRow({
           {rangeText(option) && <span>{rangeText(option)}</span>}
           {option.defaultValue !== undefined && (
             <>
-              <span>Por defecto: {labelFor(option, option.defaultValue)}</span>
+              <span>{t('cfg.default', { value: labelFor(option, option.defaultValue) })}</span>
               {!disabled && String(value) !== option.defaultValue && (
                 <button className="link" onClick={() => onChange(option.defaultValue!)}>
-                  Volver a este valor
+                  {t('cfg.backToDefault')}
                 </button>
               )}
             </>
@@ -129,7 +130,7 @@ function Control({
           disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
         />
-        <span>{value === true ? 'Sí' : 'No'}</span>
+        <span>{value === true ? t('pz.cfg.yes') : t('pz.cfg.no')}</span>
       </label>
     )
   }
@@ -204,24 +205,24 @@ export function sameAsOriginal(option: ConfigOption, value: Draft): boolean {
 function validate(option: ConfigOption, value: Draft): string | null {
   if (option.type === 'integer' || option.type === 'number') {
     const text = String(value).replace(',', '.').trim()
-    if (text === '' || !Number.isFinite(Number(text))) return 'Tiene que ser un número.'
-    if (option.type === 'integer' && !/^-?\d+$/.test(text)) return 'Tiene que ser un número entero.'
+    if (text === '' || !Number.isFinite(Number(text))) return t('cfg.mustBeNumber')
+    if (option.type === 'integer' && !/^-?\d+$/.test(text)) return t('pz.cfg.mustBeInteger')
     const n = Number(text)
-    if (option.min !== undefined && n < option.min) return `No puede ser menor que ${option.min}.`
-    if (option.max !== undefined && n > option.max) return `No puede ser mayor que ${option.max}.`
+    if (option.min !== undefined && n < option.min) return t('cfg.min', { min: option.min })
+    if (option.max !== undefined && n > option.max) return t('cfg.max', { max: option.max })
   }
   if (option.type === 'text' && /[\r\n]/.test(String(value))) {
-    return 'No admite saltos de línea.'
+    return t('cfg.noNewlines')
   }
   return null
 }
 
 function rangeText(option: ConfigOption): string | null {
   if (option.min !== undefined && option.max !== undefined) {
-    return `Entre ${option.min} y ${option.max}`
+    return t('cfg.between', { min: option.min, max: option.max })
   }
-  if (option.min !== undefined) return `Mínimo ${option.min}`
-  if (option.max !== undefined) return `Máximo ${option.max}`
+  if (option.min !== undefined) return t('pz.cfg.minimum', { min: option.min })
+  if (option.max !== undefined) return t('pz.cfg.maximum', { max: option.max })
   return null
 }
 

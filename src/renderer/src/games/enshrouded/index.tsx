@@ -13,6 +13,7 @@ import { ModerationPanel } from './ModerationPanel'
 import { ModsPanel } from './ModsPanel'
 import { WorldsPanel } from './WorldsPanel'
 import icon from './icon.svg'
+import { Rich, quote, t } from '../../i18n'
 
 /** Piezas de interfaz de Enshrouded. */
 export const enshroudedUi: GameUi = {
@@ -24,31 +25,31 @@ export const enshroudedUi: GameUi = {
     return [
       {
         id: 'ajustes',
-        label: 'Ajustes',
+        label: t('tab.settings'),
         slot: 'first' as const,
         render: () => <EnshroudedSettingsPanel state={state} mode={mode} onSaved={onRefresh} />
       },
       {
         id: 'roles',
-        label: 'Roles',
+        label: t('en.tab.roles'),
         slot: 'first' as const,
         render: () => <RolesPanel state={state} onSaved={onRefresh} />
       },
       {
         id: 'mundos',
-        label: 'Mundos',
+        label: t('tab.worlds'),
         slot: 'afterConnection' as const,
         render: () => <WorldsPanel state={state} onChanged={onRefresh} />
       },
       {
         id: 'vetados',
-        label: 'Vetados',
+        label: t('en.tab.bans'),
         slot: 'afterConnection' as const,
         render: () => <ModerationPanel state={state} onChanged={onRefresh} />
       },
       {
         id: 'mods',
-        label: 'Mods',
+        label: t('tab.mods'),
         slot: 'afterConnection' as const,
         render: () => <ModsPanel state={state} onChanged={onRefresh} />
       }
@@ -71,51 +72,60 @@ export const enshroudedUi: GameUi = {
     const abierto = data.roles.find((r) => r.password.length === 0)
 
     return [
-      { label: 'Mundo', value: data.worldName },
-      { label: 'Dificultad', value: presetInfo(data.preset).label },
+      { label: t('vh.summary.world'), value: data.worldName },
+      { label: t('mc.wizard.summary.difficulty'), value: presetInfo(data.preset).label },
       {
-        label: 'Roles',
+        label: t('en.tab.roles'),
         value: abierto
-          ? `${conClave} con contraseña · ${roleLabel(abierto.name)} abierto a cualquiera`
-          : `${conClave} con contraseña`
+          ? `${t('en.details.withPassword', { count: conClave })} · ${t('en.details.open', { role: roleLabel(abierto.name) })}`
+          : t('en.details.withPassword', { count: conClave })
       },
-      { label: 'Contraseña de admin', value: passwordOf(data.roles, 'Admin') },
-      { label: 'Contraseña de amigo', value: passwordOf(data.roles, 'Friend') },
-      { label: 'Plazas', value: `${manifest.expectedPlayers ?? 4} de ${MAX_PLAYERS}` },
-      { label: 'Puerto', value: `${manifest.port} (UDP)` },
-      { label: 'Chat de texto', value: data.enableTextChat ? 'sí' : 'no' },
-      { label: 'En la lista del juego', value: 'siempre (no se puede evitar)' },
-      { label: 'Versión del juego', value: data.gameVersion ?? 'se sabrá al arrancarlo' },
-      { label: 'Build de Steam', value: data.buildId ?? 'desconocida' },
+      { label: t('pz.summary.admin'), value: passwordOf(data.roles, 'Admin') },
+      { label: t('en.summary.friend'), value: passwordOf(data.roles, 'Friend') },
       {
-        label: 'Cargador de mods',
-        value: data.loaderVersion ? `Shroudtopia ${data.loaderVersion}` : 'sin poner'
+        label: t('en.summary.slots'),
+        value: t('cfg.countOf', { n: manifest.expectedPlayers ?? 4, total: MAX_PLAYERS })
+      },
+      { label: t('help.router.port'), value: `${manifest.port} (UDP)` },
+      { label: t('en.create.textChat'), value: data.enableTextChat ? t('common.yes') : t('common.no') },
+      { label: t('en.details.listed'), value: t('en.details.always') },
+      { label: t('details.gameVersion'), value: data.gameVersion ?? t('details.knownAtStart') },
+      { label: t('details.steamBuild'), value: data.buildId ?? t('details.unknown') },
+      {
+        label: t('catalog.loaderTitle.mod'),
+        value: data.loaderVersion ? `Shroudtopia ${data.loaderVersion}` : t('en.details.notInstalled')
       }
     ]
   },
 
-  routerSafetyNote: (
-    <>
-      Abrir el puerto expone este ordenador a internet. Enshrouded necesita{' '}
-      <strong>uno solo</strong>, por UDP. Antes de abrirlo, comprueba en{' '}
-      <strong>Configuración → Roles</strong> que ningún rol se ha quedado sin contraseña: ese sería
-      el que le tocaría a cualquiera que entrase sin escribir ninguna, y este juego sale siempre en
-      su lista pública.
-    </>
-  ),
+  get routerSafetyNote() {
+    return (
+      <Rich
+        k="en.routerSafety"
+        values={{
+          one: <strong>{t('en.routerSafety.one')}</strong>,
+          path: (
+            <strong>
+              {t('panel.configuration')} → {t('en.tab.roles')}
+            </strong>
+          )
+        }}
+      />
+    )
+  },
 
   async describeLoss(manifest) {
-    if (manifest.game !== 'enshrouded') return 'Sus mundos'
+    if (manifest.game !== 'enshrouded') return t('mc.loss.worlds')
     try {
       const worlds = await window.qubiq.enshrouded.worlds.list(manifest.id)
       const empezados = worlds.filter((w) => w.savedAt !== null)
-      if (empezados.length === 0) return 'Su mundo, que todavía no se ha llegado a empezar'
+      if (empezados.length === 0) return t('en.loss.notStarted')
       if (empezados.length === 1) {
-        return `Su mundo «${empezados[0]!.name}», con todo lo construido`
+        return t('vh.loss.named', { name: quote(empezados[0]!.name) })
       }
-      return `Sus ${empezados.length} mundos, con todo lo construido`
+      return t('mc.loss.count', { count: empezados.length })
     } catch {
-      return `Su mundo «${manifest.data.worldName}», con todo lo construido`
+      return t('vh.loss.named', { name: quote(manifest.data.worldName) })
     }
   }
 }
@@ -123,6 +133,6 @@ export const enshroudedUi: GameUi = {
 /** La contraseña de un rol, para la ficha técnica del modo avanzado. */
 function passwordOf(roles: EnshroudedRole[], name: string): string {
   const role = roles.find((r) => r.name === name)
-  if (!role) return 'ese rol ya no existe'
-  return role.password.length > 0 ? role.password : 'sin contraseña'
+  if (!role) return t('en.details.noRole')
+  return role.password.length > 0 ? role.password : t('wizard.summary.noPassword')
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
-import { gameInfo, theSave } from '@shared/games'
+import { gameInfo } from '@shared/games'
 import { uiFor } from './games'
+import { Rich, t } from './i18n'
 
 /**
  * Confirmación para borrar un servidor.
@@ -62,54 +63,54 @@ export function ConfirmDelete({ state, onCancel, onDeleted }: Props): React.JSX.
     <div className="modal-backdrop" onClick={busy ? undefined : onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Borrar &quot;{manifest.name}&quot;</h3>
+          <h3>{t('delete.title', { name: manifest.name })}</h3>
           <button disabled={busy} onClick={onCancel}>
-            Cancelar
+            {t('common.cancel')}
           </button>
         </div>
 
         <div className="modal-body">
           <p>
-            Esto borra el servidor entero y <strong>no se puede deshacer</strong>. Se perderá:
+            <Rich
+              k="delete.intro"
+              values={{ undone: <strong>{t('delete.cannotUndo')}</strong> }}
+            />
           </p>
 
           <ul>
-            <li>{loss ?? 'Su partida'}</li>
+            <li>{loss ?? t(`delete.lossDefault.${gameInfo(manifest.game).save}`)}</li>
             <li>
               {backups === null
-                ? 'Sus copias de seguridad'
+                ? t('delete.backupsUnknown')
                 : backups === 0
-                  ? 'No hay copias de seguridad que perder'
-                  : `Sus ${backups} ${backups === 1 ? 'copia de seguridad' : 'copias de seguridad'}, que están dentro de la carpeta del servidor`}
+                  ? t('delete.backupsNone')
+                  : t('delete.backupsCount', { count: backups })}
             </li>
-            <li>Su configuración, sus jugadores y sus registros</li>
+            <li>{t('delete.configLoss')}</li>
           </ul>
 
           {backups !== null && backups > 0 && (
             <p className="note">
-              Ojo: las copias de seguridad viven dentro del servidor, así que se van con él. Si
-              quieres conservar {theSave(gameInfo(manifest.game).save)}, cancela y copia primero la carpeta a otro sitio con
-              &quot;Abrir carpeta&quot;.
+              {t(`delete.backupsNote.${gameInfo(manifest.game).save}`, {
+                button: t('panel.openFolder')
+              })}
             </p>
           )}
 
           {running && (
-            <p className="note">
-              El servidor está en marcha. Se cerrará correctamente antes de borrar, para no dejar
-              nada a medias.
-            </p>
+            <p className="note">{t('delete.running')}</p>
           )}
 
           {error && (
             <div className="alert error" style={{ marginTop: 16 }}>
-              <strong>No se pudo borrar</strong>
+              <strong>{t('delete.failed')}</strong>
               <p>{error}</p>
             </div>
           )}
 
           <div className="field" style={{ marginTop: 20, marginBottom: 0 }}>
             <label>
-              Para confirmar, escribe <code>{manifest.name}</code>
+              <Rich k="delete.typeToConfirm" values={{ name: <code>{manifest.name}</code> }} />
             </label>
             <input
               value={typed}
@@ -125,10 +126,10 @@ export function ConfirmDelete({ state, onCancel, onDeleted }: Props): React.JSX.
 
           <div className="row between" style={{ marginTop: 20 }}>
             <button disabled={busy} onClick={onCancel}>
-              Mejor no
+              {t('common.betterNot')}
             </button>
             <button className="danger" disabled={!confirmed || busy} onClick={() => void remove()}>
-              {busy ? 'Borrando...' : 'Borrar este servidor'}
+              {busy ? t('delete.deleting') : t('panel.delete.title')}
             </button>
           </div>
         </div>

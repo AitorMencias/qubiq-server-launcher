@@ -1,3 +1,4 @@
+import { Rich, formatDateOnly, formatTime, t } from '../../i18n'
 /**
  * Cómo se cuenta el borrado mensual de Rust, igual en todas las pantallas.
  *
@@ -6,37 +7,36 @@
  * principal y en la pestaña de Borrado.
  */
 
-/** «jueves 1 de octubre, a las 20:00», en la hora del equipo. */
+/** «jueves 1 de octubre, a las 20:00», en la hora del equipo y el idioma de la app. */
 export function wipeDateLabel(iso: string): string {
-  const date = new Date(iso)
-  const dia = date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
-  const hora = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-  return `${dia}, a las ${hora}`
+  const dia = formatDateOnly(iso, { weekday: 'long', day: 'numeric', month: 'long' })
+  const hora = formatTime(iso, { hour: '2-digit', minute: '2-digit' })
+  return t('rust.wipe.dateAt', { day: dia, time: hora })
 }
 
 /** «hace 3 días», «hoy», para decir cuándo empezó el mapa. */
 export function sinceLabel(iso: string | null): string {
-  if (!iso) return 'todavía no se ha generado'
+  if (!iso) return t('rust.since.notGenerated')
   const days = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000)
-  if (days <= 0) return 'hoy'
-  if (days === 1) return 'ayer'
-  return `hace ${days} días`
+  if (days <= 0) return t('rust.since.today')
+  if (days === 1) return t('rust.since.yesterday')
+  return t('rust.since.daysAgo', { count: days })
 }
 
 export function WipeExplainer(): React.JSX.Element {
   return (
     <>
       <p>
-        El <strong>primer jueves de cada mes</strong>, hacia las 20:00, Facepunch publica una
-        actualización de Rust. Desde ese momento solo se puede entrar en servidores actualizados, y
-        el servidor actualizado <strong>empieza un mapa nuevo</strong>: lo construido se pierde y
-        todo el mundo vuelve a empezar. Es el <em>wipe</em>, y es parte del juego.
+        <Rich
+          k="rust.explainer.p1"
+          values={{
+            first: <strong>{t('rust.explainer.firstThursday')}</strong>,
+            newMap: <strong>{t('rust.explainer.newMap')}</strong>,
+            wipe: <em>wipe</em>
+          }}
+        />
       </p>
-      <p>
-        Lo que sí se conserva son los planos aprendidos (lo que cada uno sabe fabricar), salvo los
-        meses en que Facepunch decide borrarlos también. Antes de cada borrado la app guarda una
-        copia del mapa por si acaso.
-      </p>
+      <p>{t('rust.explainer.p2')}</p>
     </>
   )
 }

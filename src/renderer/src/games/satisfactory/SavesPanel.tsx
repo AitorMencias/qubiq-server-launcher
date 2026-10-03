@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState, UiMode } from '@shared/types'
 import type { SatisfactorySave, SatisfactorySessions } from '@shared/games/satisfactory/types'
+import { Rich, formatDate as formatDateTime, quote, t } from '../../i18n'
 
 /**
  * Partidas de un servidor de Satisfactory: lo que en Minecraft son los mundos.
@@ -61,11 +62,8 @@ export function SavesPanel({ state, mode, onChanged }: Props): React.JSX.Element
     return (
       <div className="panel">
         <div className="alert info">
-          <strong>Arranca el servidor para ver las partidas</strong>
-          <p>
-            Las partidas las lleva el propio servidor: es él quien sabe cuáles hay, cuál está
-            cargada y cuándo se guardó cada una. Con el servidor parado no hay a quién preguntar.
-          </p>
+          <strong>{t('sf.saves.startFirst')}</strong>
+          <p>{t('sf.saves.startFirstText')}</p>
         </div>
       </div>
     )
@@ -77,7 +75,7 @@ export function SavesPanel({ state, mode, onChanged }: Props): React.JSX.Element
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo completar la acción</strong>
+          <strong>{t('panel.actionFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -88,21 +86,18 @@ export function SavesPanel({ state, mode, onChanged }: Props): React.JSX.Element
       )}
 
       <div className="card">
-        <h3>Guardar ahora</h3>
-        <p className="hint">
-          El servidor guarda solo cada pocos minutos (se cambia en Ajustes) y siempre al cerrarse.
-          Esto fuerza un guardado inmediato, por ejemplo antes de tocar algo gordo.
-        </p>
+        <h3>{t('sf.saves.saveNow')}</h3>
+        <p className="hint">{t('sf.saves.saveNowHint', { tab: t('tab.settings') })}</p>
         <button
           disabled={busy || !current}
           onClick={() =>
             run(
               () => window.qubiq.satisfactory.sessions.saveNow(manifest.id, current ?? ''),
-              'Partida guardada.'
+              t('sf.saves.saved')
             )
           }
         >
-          Guardar la partida
+          {t('sf.saves.saveButton')}
         </button>
       </div>
 
@@ -113,7 +108,7 @@ export function SavesPanel({ state, mode, onChanged }: Props): React.JSX.Element
               {session.sessionName}
               {session.sessionName === current && (
                 <span className="status" style={{ marginLeft: 8 }}>
-                  cargada ahora
+                  {t('sf.saves.loadedNow')}
                 </span>
               )}
             </h3>
@@ -123,20 +118,22 @@ export function SavesPanel({ state, mode, onChanged }: Props): React.JSX.Element
                 disabled={busy}
                 onClick={() => setConfirmingSession(session.sessionName)}
               >
-                Borrar partida
+                {t('sf.saves.deleteSession')}
               </button>
             )}
           </div>
 
           {confirmingSession === session.sessionName && (
             <div className="alert error" style={{ textAlign: 'left' }}>
-              <strong>¿Borrar «{session.sessionName}» con sus {session.saves.length} guardados?</strong>
-              <p>
-                Se pierde todo lo construido en esa partida. Antes se hace una copia de seguridad,
-                que podrás restaurar desde la pestaña Copias.
-              </p>
+              <strong>
+                {t('sf.saves.confirmDelete', {
+                  name: quote(session.sessionName),
+                  count: session.saves.length
+                })}
+              </strong>
+              <p>{t('sf.saves.confirmDeleteText', { tab: t('panel.tab.backups') })}</p>
               <div className="row">
-                <button onClick={() => setConfirmingSession(null)}>Cancelar</button>
+                <button onClick={() => setConfirmingSession(null)}>{t('common.cancel')}</button>
                 <button
                   className="danger"
                   disabled={busy}
@@ -148,11 +145,11 @@ export function SavesPanel({ state, mode, onChanged }: Props): React.JSX.Element
                           manifest.id,
                           session.sessionName
                         ),
-                      `Partida «${session.sessionName}» borrada.`
+                      t('sf.saves.sessionDeleted', { name: quote(session.sessionName) })
                     )
                   }}
                 >
-                  Sí, borrarla
+                  {t('sf.saves.yesDelete')}
                 </button>
               </div>
             </div>
@@ -172,13 +169,13 @@ export function SavesPanel({ state, mode, onChanged }: Props): React.JSX.Element
                       save.saveName,
                       save.sessionName
                     ),
-                  `Cargando «${save.saveName}». El servidor tarda unos segundos en tenerla lista.`
+                  t('sf.saves.loading', { name: quote(save.saveName) })
                 )
               }
               onDelete={() =>
                 run(
                   () => window.qubiq.satisfactory.sessions.removeSave(manifest.id, save.saveName),
-                  `Guardado «${save.saveName}» borrado.`
+                  t('sf.saves.saveDeleted', { name: quote(save.saveName) })
                 )
               }
             />
@@ -187,16 +184,15 @@ export function SavesPanel({ state, mode, onChanged }: Props): React.JSX.Element
       ))}
 
       <div className="card">
-        <h3>Empezar una partida nueva</h3>
+        <h3>{t('sf.saves.newTitle')}</h3>
         <p className="hint">
-          Se crea un mapa desde cero y el servidor se pasa a él. La partida de ahora <strong>no</strong>{' '}
-          se borra: sigue en esta lista y puedes volver cuando quieras.
+          <Rich k="sf.saves.newHint" values={{ not: <strong>{t('sf.saves.not')}</strong> }} />
         </p>
         <div className="field">
           <input
             value={newSession}
             maxLength={40}
-            placeholder="Nombre de la partida"
+            placeholder={t('sf.create.sessionName')}
             onChange={(e) => setNewSession(e.target.value)}
           />
         </div>
@@ -206,11 +202,11 @@ export function SavesPanel({ state, mode, onChanged }: Props): React.JSX.Element
           onClick={() =>
             run(
               () => window.qubiq.satisfactory.sessions.create(manifest.id, newSession.trim()),
-              `Creando «${newSession.trim()}». El servidor tarda un poco en generar el mapa.`
+              t('sf.saves.creating', { name: quote(newSession.trim()) })
             )
           }
         >
-          Crear partida
+          {t('sf.saves.create')}
         </button>
       </div>
     </div>
@@ -231,18 +227,19 @@ function SaveRow({ save, advanced, busy, onLoad, onDelete }: SaveRowProps): Reac
       <div>
         <div>{save.saveName}</div>
         <div className="hint">
-          {formatDate(save.savedAt)} · {formatDuration(save.playDurationSeconds)} jugadas
-          {save.creativeModeEnabled && ' · con reglas cambiadas'}
+          {formatDate(save.savedAt)} ·{' '}
+          {t('sf.saves.played', { time: formatDuration(save.playDurationSeconds) })}
+          {save.creativeModeEnabled && ` · ${t('sf.saves.rulesChanged')}`}
           {advanced && ` · build ${save.buildVersion}`}
         </div>
       </div>
       <div className="row">
         <button disabled={busy} onClick={onLoad}>
-          Cargar
+          {t('sf.saves.load')}
         </button>
         {advanced && (
           <button className="danger" disabled={busy} onClick={onDelete}>
-            Borrar
+            {t('backup.delete')}
           </button>
         )}
       </div>
@@ -253,12 +250,12 @@ function SaveRow({ save, advanced, busy, onLoad, onDelete }: SaveRowProps): Reac
 function formatDate(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })
+  return formatDateTime(date, { dateStyle: 'short', timeStyle: 'short' })
 }
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-  if (hours > 0) return `${hours} h ${minutes} min`
-  return `${minutes} min`
+  if (hours > 0) return t('panel.uptime.hours', { h: hours, m: minutes })
+  return t('panel.uptime.minutes', { m: minutes })
 }

@@ -160,7 +160,7 @@ export async function factorioSmoke(): Promise<void> {
   await section('Factorio · catálogo', async () => {
     const info = gameInfo('factorio')
     check('tiene aviso de producto no oficial', info.disclaimer.includes('no oficial'))
-    check('la partida se llama partida', info.save.singular === 'partida')
+    check('la partida se llama partida', info.save === 'game')
     check('avisa de que hace falta tener el juego', info.card.highlights.some((h) => h.tone === 'warn'))
 
     const manifest = manifestoDePrueba()

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import { BASE_MAP, type ZomboidModEntry } from '@shared/games/zomboid/types'
+import { Rich, t } from '../../i18n'
 
 /**
  * Los mods del taller de Steam.
@@ -74,11 +75,7 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
     try {
       const ids = await window.qubiq.zomboid.mods.updates(id)
       setConActualizacion(ids)
-      setNotice(
-        ids.length === 0
-          ? 'Todos los mods están al día.'
-          : `${ids.length} mod${ids.length === 1 ? '' : 's'} con una versión nueva.`
-      )
+      setNotice(ids.length === 0 ? t('pz.mods.upToDate') : t('pz.mods.withUpdates', { count: ids.length }))
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -93,7 +90,7 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -101,20 +98,14 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
 
       {!parado && (
         <div className="alert info">
-          <strong>Con el servidor arrancado solo se puede mirar</strong>
-          <p>
-            Zomboid lee los mods al cargar el mundo y no los vuelve a mirar. Párala para añadir,
-            quitar o reordenar.
-          </p>
+          <strong>{t('catalog.lookOnly')}</strong>
+          <p>{t('pz.mods.runningText')}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Añadir un mod del taller</h3>
-        <p className="hint">
-          Busca el mod en el taller de Steam y pega aquí su enlace. También vale el número que sale
-          al final de la dirección.
-        </p>
+        <h3>{t('pz.mods.addTitle')}</h3>
+        <p className="hint">{t('pz.mods.addHint')}</p>
         <div className="row">
           <input
             className="grow"
@@ -131,10 +122,10 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
               void run('add', async () => {
                 await window.qubiq.zomboid.mods.add(id, texto)
                 setTexto('')
-              }, 'Mod añadido.')
+              }, t('pz.mods.added'))
             }
           >
-            {busy === 'add' ? 'Descargando…' : 'Añadir'}
+            {busy === 'add' ? t('pz.mods.downloading') : t('mc.official.add')}
           </button>
           <button
             style={{ flex: 'none' }}
@@ -144,33 +135,30 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
               )
             }
           >
-            Abrir el taller
+            {t('pz.mods.openWorkshop')}
           </button>
         </div>
         <div className="help">
-          Se descarga sin cuenta de Steam. <strong>Tus amigos tendrán que suscribirse al mismo mod</strong>{' '}
-          en el taller para poder entrar: este servidor arranca sin Steam y no puede pasárselos.
+          <Rich k="pz.mods.friendsSubscribe" values={{ friends: <strong>{t('pz.mods.friendsBold')}</strong> }} />
         </div>
       </div>
 
       <div className="card">
         <div className="row between">
-          <h3 style={{ margin: 0 }}>Mods instalados</h3>
+          <h3 style={{ margin: 0 }}>{t('pz.mods.installedTitle')}</h3>
           <button disabled={busy !== null || entries.length === 0} onClick={() => void mirarActualizaciones()}>
-            {busy === 'updates' ? 'Mirando…' : 'Buscar actualizaciones'}
+            {busy === 'updates' ? t('catalog.looking') : t('catalog.lookUpdates')}
           </button>
         </div>
 
         {loading ? (
-          <p className="hint">Cargando…</p>
+          <p className="hint">{t('pz.mods.loading')}</p>
         ) : entries.length === 0 ? (
-          <p className="hint">
-            Todavía no hay ninguno. El servidor funciona igual: los mods son opcionales.
-          </p>
+          <p className="hint">{t('pz.mods.none')}</p>
         ) : (
           <>
             <p className="hint">
-              El orden es el de carga: cuando dos mods tocan lo mismo, <strong>manda el último</strong>.
+              <Rich k="pz.mods.order" values={{ last: <strong>{t('pz.mods.lastWins')}</strong> }} />
             </p>
             {entries.map((entry, i) => (
               <div className="cfg-option" key={entry.ref.workshopId}>
@@ -178,26 +166,26 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                   <div className="grow" style={{ minWidth: 0 }}>
                     <div className="row" style={{ gap: 8 }}>
                       <strong>{entry.ref.title}</strong>
-                      {!entry.ref.enabled && <span className="badge muted">apagado</span>}
+                      {!entry.ref.enabled && <span className="badge muted">{t('catalog.off')}</span>}
                       {conActualizacion.includes(entry.ref.workshopId) && (
-                        <span className="badge warn">hay versión nueva</span>
+                        <span className="badge warn">{t('pz.mods.newVersion')}</span>
                       )}
                     </div>
                     <div className="help" style={{ margin: 0 }}>
                       {/* Casi siempre el objeto del taller se llama igual que
                           el mod que trae: repetirlo sería ruido. */}
                       {entry.mods.length === 0
-                        ? 'Sin mods dentro'
+                        ? t('pz.mods.empty')
                         : entry.mods
                             .map((mod) => {
-                              const version = mod.version ?? 'sin versión válida'
+                              const version = mod.version ?? t('pz.mods.noVersion')
                               return mod.name === entry.ref.title
-                                ? `versión ${version}`
+                                ? t('catalog.versionShort', { version })
                                 : `${mod.name} (${version})`
                             })
                             .join(' · ')}
                       {entry.mods.some((mod) => mod.maps.length > 0) &&
-                        ` · mapas: ${entry.mods.flatMap((mod) => mod.maps).join(', ')}`}
+                        ` · ${t('pz.mods.maps', { list: entry.mods.flatMap((mod) => mod.maps).join(', ') })}`}
                     </div>
                     {entry.problem && (
                       <div className="cfg-error">{entry.problem}</div>
@@ -207,9 +195,9 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                   <button
                     style={{ flex: 'none' }}
                     disabled={!parado || busy !== null || i === 0}
-                    title="Cargar antes"
+                    title={t('pz.mods.loadBefore')}
                     onClick={() =>
-                      void run('move', () => window.qubiq.zomboid.mods.move(id, entry.ref.workshopId, -1), 'Orden cambiado.')
+                      void run('move', () => window.qubiq.zomboid.mods.move(id, entry.ref.workshopId, -1), t('pz.mods.orderChanged'))
                     }
                   >
                     ↑
@@ -217,9 +205,9 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                   <button
                     style={{ flex: 'none' }}
                     disabled={!parado || busy !== null || i === entries.length - 1}
-                    title="Cargar después"
+                    title={t('pz.mods.loadAfter')}
                     onClick={() =>
-                      void run('move', () => window.qubiq.zomboid.mods.move(id, entry.ref.workshopId, 1), 'Orden cambiado.')
+                      void run('move', () => window.qubiq.zomboid.mods.move(id, entry.ref.workshopId, 1), t('pz.mods.orderChanged'))
                     }
                   >
                     ↓
@@ -236,11 +224,11 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                             entry.ref.workshopId,
                             !entry.ref.enabled
                           ),
-                        entry.ref.enabled ? 'Mod apagado.' : 'Mod encendido.'
+                        entry.ref.enabled ? t('pz.mods.turnedOff') : t('pz.mods.turnedOn')
                       )
                     }
                   >
-                    {entry.ref.enabled ? 'Apagar' : 'Encender'}
+                    {entry.ref.enabled ? t('pz.mods.turnOff') : t('pz.mods.turnOn')}
                   </button>
                   <button
                     style={{ flex: 'none' }}
@@ -249,11 +237,11 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                       void run(
                         'update',
                         () => window.qubiq.zomboid.mods.update(id, entry.ref.workshopId),
-                        'Mod actualizado.'
+                        t('pz.mods.updated')
                       )
                     }
                   >
-                    {busy === 'update' ? 'Bajando…' : 'Actualizar'}
+                    {busy === 'update' ? t('pz.mods.fetching') : t('version.update')}
                   </button>
                   <button
                     className="danger"
@@ -263,11 +251,11 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                       void run(
                         'remove',
                         () => window.qubiq.zomboid.mods.remove(id, entry.ref.workshopId),
-                        'Mod quitado.'
+                        t('pz.mods.removed')
                       )
                     }
                   >
-                    Quitar
+                    {t('catalog.remove')}
                   </button>
                 </div>
               </div>
@@ -278,11 +266,8 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
 
       {mapas.length > 0 && (
         <div className="card">
-          <h3>Mapas</h3>
-          <p className="hint">
-            Estos mods traen mapas, y el servidor los carga en este orden. El del juego va siempre el
-            último: lo que hay encima se superpone.
-          </p>
+          <h3>{t('pz.mods.mapsTitle')}</h3>
+          <p className="hint">{t('pz.mods.mapsHint')}</p>
           <code>{[...mapas, BASE_MAP].join(' · ')}</code>
         </div>
       )}

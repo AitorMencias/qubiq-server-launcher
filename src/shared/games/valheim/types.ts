@@ -15,6 +15,7 @@
  */
 
 import type { ModRef } from '../mods'
+import { choice, labelled, t } from '../../i18n'
 
 /** El servidor dedicado de Valheim es esta aplicación de Steam. */
 export const VALHEIM_APP_ID = 896660
@@ -79,43 +80,9 @@ export interface PresetInfo {
 }
 
 /** Los presets, en el orden en que se ofrecen (de más suave a más duro). */
-export const PRESETS: PresetInfo[] = [
-  {
-    value: 'casual',
-    label: 'Relajado',
-    help: 'Los enemigos pegan menos y al morir no se pierde nada. Para jugar sin agobios.'
-  },
-  {
-    value: 'easy',
-    label: 'Fácil',
-    help: 'Algo más suave que el normal, sin llegar a quitar el castigo por morir.'
-  },
-  {
-    value: 'normal',
-    label: 'Normal',
-    help: 'El juego tal y como está pensado. Si no lo tienes claro, este.'
-  },
-  {
-    value: 'hard',
-    label: 'Difícil',
-    help: 'Los enemigos pegan más y morir cuesta más caro.'
-  },
-  {
-    value: 'hardcore',
-    label: 'Extremo',
-    help: 'Lo más duro: al morir se pierde todo el equipo y la experiencia.'
-  },
-  {
-    value: 'immersive',
-    label: 'Inmersivo',
-    help: 'Sin mapa ni marcadores: hay que orientarse mirando el terreno. Cambia mucho la partida.'
-  },
-  {
-    value: 'hammer',
-    label: 'Constructor',
-    help: 'Construir no gasta materiales. Para montar cosas sin tener que picar antes.'
-  }
-]
+export const PRESETS: PresetInfo[] = (
+  ['casual', 'easy', 'normal', 'hard', 'hardcore', 'immersive', 'hammer'] as const
+).map((value) => labelled({ value }, `vh.preset.${value}`))
 
 /** Lo que se puede afinar por separado, una vez elegida la dificultad. */
 export type ValheimModifierKey = 'combat' | 'deathpenalty' | 'resources' | 'raids' | 'portals'
@@ -132,70 +99,26 @@ export interface ModifierInfo {
  * Modificadores y sus valores, comprobados uno a uno contra el servidor real.
  * `default` significa «lo que diga el preset»: no es un valor más, es no tocarlo.
  */
-export const MODIFIERS: ModifierInfo[] = [
-  {
-    key: 'combat',
-    label: 'Dureza de los enemigos',
-    help: 'Cuánto pegan y cuánto aguantan los bichos.',
-    options: [
-      { value: 'default', label: 'Lo que diga la dificultad' },
-      { value: 'veryeasy', label: 'Muy blandos' },
-      { value: 'easy', label: 'Blandos' },
-      { value: 'hard', label: 'Duros' },
-      { value: 'veryhard', label: 'Muy duros' }
-    ]
-  },
-  {
-    key: 'deathpenalty',
-    label: 'Qué pasa al morir',
-    help: 'Cuánto se pierde: el equipo, la experiencia o nada.',
-    options: [
-      { value: 'default', label: 'Lo que diga la dificultad' },
-      { value: 'casual', label: 'No se pierde nada' },
-      { value: 'veryeasy', label: 'Se pierde muy poco' },
-      { value: 'easy', label: 'Se pierde poco' },
-      { value: 'hard', label: 'Se pierde bastante' },
-      { value: 'hardcore', label: 'Se pierde todo' }
-    ]
-  },
-  {
-    key: 'resources',
-    label: 'Recursos del mundo',
-    help: 'Cuánto material sueltan los árboles, las rocas y los enemigos.',
-    options: [
-      { value: 'default', label: 'Lo que diga la dificultad' },
-      { value: 'muchless', label: 'Muchos menos' },
-      { value: 'less', label: 'Menos' },
-      { value: 'more', label: 'Más' },
-      { value: 'muchmore', label: 'Muchos más' },
-      { value: 'most', label: 'Muchísimos más' }
-    ]
-  },
-  {
-    key: 'raids',
-    label: 'Ataques a la base',
-    help: 'Con qué frecuencia vienen a atacar donde vivís.',
-    options: [
-      { value: 'default', label: 'Lo que diga la dificultad' },
-      { value: 'none', label: 'Ninguno' },
-      { value: 'muchless', label: 'Muchos menos' },
-      { value: 'less', label: 'Menos' },
-      { value: 'more', label: 'Más' },
-      { value: 'muchmore', label: 'Muchos más' }
-    ]
-  },
-  {
-    key: 'portals',
-    label: 'Portales',
-    help: 'Si se puede llevar cualquier cosa por un portal o hay que transportarla a mano.',
-    options: [
-      { value: 'default', label: 'Lo que diga la dificultad' },
-      { value: 'casual', label: 'Se puede llevar todo' },
-      { value: 'hard', label: 'Con más restricciones' },
-      { value: 'veryhard', label: 'Sin portales que valgan' }
-    ]
-  }
-]
+export const MODIFIERS: ModifierInfo[] = (
+  [
+    ['combat', ['default', 'veryeasy', 'easy', 'hard', 'veryhard']],
+    ['deathpenalty', ['default', 'casual', 'veryeasy', 'easy', 'hard', 'hardcore']],
+    ['resources', ['default', 'muchless', 'less', 'more', 'muchmore', 'most']],
+    ['raids', ['default', 'none', 'muchless', 'less', 'more', 'muchmore']],
+    ['portals', ['default', 'casual', 'hard', 'veryhard']]
+  ] as [ValheimModifierKey, string[]][]
+).map(([key, values]) =>
+  labelled(
+    {
+      key,
+      options: values.map((value) =>
+        // «Lo que diga la dificultad» es igual en todos: una sola clave.
+        choice(value, value === 'default' ? 'vh.mod.default' : `vh.mod.${key}.${value}`)
+      )
+    },
+    `vh.mod.${key}`
+  )
+)
 
 export type ValheimModifiers = Partial<Record<ValheimModifierKey, string>>
 
@@ -219,33 +142,9 @@ export interface GlobalKeyInfo {
   help: string
 }
 
-export const GLOBAL_KEYS: GlobalKeyInfo[] = [
-  {
-    key: 'nobuildcost',
-    label: 'Construir sin materiales',
-    help: 'Levantar cosas no gasta nada del inventario.'
-  },
-  {
-    key: 'nomap',
-    label: 'Sin mapa',
-    help: 'Nadie tiene mapa: hay que orientarse por el terreno.'
-  },
-  {
-    key: 'passivemobs',
-    label: 'Enemigos pacíficos',
-    help: 'Los bichos no atacan si no se les ataca.'
-  },
-  {
-    key: 'playerevents',
-    label: 'Sucesos con jugadores fuera',
-    help: 'Los ataques a la base pueden dispararse aunque no estéis conectados.'
-  },
-  {
-    key: 'noportals',
-    label: 'Sin portales',
-    help: 'Los portales no funcionan: todo se recorre a pie o en barco.'
-  }
-]
+export const GLOBAL_KEYS: GlobalKeyInfo[] = (
+  ['nobuildcost', 'nomap', 'passivemobs', 'playerevents', 'noportals'] as const
+).map((key) => labelled({ key }, `vh.key.${key}`))
 
 /** Lo propio de un servidor de Valheim dentro del manifiesto (`manifest.data`). */
 export interface ValheimData {
@@ -328,29 +227,18 @@ export interface ValheimListInfo {
   emptyMeans: string
 }
 
-export const MODERATION_LISTS: ValheimListInfo[] = [
-  {
-    kind: 'admin',
-    fileName: 'adminlist.txt',
-    label: 'Administradores',
-    help: 'Pueden usar los comandos de administrador dentro del juego (volar, invocar, echar a alguien).',
-    emptyMeans: 'Nadie manda dentro de la partida más que tú, y solo desde tu propio personaje.'
-  },
-  {
-    kind: 'banned',
-    fileName: 'bannedlist.txt',
-    label: 'Vetados',
-    help: 'No pueden entrar. Es lo más parecido a un baneo que tiene Valheim.',
-    emptyMeans: 'No hay nadie vetado.'
-  },
-  {
-    kind: 'permitted',
-    fileName: 'permittedlist.txt',
-    label: 'Lista de invitados',
-    help: 'Si tiene a alguien, SOLO entra quien esté en ella. Es la lista blanca.',
-    emptyMeans: 'Puede entrar cualquiera que sepa la dirección y la contraseña.'
-  }
-]
+export const MODERATION_LISTS: ValheimListInfo[] = (
+  [
+    ['admin', 'adminlist.txt'],
+    ['banned', 'bannedlist.txt'],
+    ['permitted', 'permittedlist.txt']
+  ] as [ValheimListKind, string][]
+).map(([kind, fileName]) =>
+  Object.defineProperty(labelled({ kind, fileName }, `vh.list.${kind}`), 'emptyMeans', {
+    enumerable: true,
+    get: () => t(`vh.list.${kind}.empty`)
+  }) as ValheimListInfo
+)
 
 /** Una entrada de una lista: un SteamID (o PlayFab ID con crossplay). */
 export interface ValheimListEntry {

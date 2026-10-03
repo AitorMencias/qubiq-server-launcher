@@ -3,6 +3,7 @@ import type { ConfigOption, EditableConfig } from '@shared/editableConfig'
 import { pathKey } from '@shared/editableConfig'
 import type { GameConfigSearchProps } from '../types'
 import { OptionList, changeOf, sameAsOriginal, type Draft } from './OptionList'
+import { t } from '../../i18n'
 
 /**
  * Buscador de ajustes de Project Zomboid, encima de las pestañas.
@@ -53,27 +54,25 @@ export function ZomboidConfigSearch({
   const origenes: Origen[] = [
     {
       id: 'partida',
-      title: 'Reglas de la partida',
-      help: 'Cuántos zombis hay, cuándo se corta la luz, a qué ritmo se sube de nivel. Están en la pestaña «Partida».',
+      title: t('pz.search.rules'),
+      help: t('pz.search.rulesHelp', { tab: t('pz.tab.game') }),
       load: () => window.qubiq.zomboid.sandbox.get(id),
       save: (changes) => window.qubiq.zomboid.sandbox.set(id, changes),
       ...(running
         ? {
-            blocked:
-              'Zomboid lee las reglas de la partida al cargar el mundo y no las vuelve a mirar: ' +
-              'para cambiarlas hay que parar el servidor.'
+            blocked: t('pz.search.rulesBlocked')
           }
         : {})
     },
     {
       id: 'servidor',
-      title: 'Ajustes del servidor',
+      title: t('mc.config.title'),
       // En básico no hay pestaña para estos: se llega a ellos buscando, que es
       // justo lo que el usuario está haciendo. Decirle que vaya a una pestaña
       // que no ve sería mandarlo a ningún sitio.
       help: advanced
-        ? 'Lo que el servidor guarda en su servertest.ini. Están en la pestaña «Todos los ajustes».'
-        : 'Lo que el servidor guarda en su servertest.ini. En el modo básico solo se llega a ellos buscando.',
+        ? t('pz.search.serverHelp', { tab: t('pz.tab.allSettings') })
+        : t('pz.search.serverHelpBasic'),
       load: () => window.qubiq.zomboid.settings.get(id),
       save: (changes) => window.qubiq.zomboid.settings.set(id, changes)
     }
@@ -140,7 +139,7 @@ export function ZomboidConfigSearch({
       }
       setConfigs(guardados)
       setDrafts({})
-      setNotice('Guardado.')
+      setNotice(t('vh.settings.saved'))
       onRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -164,13 +163,13 @@ export function ZomboidConfigSearch({
         <input
           type="search"
           value={query}
-          placeholder="Buscar un ajuste de este servidor…"
+          placeholder={t('pz.search.placeholder')}
           onChange={(e) => setQuery(e.target.value)}
         />
         {buscando && configs && (
           <span className="cfg-count">
-            {encontradas} de {total}
-            {cambios > 0 ? ` · ${cambios} cambiado${cambios === 1 ? '' : 's'}` : ''}
+            {t('cfg.countOf', { n: encontradas, total })}
+            {cambios > 0 ? ` · ${t('pz.search.changed', { count: cambios })}` : ''}
           </span>
         )}
       </div>
@@ -179,19 +178,16 @@ export function ZomboidConfigSearch({
         <div className="panel">
           {error && (
             <div className="alert error">
-              <strong>Algo ha fallado</strong>
+              <strong>{t('catalog.error')}</strong>
               <p>{error}</p>
             </div>
           )}
           {notice && <div className="alert info">{notice}</div>}
 
-          {configs === null && !error && <p className="hint">Leyendo la configuración…</p>}
+          {configs === null && !error && <p className="hint">{t('pz.search.reading')}</p>}
 
           {configs !== null && encontradas === 0 && (
-            <p className="hint">
-              No hay ningún ajuste que se llame así ni que lo mencione. Se busca por el nombre de la
-              opción y por su explicación.
-            </p>
+            <p className="hint">{t('pz.search.none')}</p>
           )}
 
           {encontradas > 0 && (
@@ -201,15 +197,15 @@ export function ZomboidConfigSearch({
                 disabled={busy || cambios === 0}
                 onClick={() => void guardar()}
               >
-                {busy ? 'Guardando…' : 'Guardar cambios'}
+                {busy ? t('common.saving') : t('common.saveChanges')}
               </button>
               {cambios > 0 && (
                 <button disabled={busy} onClick={() => setDrafts({})}>
-                  Descartar
+                  {t('cfg.discard')}
                 </button>
               )}
               <button disabled={busy} onClick={() => setQuery('')}>
-                Salir de la búsqueda
+                {t('pz.search.exit')}
               </button>
             </div>
           )}
@@ -220,7 +216,7 @@ export function ZomboidConfigSearch({
                 <h3>
                   {origen.title}{' '}
                   <span className="cfg-count">
-                    · {opciones.length} de {config!.options.length}
+                    · {t('cfg.countOf', { n: opciones.length, total: config!.options.length })}
                   </span>
                 </h3>
                 <p className="hint">{origen.help}</p>

@@ -1,3 +1,4 @@
+import { t } from '../../i18n'
 /**
  * Tipos de Factorio compartidos entre el núcleo y la interfaz.
  *
@@ -100,59 +101,31 @@ export interface PresetInfo {
   description: string
 }
 
-export const PRESETS: PresetInfo[] = [
-  {
-    id: 'default',
-    name: 'Por defecto',
-    description: 'Ajustes normales. La forma recomendada de jugar Factorio.'
+/**
+ * Los preajustes del propio juego. Sus nombres y descripciones son los que usa
+ * Factorio en cada idioma, para que se reconozcan al abrir el juego.
+ */
+export const PRESETS: PresetInfo[] = (
+  [
+    'default',
+    'rich-resources',
+    'rail-world',
+    'lakes',
+    'island',
+    'ribbon-world',
+    'marathon',
+    'death-world',
+    'death-world-marathon'
+  ] as const
+).map((id) => ({
+  id,
+  get name() {
+    return t(`fa.preset.${id}.name`)
   },
-  {
-    id: 'rich-resources',
-    name: 'Recursos abundantes',
-    description:
-      'Los yacimientos de recursos tienen una mayor riqueza, así no tienes que expandirte lejos.'
-  },
-  {
-    id: 'rail-world',
-    name: 'Mundo ferroviario',
-    description:
-      'Los recursos son abundantes y están muy alejados entre sí para fomentar los sistemas ' +
-      'ferroviarios. Los mordedores no crearán nuevos nidos ni se expandirán a territorios ya despejados.'
-  },
-  {
-    id: 'lakes',
-    name: 'Lagos',
-    description:
-      'Lagos con tamaño y acantilados consistentes que tienden a seguir la costa. Los senderos ' +
-      'forestales están deshabilitados. La misma elevación que Factorio 1.1.'
-  },
-  {
-    id: 'island',
-    name: 'Isla',
-    description:
-      'Una gran isla en un océano interminable. Los caminos del bosque están deshabilitados.'
-  },
-  {
-    id: 'ribbon-world',
-    name: 'Mundo estrecho',
-    description:
-      'La altura del mapa está limitada a 128 baldosas, lo que proporciona un abanico de desafíos ' +
-      'y situaciones interesantes.'
-  },
-  { id: 'marathon', name: 'Maratón', description: 'Las tecnologías son más caras.' },
-  {
-    id: 'death-world',
-    name: 'Mundo inhóspito',
-    description: 'Los enemigos son más peligrosos y evolucionan más rápido.'
-  },
-  {
-    id: 'death-world-marathon',
-    name: 'Maratón en mundo inhóspito',
-    description:
-      'Las tecnologías son más caras y los enemigos son peligrosos y abundantes. Selecciona esto ' +
-      'solamente si eres un veterano de Factorio.'
+  get description() {
+    return t(`fa.preset.${id}.description`)
   }
-]
+}))
 
 export function presetInfo(id: FactorioPreset): PresetInfo {
   return PRESETS.find((p) => p.id === id) ?? PRESETS[0]
@@ -292,21 +265,21 @@ export interface FactorioListInfo {
   description: string
 }
 
-export const MODERATION_LISTS: FactorioListInfo[] = [
-  {
-    kind: 'admin',
-    file: 'server-adminlist.json',
-    title: 'Administradores',
-    description:
-      'Pueden usar los comandos del juego y pausar la partida. Se escriben por nombre de cuenta de Factorio.'
+export const MODERATION_LISTS: FactorioListInfo[] = (
+  [
+    ['admin', 'server-adminlist.json'],
+    ['banned', 'server-banlist.json']
+  ] as [FactorioListKind, string][]
+).map(([kind, file]) => ({
+  kind,
+  file,
+  get title() {
+    return t(`fa.list.${kind}.title`)
   },
-  {
-    kind: 'banned',
-    file: 'server-banlist.json',
-    title: 'Vetados',
-    description: 'No pueden entrar. Si están dentro, se les echa en cuanto se les veta.'
+  get description() {
+    return t(`fa.list.${kind}.description`)
   }
-]
+}))
 
 /**
  * El `server-settings.json` que lee el servidor.

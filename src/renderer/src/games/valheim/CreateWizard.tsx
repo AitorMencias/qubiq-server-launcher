@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ExposureMode } from '@shared/types'
-import { GAMES, defaultPortFor } from '@shared/games'
+import { defaultPortFor } from '@shared/games'
 import {
   GLOBAL_KEYS,
   MIN_PASSWORD_LENGTH,
@@ -12,6 +12,8 @@ import {
   type ValheimPreset
 } from '@shared/games/valheim/types'
 import { D20Loader } from '../../D20Loader'
+import { SteamAgreement } from '../../WizardParts'
+import { Rich, t } from '../../i18n'
 
 /**
  * Asistente de Valheim en modo avanzado: todo en un formulario.
@@ -28,7 +30,7 @@ interface Props {
 }
 
 export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JSX.Element {
-  const [name, setName] = useState('Mi Valheim')
+  const [name, setName] = useState(() => t('vh.wizard.defaultName'))
   const [worldName, setWorldName] = useState('')
   const [password, setPassword] = useState('')
   const [port, setPort] = useState(defaultPortFor('valheim'))
@@ -91,12 +93,11 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
-            <p className="hint">
-              Descargando Valheim (unos 2 GB la primera vez). El mundo lo genera el servidor en su
-              primer arranque.
+            <h3>{t('wizard.preparing')}</h3>
+            <p className="hint">{t('vh.create.preparingHint')}</p>
+            <p style={{ margin: '10px 0 0', fontSize: 13 }}>
+              {progress?.detail ?? t('panel.working')}
             </p>
-            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
             {progress?.progress != null && (
               <div className="progress">
                 <div style={{ width: `${Math.round(progress.progress * 100)}%` }} />
@@ -104,7 +105,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -118,56 +119,54 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Servidor</h3>
+        <h3>{t('panel.tab.server')}</h3>
 
         <div className="field">
-          <label>Nombre</label>
+          <label>{t('wizard.summary.name')}</label>
           <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
-          <div className="help">Es el que verán tus amigos al añadirlo a su lista.</div>
+          <div className="help">{t('vh.create.nameHelp')}</div>
         </div>
 
         <div className="field">
-          <label>Mundo</label>
+          <label>{t('vh.summary.world')}</label>
           <input
             value={worldName}
             maxLength={40}
             placeholder={name}
             onChange={(e) => setWorldName(e.target.value)}
           />
-          <div className="help">
-            El nombre determina el terreno. Si lo dejas vacío, se llama como el servidor.
-          </div>
+          <div className="help">{t('vh.create.worldHelp')}</div>
         </div>
 
         <div className="field">
-          <label>Contraseña</label>
+          <label>{t('vh.summary.password')}</label>
           <input
             type="text"
             value={password}
             maxLength={40}
-            placeholder={`Al menos ${MIN_PASSWORD_LENGTH} caracteres, o vacío`}
+            placeholder={t('vh.create.passwordPlaceholder', { min: MIN_PASSWORD_LENGTH })}
             onChange={(e) => setPassword(e.target.value)}
           />
           {!passwordOk && (
             <div className="help" style={{ color: 'var(--danger)' }}>
-              Valheim pide al menos {MIN_PASSWORD_LENGTH} caracteres.
+              {t('vh.password.shortText', { min: MIN_PASSWORD_LENGTH })}
             </div>
           )}
           {passwordInName && (
             <div className="help" style={{ color: 'var(--danger)' }}>
-              No puede estar dentro del nombre del servidor: quien vea el nombre la sabría.
+              {t('vh.create.passwordInName')}
             </div>
           )}
         </div>
 
         <div className="field">
-          <label>Puerto</label>
+          <label>{t('help.router.port')}</label>
           <input
             type="number"
             min={1024}
@@ -176,25 +175,26 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             onChange={(e) => setPort(Number(e.target.value))}
           />
           <div className="help">
-            Valheim usa este y el siguiente ({queryPortFor(port)}), los dos <strong>UDP</strong>. El
-            segundo no se puede elegir por separado.
+            <Rich
+              k="vh.create.portHelp"
+              vars={{ next: queryPortFor(port) }}
+              values={{ udp: <strong>UDP</strong> }}
+            />
           </div>
         </div>
 
         <div className="field">
-          <label>¿Cómo van a entrar?</label>
+          <label>{t('vh.create.howJoin')}</label>
           <select
             value={connection}
             onChange={(e) => setConnection(e.target.value as ExposureMode)}
           >
-            <option value="local">Solo en mi casa (misma red)</option>
-            <option value="crossplay">Con el crossplay del juego (código de 6 dígitos)</option>
-            <option value="router">Abriendo los puertos en el router</option>
-            <option value="tunnel">Con playit.gg</option>
+            <option value="local">{t('connection.mode.local')}</option>
+            <option value="crossplay">{t('vh.create.crossplayOption')}</option>
+            <option value="router">{t('vh.create.routerOption')}</option>
+            <option value="tunnel">{t('vh.create.tunnelOption')}</option>
           </select>
-          <div className="help">
-            El crossplay lo trae el propio juego: no toca el router y funciona con CGNAT.
-          </div>
+          <div className="help">{t('vh.create.crossplayHelp')}</div>
         </div>
 
         <label className="row" style={{ cursor: 'pointer' }}>
@@ -204,19 +204,16 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             onChange={(e) => setListed(e.target.checked)}
             style={{ width: 16, height: 16, flexShrink: 0 }}
           />
-          <span>Que aparezca en la lista pública de servidores de Steam</span>
+          <span>{t('vh.create.listed')}</span>
         </label>
-        <div className="help">
-          Cualquiera podría encontrarlo, y ahí sale tu dirección de internet. A cambio, la app puede
-          preguntarle cuánta gente hay dentro: sin esto, el servidor no contesta a esas preguntas.
-        </div>
+        <div className="help">{t('vh.create.listedHelp')}</div>
       </div>
 
       <div className="card">
-        <h3>Dificultad</h3>
+        <h3>{t('mc.wizard.summary.difficulty')}</h3>
 
         <div className="field">
-          <label>Preajuste</label>
+          <label>{t('vh.create.preset')}</label>
           <select
             value={preset}
             onChange={(e) => setPreset(e.target.value as ValheimPreset)}
@@ -251,8 +248,8 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
       </div>
 
       <div className="card">
-        <h3>Reglas del mundo</h3>
-        <p className="hint">De sí o no, y afectan a la partida entera.</p>
+        <h3>{t('vh.create.rules')}</h3>
+        <p className="hint">{t('vh.create.rulesHint')}</p>
         {GLOBAL_KEYS.map((rule) => (
           <label className="row" key={rule.key} style={{ cursor: 'pointer', marginBottom: 10 }}>
             <input
@@ -271,37 +268,13 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         ))}
       </div>
 
-      <div className="card">
-        <h3>Condiciones</h3>
-        <p className="hint">
-          El servidor se descarga de Steam de forma anónima, sin cuenta ni contraseña.
-        </p>
-        <label className="row" style={{ cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            style={{ width: 16, height: 16, flexShrink: 0 }}
-          />
-          <span>
-            He leído y acepto el{' '}
-            <a
-              href={GAMES.valheim.agreements[0]!.url}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: 'var(--accent)' }}
-            >
-              Acuerdo de Suscriptor de Steam
-            </a>
-          </span>
-        </label>
-      </div>
+      <SteamAgreement agreed={agreed} onChange={setAgreed} />
 
       <div className="row">
         <button className="primary" disabled={!canCreate} onClick={() => void create()}>
-          Crear servidor
+          {t('wizard.create')}
         </button>
-        <button onClick={onCancel}>Cancelar</button>
+        <button onClick={onCancel}>{t('common.cancel')}</button>
       </div>
     </div>
   )

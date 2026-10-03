@@ -6,6 +6,7 @@ import {
   type ModInstallResult,
   type ModsView
 } from '@shared/games/mods'
+import { formatList, quote, t } from './i18n'
 
 /**
  * Pestaña de mods de los juegos que tienen **cargador y catálogo con buscador**:
@@ -54,8 +55,12 @@ interface Props {
   playersTitle?: string
   /** Ejemplos de lo que se puede buscar, que es lo que arranca al que no sabe. */
   searchPlaceholder: string
-  /** Cómo se llaman en este juego: «mod» o «plugin». */
-  noun?: { one: string; many: string }
+  /**
+   * Cómo se llaman en este juego: mods o plugins. Cada frase que los nombra
+   * tiene su variante en los diccionarios (`….mod` / `….plugin`), porque el
+   * sustantivo metido a pelo no concuerda en otros idiomas.
+   */
+  kind?: 'mod' | 'plugin'
   /**
    * El cargador los carga y descarga en caliente (Oxide), así que añadir,
    * quitar o apagar vale con el servidor en marcha. Poner o quitar el propio
@@ -75,12 +80,12 @@ export function CatalogModsPanel({
   loaderId,
   catalog,
   playersNote,
-  playersTitle = 'Los jugadores necesitan los mismos mods',
+  playersTitle = t('catalog.playersSame'),
   searchPlaceholder,
-  noun = { one: 'mod', many: 'mods' },
+  kind = 'mod',
   liveChanges = false,
   extra,
-  unavailableLabel = 'Solo cliente'
+  unavailableLabel = t('catalog.clientOnly')
 }: Props): React.JSX.Element {
   const id = state.manifest.id
   const stopped = state.status === 'stopped' || state.status === 'crashed'
@@ -147,10 +152,12 @@ export function CatalogModsPanel({
       setView(result.view)
       setNotice(
         result.dependencies.length === 0
-          ? `«${mod.name}» instalado.`
-          : `«${mod.name}» instalado, y con él ${listar(result.dependencies)}, que lo ${
-              result.dependencies.length === 1 ? 'necesitaba' : 'necesitaban'
-            }.`
+          ? t('catalog.installedNotice', { name: quote(mod.name) })
+          : t('catalog.installedWithDeps', {
+              name: quote(mod.name),
+              deps: formatList(result.dependencies),
+              count: result.dependencies.length
+            })
       )
       onChanged()
     } catch (err) {
@@ -168,9 +175,7 @@ export function CatalogModsPanel({
       setUpdates(nuevas)
       const cuantas = Object.keys(nuevas).length
       setNotice(
-        cuantas === 0
-          ? 'Todo está al día.'
-          : `${cuantas} con versión nueva. Actualizar es cosa tuya: un ${noun.one} nuevo puede cambiar la partida.`
+        cuantas === 0 ? t('catalog.allUpToDate') : t(`catalog.updatesFound.${kind}`, { count: cuantas })
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -186,7 +191,7 @@ export function CatalogModsPanel({
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -194,21 +199,18 @@ export function CatalogModsPanel({
 
       {!parado && (
         <div className="alert info">
-          <strong>Con el servidor arrancado solo se puede mirar</strong>
-          <p>
-            Los {noun.many} se cargan al arrancar y no se vuelven a mirar. Para añadir, quitar o
-            apagar alguno, para antes el servidor.
-          </p>
+          <strong>{t('catalog.lookOnly')}</strong>
+          <p>{t(`catalog.lookOnlyText.${kind}`)}</p>
         </div>
       )}
 
       {liveChanges && !stopped && (
         <div className="alert info">
-          <strong>Se puede cambiar con el servidor en marcha</strong>
+          <strong>{t('catalog.liveTitle')}</strong>
           <p>
-            {cargador?.name ?? 'El cargador'} carga y descarga los {noun.many} al momento: añadir,
-            apagar o quitar uno vale sin reiniciar. Lo que sí exige parar el servidor es poner o
-            quitar {cargador?.name ?? 'el cargador'}.
+            {t(`catalog.liveText.${kind}`, {
+              loader: cargador?.name ?? t('catalog.loaderGeneric')
+            })}
           </p>
         </div>
       )}
@@ -221,10 +223,10 @@ export function CatalogModsPanel({
       {/* --- El cargador ------------------------------------------------- */}
 
       <div className="card">
-        <h3>Cargador de {noun.many}</h3>
+        <h3>{t(`catalog.loaderTitle.${kind}`)}</h3>
         {cargador?.problem && (
           <div className="alert warn" style={{ marginBottom: 12 }}>
-            <strong>{cargador.name} no está funcionando ahora mismo</strong>
+            <strong>{t('catalog.loaderProblem', { name: cargador.name })}</strong>
             <p>{cargador.problem}</p>
           </div>
         )}
@@ -233,16 +235,19 @@ export function CatalogModsPanel({
             <span>
               <strong>{cargador.name}</strong>
               <p className="hint" style={{ margin: 0 }}>
-                {cargador.version ? `Versión ${cargador.version}. ` : ''}
-                Es lo que hace que el servidor cargue los {noun.many}.
+                {cargador.version ? `${t('catalog.version', { version: cargador.version })}. ` : ''}
+                {t(`catalog.loaderWhat.${kind}`)}
               </p>
               {/* Lo que pasó de verdad la última vez. Solo lo cuenta el juego
                   cuyo cargador no lo dice por la consola (Valheim). */}
               {cargador.lastRun && (
                 <p className="hint" style={{ margin: 0 }}>
                   {cargador.lastRun.loaded.length > 0
-                    ? `En el último arranque cargó ${cargador.lastRun.loaded.length}: ${cargador.lastRun.loaded.join(', ')}.`
-                    : `En el último arranque no cargó ningún ${noun.one}.`}
+                    ? t('catalog.lastRunLoaded', {
+                        count: cargador.lastRun.loaded.length,
+                        list: cargador.lastRun.loaded.join(', ')
+                      })
+                    : t(`catalog.lastRunNone.${kind}`)}
                 </p>
               )}
             </span>
@@ -251,47 +256,46 @@ export function CatalogModsPanel({
                 <button
                   className="primary"
                   disabled={!stopped || busy !== null}
-                  title={stopped ? undefined : `Para el servidor para cambiar ${cargador.name}`}
+                  title={
+                    stopped ? undefined : t('catalog.stopToChange', { name: cargador.name })
+                  }
                   onClick={() =>
                     void run(
                       loaderId,
                       () => api.update(id, loaderId),
-                      `${cargador.name} actualizado.`
+                      t('catalog.loaderUpdated', { name: cargador.name })
                     )
                   }
                 >
-                  Actualizar a {updates[loaderId]}
+                  {t('catalog.updateTo', { version: updates[loaderId] })}
                 </button>
               )}
               {(view?.mods.length ?? 0) === 0 && (
                 <button
                   className="danger"
                   disabled={!stopped || busy !== null}
-                  title={stopped ? undefined : `Para el servidor para quitar ${cargador.name}`}
+                  title={
+                    stopped ? undefined : t('catalog.stopToRemove', { name: cargador.name })
+                  }
                   onClick={() =>
-                    void run(
-                      'loader',
-                      () => api.removeLoader(id),
-                      `Servidor sin ${noun.many}, como vino de Steam.`
-                    )
+                    void run('loader', () => api.removeLoader(id), t(`catalog.noMods.${kind}`))
                   }
                 >
-                  Quitar
+                  {t('catalog.remove')}
                 </button>
               )}
             </span>
           </div>
         ) : (
           <p className="hint" style={{ marginBottom: 0 }}>
-            Todavía no está puesto. Se instala solo con el primer {noun.one} que añadas: sin él, el
-            servidor no miraría siquiera la carpeta de {noun.many}.
-            {liveChanges && !stopped && ' Para ponerlo hay que parar el servidor.'}
+            {t(`catalog.loaderMissing.${kind}`)}
+            {liveChanges && !stopped && ` ${t('catalog.loaderMissingStop')}`}
           </p>
         )}
 
         {cargador?.lastRun && cargador.lastRun.problems.length > 0 && (
           <div className="alert error" style={{ marginTop: 12, marginBottom: 0 }}>
-            <strong>El cargador se quejó en el último arranque</strong>
+            <strong>{t('catalog.loaderComplained')}</strong>
             {cargador.lastRun.problems.map((problema) => (
               <p key={problema}>{problema}</p>
             ))}
@@ -303,19 +307,19 @@ export function CatalogModsPanel({
 
       <div className="card">
         <div className="row between">
-          <h3 style={{ margin: 0 }}>Instalados</h3>
+          <h3 style={{ margin: 0 }}>{t('catalog.installedTitle')}</h3>
           <button disabled={busy !== null} onClick={() => void lookForUpdates()}>
-            {busy === 'updates' ? 'Mirando…' : 'Buscar actualizaciones'}
+            {busy === 'updates' ? t('catalog.looking') : t('catalog.lookUpdates')}
           </button>
         </div>
 
         {view === null ? (
           <p className="hint" style={{ marginBottom: 0 }}>
-            Leyendo lo que hay…
+            {t('catalog.reading')}
           </p>
         ) : view.mods.length === 0 ? (
           <p className="hint" style={{ marginBottom: 0 }}>
-            Ninguno. El servidor va con el juego tal cual.
+            {t('catalog.none')}
           </p>
         ) : (
           view.mods.map((mod) => (
@@ -333,9 +337,9 @@ export function CatalogModsPanel({
                 <span>
                   <strong>{mod.name}</strong>
                   <div className="help" style={{ margin: 0 }}>
-                    Versión {mod.version} · {modSizeLabel(mod.sizeBytes)}
-                    {mod.enabled ? '' : ' · apagado'}
-                    {mod.dependency && ` · lo necesita otro ${noun.one}`}
+                    {t('catalog.version', { version: mod.version })} · {modSizeLabel(mod.sizeBytes)}
+                    {mod.enabled ? '' : ` · ${t('catalog.off')}`}
+                    {mod.dependency && ` · ${t(`catalog.neededBy.${kind}`)}`}
                   </div>
                   {mod.problem && (
                     <div className="help" style={{ margin: 0 }}>
@@ -353,21 +357,25 @@ export function CatalogModsPanel({
                       void run(
                         mod.id,
                         () => api.update(id, mod.id),
-                        `«${mod.name}» actualizado. Se ha guardado una copia antes.`
+                        t('catalog.modUpdated', { name: quote(mod.name) })
                       )
                     }
                   >
-                    Actualizar a {updates[mod.id]}
+                    {t('catalog.updateTo', { version: updates[mod.id]! })}
                   </button>
                 )}
                 <button
                   className="danger"
                   disabled={!parado || busy !== null}
                   onClick={() =>
-                    void run(mod.id, () => api.remove(id, mod.id), `«${mod.name}» quitado.`)
+                    void run(
+                      mod.id,
+                      () => api.remove(id, mod.id),
+                      t('catalog.modRemoved', { name: quote(mod.name) })
+                    )
                   }
                 >
-                  Quitar
+                  {t('catalog.remove')}
                 </button>
               </span>
             </div>
@@ -379,11 +387,8 @@ export function CatalogModsPanel({
       {/* --- El catálogo -------------------------------------------------- */}
 
       <div className="card">
-        <h3>Añadir de {catalog.name}</h3>
-        <p className="hint">
-          Busca por nombre o por lo que hace. Con la caja vacía salen los más usados. Lo que
-          necesite un {noun.one} para funcionar se instala con él.
-        </p>
+        <h3>{t('catalog.addFrom', { catalog: catalog.name })}</h3>
+        <p className="hint">{t(`catalog.searchHint.${kind}`)}</p>
 
         <div className="row" style={{ marginBottom: 14 }}>
           <input
@@ -396,12 +401,12 @@ export function CatalogModsPanel({
             }}
           />
           <button style={{ flexShrink: 0 }} disabled={searching} onClick={() => void search()}>
-            {searching ? 'Buscando…' : 'Buscar'}
+            {searching ? t('catalog.searching') : t('catalog.search')}
           </button>
         </div>
 
         {results?.length === 0 && (
-          <p className="hint">No hay ningún {noun.one} que se llame así ni que hable de eso.</p>
+          <p className="hint">{t(`catalog.noResults.${kind}`)}</p>
         )}
 
         {results?.map((mod) => (
@@ -411,8 +416,8 @@ export function CatalogModsPanel({
               <p className="hint" style={{ margin: 0 }}>
                 {mod.summary}
                 <br />
-                de {mod.author} · {mod.downloads.toLocaleString('es-ES')} descargas
-                {mod.version && ` · versión ${mod.version}`}
+                {t('catalog.byAuthor', { author: mod.author, count: mod.downloads })}
+                {mod.version && ` · ${t('catalog.versionShort', { version: mod.version })}`}
               </p>
               {/* .help solo tiene estilo dentro de un .field o de una casilla;
                   suelta en una tarjeta saldría a tamaño normal (README). */}
@@ -435,32 +440,26 @@ export function CatalogModsPanel({
               title={
                 parado && (stopped || cargador?.installed)
                   ? undefined
-                  : `Para el servidor para poder instalar ${noun.many}`
+                  : t(`catalog.stopToInstall.${kind}`)
               }
               onClick={() => void install(mod)}
             >
               {instalados.has(mod.id)
-                ? 'Instalado'
+                ? t('catalog.installed')
                 : busy === mod.id
-                  ? 'Instalando…'
+                  ? t('catalog.installing')
                   : !mod.forServer
                     ? unavailableLabel
-                    : 'Instalar'}
+                    : t('catalog.install')}
             </button>
           </div>
         ))}
 
         <p className="help" style={{ marginBottom: 0 }}>
-          Los {noun.many} los hace gente de la comunidad y se descargan de {catalog.name} (
-          {catalog.url}). Ni el estudio del juego ni esta aplicación responden de lo que hagan.
+          {t(`catalog.community.${kind}`, { catalog: catalog.name, url: catalog.url })}
         </p>
       </div>
     </div>
   )
 }
 
-/** «A», «A y B», «A, B y C»: para poder decir qué se ha instalado de paso. */
-function listar(nombres: string[]): string {
-  if (nombres.length <= 1) return nombres[0] ?? ''
-  return `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
-}

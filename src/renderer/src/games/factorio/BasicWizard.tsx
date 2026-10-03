@@ -1,9 +1,18 @@
 import { useState } from 'react'
 import type { ExposureMode } from '@shared/types'
-import { GAMES, defaultPortFor } from '@shared/games'
+import { defaultPortFor } from '@shared/games'
 import { MIN_PASSWORD_LENGTH, PRESETS, type FactorioPreset } from '@shared/games/factorio/types'
 import { D20Loader } from '../../D20Loader'
-import { Choices, StepDots, StepFrame, SummaryRow, labelOf, type Option } from '../../WizardParts'
+import {
+  Choices,
+  StepDots,
+  StepFrame,
+  SteamAgreement,
+  SummaryRow,
+  labelOf,
+  type Option
+} from '../../WizardParts'
+import { t } from '../../i18n'
 import { GameSource, type GameSourceChoice } from './GameSource'
 
 /**
@@ -33,48 +42,35 @@ type Stage = Step | 'resumen'
 
 const STEPS: Step[] = ['juego', 'nombre', 'clave', 'contenido', 'mapa', 'conexion']
 
-const CONNECTIONS: Option<ExposureMode>[] = [
-  {
-    value: 'local',
-    title: 'Solo desde mi casa',
-    sub: 'Quien esté en tu mismo wifi o router. No hay que tocar nada más.'
-  },
-  {
-    value: 'router',
-    title: 'Desde cualquier sitio, abriendo el router',
-    sub: 'El mejor ping. Hay que abrir un puerto UDP y no funciona si tu compañía usa CGNAT.'
-  },
-  {
-    value: 'tunnel',
-    title: 'Desde cualquier sitio, con playit.gg',
-    sub: 'Sin tocar el router, dependiendo de un servicio de fuera. Funciona con CGNAT.'
-  }
-]
+/** Se construyen al pintar, para que salgan en el idioma de ese momento. */
+function connections(): Option<ExposureMode>[] {
+  return [
+    { value: 'local', title: t('wizard.connection.local'), sub: t('wizard.connection.local.sub') },
+    { value: 'router', title: t('wizard.connection.router'), sub: t('fa.wizard.routerSub') },
+    { value: 'tunnel', title: t('wizard.connection.tunnel'), sub: t('fa.wizard.tunnelSub') }
+  ]
+}
 
-const CONTENIDO: Option<'space-age' | 'base'>[] = [
-  {
-    value: 'space-age',
-    title: 'Con Space Age',
-    sub: 'La expansión: más planetas, calidad y raíles elevados. Todos los que entren la necesitan.'
-  },
-  {
-    value: 'base',
-    title: 'El Factorio de siempre',
-    sub: 'Solo el juego base. Entra cualquiera que tenga Factorio, con expansión o sin ella.'
-  }
-]
+function contenidoOptions(): Option<'space-age' | 'base'>[] {
+  return [
+    { value: 'space-age', title: t('fa.wizard.spaceAge'), sub: t('fa.wizard.spaceAge.sub') },
+    { value: 'base', title: t('fa.wizard.base'), sub: t('fa.wizard.base.sub') }
+  ]
+}
 
 /** Los cuatro de siempre delante; el resto están en el modo avanzado. */
-const SIMPLE_PRESETS = PRESETS.filter((p) =>
-  ['default', 'rich-resources', 'rail-world', 'death-world'].includes(p.id)
-).map((p) => ({ value: p.id, title: p.name, sub: p.description }))
+function simplePresets(): Option<FactorioPreset>[] {
+  return PRESETS.filter((p) =>
+    ['default', 'rich-resources', 'rail-world', 'death-world'].includes(p.id)
+  ).map((p) => ({ value: p.id, title: p.name, sub: p.description }))
+}
 
 export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX.Element {
   const [stage, setStage] = useState<Stage>('juego')
   const [editing, setEditing] = useState(false)
 
   const [source, setSource] = useState<GameSourceChoice | null>(null)
-  const [name, setName] = useState('Mi fábrica')
+  const [name, setName] = useState(() => t('sf.wizard.defaultName'))
   const [password, setPassword] = useState('')
   const [contenido, setContenido] = useState<'space-age' | 'base'>('space-age')
   const [preset, setPreset] = useState<FactorioPreset>('default')
@@ -176,14 +172,14 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
+            <h3>{t('wizard.preparing')}</h3>
             <p className="hint">
               {source?.source === 'steamcmd'
-                ? 'Factorio son unos 5 GB de descarga. Luego se queda en unos 250 MB, porque un servidor no necesita ni las imágenes ni los sonidos.'
-                : 'Se copia tu Factorio y se le quita lo que un servidor no dibuja: queda en unos 250 MB. Tu instalación no se toca.'}
+                ? t('fa.wizard.preparingSteam')
+                : t('fa.wizard.preparingLocal')}
             </p>
             <p style={{ margin: '10px 0 0', fontSize: 13 }}>
-              {progress?.detail ?? 'Trabajando...'}
+              {progress?.detail ?? t('panel.working')}
             </p>
             {progress?.progress != null && (
               <div className="progress">
@@ -192,7 +188,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -202,6 +198,10 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
     )
   }
 
+  const CONNECTIONS = connections()
+  const CONTENIDO = contenidoOptions()
+  const SIMPLE_PRESETS = simplePresets()
+
   return (
     <div className="panel">
       <div className="wizard">
@@ -209,15 +209,15 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {error && (
           <div className="alert error">
-            <strong>Algo ha fallado</strong>
+            <strong>{t('catalog.error')}</strong>
             <p>{error}</p>
           </div>
         )}
 
         {stage === 'juego' && (
           <StepFrame
-            title="¿De dónde sacamos Factorio?"
-            help="Factorio no tiene servidor aparte: el servidor es el propio juego, así que hace falta tenerlo."
+            title={t('fa.wizard.source.title')}
+            help={t('fa.wizard.source.help')}
           >
             <GameSource value={source} onChange={setSource} />
           </StepFrame>
@@ -225,8 +225,8 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'nombre' && (
           <StepFrame
-            title="¿Cómo se va a llamar?"
-            help="Es el nombre que verán tus amigos al conectarse."
+            title={t('wizard.name.title')}
+            help={t('fa.wizard.name.help')}
           >
             <input
               value={name}
@@ -239,33 +239,31 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'clave' && (
           <StepFrame
-            title="Ponle una contraseña"
-            help="Sin ella, cualquiera que sepa la dirección puede entrar y tocar tu fábrica."
+            title={t('vh.wizard.password.title')}
+            help={t('fa.wizard.password.help')}
           >
             <input
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={`Al menos ${MIN_PASSWORD_LENGTH} caracteres`}
+              placeholder={t('vh.password.min', { min: MIN_PASSWORD_LENGTH })}
               autoFocus
             />
             {password.length > 0 && !passwordOk && (
-              <p className="hint">Hacen falta al menos {MIN_PASSWORD_LENGTH} caracteres.</p>
+              <p className="hint">{t('fa.wizard.password.short', { min: MIN_PASSWORD_LENGTH })}</p>
             )}
             {passwordOk && passwordInName && (
-              <p className="hint">
-                Esa contraseña está dentro del nombre del servidor, que todos ven. Pon otra.
-              </p>
+              <p className="hint">{t('fa.wizard.password.inName')}</p>
             )}
           </StepFrame>
         )}
 
         {stage === 'contenido' && (
           <StepFrame
-            title="¿Con Space Age?"
+            title={t('fa.wizard.content.title')}
             help={
               source?.spaceAge === null
-                ? 'Si tu cuenta de Steam no tiene la expansión, se descargará sin ella y habrá que crear el servidor de nuevo sin Space Age.'
-                : 'Esto se decide ahora y no se puede cambiar luego: el mapa se genera con la expansión o sin ella.'
+                ? t('fa.wizard.content.helpUnknown')
+                : t('fa.wizard.content.help')
             }
           >
             <Choices options={CONTENIDO} value={contenido} onChange={setContenido} columns={1} />
@@ -274,8 +272,8 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'mapa' && (
           <StepFrame
-            title="¿Cómo quieres el mapa?"
-            help="Son los mismos ajustes que ofrece el juego al empezar una partida."
+            title={t('fa.wizard.map.title')}
+            help={t('fa.wizard.map.help')}
           >
             <Choices options={SIMPLE_PRESETS} value={preset} onChange={setPreset} />
           </StepFrame>
@@ -283,8 +281,8 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'conexion' && (
           <StepFrame
-            title="¿Quién va a entrar?"
-            help="Factorio necesita un solo puerto UDP. Esto se puede cambiar después."
+            title={t('share.whoCanJoin')}
+            help={t('fa.wizard.connection.help')}
           >
             <Choices
               options={CONNECTIONS}
@@ -297,89 +295,64 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'resumen' && (
           <StepFrame
-            title="Todo listo, revísalo"
-            help="Así va a quedar tu servidor. Si algo no cuadra, toca en «cambiar»."
+            title={t('wizard.summary.title')}
+            help={t('wizard.summary.help', { change: t('wizard.change') })}
           >
             {/* Igual que en los demás juegos: las filas van dentro de una tarjeta y
                 alineadas a la izquierda, aunque el paso centre su texto. */}
             <div className="card" style={{ textAlign: 'left' }}>
               <SummaryRow
-                label="Juego"
-                value={
-                  source?.source === 'local' ? 'Copiado del que ya tienes' : 'Descargado de Steam'
-                }
+                label={t('chooser.col.game')}
+                value={source?.source === 'local' ? t('fa.summary.copied') : t('fa.summary.downloaded')}
                 onEdit={() => edit('juego')}
               />
-              <SummaryRow label="Nombre" value={name} onEdit={() => edit('nombre')} />
-              <SummaryRow label="Contraseña" value={password.trim()} onEdit={() => edit('clave')} />
+              <SummaryRow label={t('wizard.summary.name')} value={name} onEdit={() => edit('nombre')} />
+              <SummaryRow label={t('vh.summary.password')} value={password.trim()} onEdit={() => edit('clave')} />
               {!spaceAgeImposible && (
                 <SummaryRow
-                  label="Contenido"
+                  label={t('fa.summary.content')}
                   value={labelOf(CONTENIDO, contenido)}
                   onEdit={() => edit('contenido')}
                 />
               )}
               <SummaryRow
-                label="Mapa"
+                label={t('fa.summary.map')}
                 value={labelOf(SIMPLE_PRESETS, preset)}
                 onEdit={() => edit('mapa')}
               />
               <SummaryRow
-                label="Conexión"
+                label={t('panel.tab.connection')}
                 value={labelOf(CONNECTIONS, connection)}
                 onEdit={() => edit('conexion')}
               />
               <SummaryRow
-                label="Verificar cuentas"
-                value="sí, con factorio.com"
-                autoNote="como hace el juego"
+                label={t('fa.summary.verify')}
+                value={t('fa.summary.verifyValue')}
+                autoNote={t('fa.summary.verifyNote')}
               />
               <SummaryRow
-                label="Versión"
-                value={source?.source === 'local' ? 'la de tu instalación' : 'la estable de Steam'}
-                autoNote="la tienen que tener tus amigos"
+                label={t('version.title')}
+                value={source?.source === 'local' ? t('fa.summary.versionLocal') : t('fa.summary.versionSteam')}
+                autoNote={t('fa.summary.versionNote')}
                 last
               />
             </div>
 
             <div className="alert info" style={{ textAlign: 'left' }}>
               <strong>
-                {source?.source === 'local'
-                  ? 'Se copia tu Factorio, sin tocarlo'
-                  : 'Son unos 5 GB de descarga'}
+                {source?.source === 'local' ? t('fa.summary.copyTitle') : t('fa.summary.downloadTitle')}
               </strong>
               <p>
-                {source?.source === 'local'
-                  ? 'Se le quitan las imágenes y los sonidos, que un servidor no necesita, y queda en unos 250 MB. Tu instalación sigue igual.'
-                  : 'Luego se le quitan las imágenes y los sonidos, que un servidor no necesita, y queda en unos 250 MB. La descarga no se guarda.'}
+                {source?.source === 'local' ? t('fa.summary.copyText') : t('fa.summary.downloadText')}
               </p>
             </div>
 
-            <div className="card" style={{ textAlign: 'left', marginBottom: 0 }}>
-              <h3>Condiciones</h3>
-              <p className="hint">
-                El juego viene de Steam, y Steam pide aceptar su acuerdo para usar sus descargas.
-              </p>
-              <label className="row" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  style={{ width: 16, height: 16, flexShrink: 0 }}
-                />
-                <span>
-                  He leído y acepto el{' '}
-                  <a
-                    href={GAMES.factorio.agreements[0]!.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: 'var(--accent)' }}
-                  >
-                    Acuerdo de Suscriptor de Steam
-                  </a>
-                </span>
-              </label>
-            </div>
+            <SteamAgreement
+              basic
+              agreed={agreed}
+              onChange={setAgreed}
+              hint={t('fa.wizard.steamHint')}
+            />
           </StepFrame>
         )}
 
@@ -387,12 +360,16 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
             servidor tiene que sentirse igual sea del juego que sea. */}
         <div className="row between wizard-nav">
           <button onClick={back}>
-            {editing ? 'Volver al resumen' : stepIndex <= 0 && onStep ? 'Cancelar' : 'Atrás'}
+            {editing
+              ? t('wizard.backToSummary')
+              : stepIndex <= 0 && onStep
+                ? t('common.cancel')
+                : t('wizard.back')}
           </button>
 
           {onStep ? (
             <button className="primary" disabled={!canContinue} onClick={next}>
-              {editing ? 'Listo' : 'Siguiente →'}
+              {editing ? t('wizard.done') : t('wizard.next')}
             </button>
           ) : (
             <button
@@ -400,7 +377,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               disabled={!agreed || !claveOk}
               onClick={() => void create()}
             >
-              Crear servidor
+              {t('wizard.create')}
             </button>
           )}
         </div>

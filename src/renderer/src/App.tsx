@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Diagnosis, GameId, InstanceState, LogLine, ProgressUpdate, UiMode } from '@shared/types'
 import { GAME_IDS, appSubtitle, disclaimerLines, gameInfo, summaryLabel } from '@shared/games'
+import { setLanguage, type Language } from '@shared/i18n'
 import { GAME_UI } from './games'
 import { GameChooser } from './GameChooser'
 import { GameIcon } from './GameIcon'
 import { ModeChooser } from './ModeChooser'
 import { ServerPanel } from './ServerPanel'
+import { SettingsScreen } from './SettingsScreen'
+import { applyDocumentLanguage, t } from './i18n'
 
 /** Límite de líneas en memoria: la consola no puede crecer sin fin. */
 const MAX_LOG_LINES = 2000
 
-export function App(): React.JSX.Element {
+interface Props {
+  /** El idioma con el que se ha arrancado (el elegido o el de Windows). */
+  initialLanguage: Language
+  systemLanguage: Language
+}
+
+export function App({ initialLanguage, systemLanguage }: Props): React.JSX.Element {
   const [instances, setInstances] = useState<InstanceState[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   /**
@@ -19,6 +28,8 @@ export function App(): React.JSX.Element {
    */
   const [creating, setCreating] = useState<null | 'game' | 'choosing' | UiMode>(null)
   const [createGame, setCreateGame] = useState<GameId>(GAME_IDS[0]!)
+  /** La configuración de la app, en el área principal en lugar de un servidor. */
+  const [showSettings, setShowSettings] = useState(false)
   const [logs, setLogs] = useState<Record<string, LogLine[]>>({})
   const [players, setPlayers] = useState<Record<string, string[]>>({})
   /** Cuántos hay dentro en los juegos que no dan nombres (Satisfactory). */
@@ -31,6 +42,14 @@ export function App(): React.JSX.Element {
   // Se arranca en básico hasta saber qué prefiere el usuario: es el valor por
   // defecto del núcleo y evita un parpadeo a avanzado en el primer render.
   const [mode, setMode] = useState<UiMode>('basic')
+  /**
+   * El idioma en uso. Vive aquí para que cambiarlo vuelva a pintar todo el
+   * árbol: los textos se piden al pintar, así que salen ya en el nuevo, y nada
+   * se remonta (la consola y las pantallas abiertas siguen como estaban).
+   */
+  const [language, setLanguageState] = useState<Language>(initialLanguage)
+  /** El elegido en la configuración; undefined si sigue al de Windows. */
+  const [chosenLanguage, setChosenLanguage] = useState<Language | undefined>(undefined)
 
   const refresh = useCallback(async () => {
     try {
@@ -53,7 +72,10 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     void window.qubiq.settings
       .get()
-      .then((settings) => setMode(settings.uiMode))
+      .then((settings) => {
+        setMode(settings.uiMode)
+        setChosenLanguage(settings.language)
+      })
       .catch(() => undefined)
   }, [])
 
@@ -62,8 +84,18 @@ export function App(): React.JSX.Element {
     void window.qubiq.settings.update({ uiMode: next }).catch(() => undefined)
   }
 
+  function changeLanguage(next: Language | undefined): void {
+    const effective = next ?? systemLanguage
+    setLanguage(effective)
+    applyDocumentLanguage(effective)
+    setChosenLanguage(next)
+    setLanguageState(effective)
+    void window.qubiq.settings.update({ language: next }).catch(() => undefined)
+  }
+
   /** Empieza a crear: con un único juego se salta la elección de juego. */
   function startCreate(): void {
+    setShowSettings(false)
     if (GAME_IDS.length > 1) {
       setCreating('game')
       return
@@ -144,7 +176,7 @@ export function App(): React.JSX.Element {
   const selected = instances.find((i) => i.manifest.id === selectedId) ?? null
 
   return (
-    <div className="app">
+    <div className="app" data-language={language}>
       <aside className="sidebar">
         <div className="brand">
           <h1>QubiQ Server Launcher</h1>
@@ -154,18 +186,21 @@ export function App(): React.JSX.Element {
         <div className="instance-list">
           {instances.length === 0 && creating === null && (
             <p style={{ color: 'var(--muted)', fontSize: 12, padding: 12 }}>
-              Todavía no tienes ningún servidor.
+              {t('app.noServersYet')}
             </p>
           )}
           {instances.map((instance) => (
             <div
               key={instance.manifest.id}
               className={`instance-item ${
-                instance.manifest.id === selectedId && creating === null ? 'active' : ''
+                instance.manifest.id === selectedId && creating === null && !showSettings
+                  ? 'active'
+                  : ''
               }`}
               onClick={() => {
                 setSelectedId(instance.manifest.id)
                 setCreating(null)
+                setShowSettings(false)
               }}
             >
               <GameIcon game={instance.manifest.game} size={30} />
@@ -182,25 +217,33 @@ export function App(): React.JSX.Element {
 
         <div className="sidebar-footer">
           <button className="primary" onClick={startCreate}>
-            + Crear servidor
+            {t('app.createServer')}
           </button>
 
           <div className="mode-switch">
-            <label htmlFor="ui-mode">Modo</label>
+            <label htmlFor="ui-mode">{t('app.mode')}</label>
             <select
               id="ui-mode"
               value={mode}
               onChange={(e) => changeMode(e.target.value as UiMode)}
             >
-              <option value="basic">Básico</option>
-              <option value="advanced">Avanzado</option>
+              <option value="basic">{t('mode.basic')}</option>
+              <option value="advanced">{t('mode.advanced')}</option>
             </select>
           </div>
           <p className="mode-hint">
-            {mode === 'basic'
-              ? 'Lo esencial para jugar. Elegimos por ti lo técnico.'
-              : 'La misma pantalla, con todos los ajustes desbloqueados.'}
+            {mode === 'basic' ? t('app.modeHint.basic') : t('app.modeHint.advanced')}
           </p>
+
+          <button
+            className={`app-settings-button ${showSettings ? 'active' : ''}`}
+            onClick={() => {
+              setCreating(null)
+              setShowSettings(true)
+            }}
+          >
+            <span aria-hidden="true">⚙</span> {t('app.settings')}
+          </button>
         </div>
 
         <div className="disclaimer">
@@ -213,30 +256,42 @@ export function App(): React.JSX.Element {
       </aside>
 
       <main className="content">
-        {loadError && (
+        {showSettings && (
+          <SettingsScreen
+            mode={mode}
+            onModeChange={changeMode}
+            language={chosenLanguage}
+            systemLanguage={systemLanguage}
+            onLanguageChange={changeLanguage}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+
+        {!showSettings && loadError && (
           <div className="panel">
             <div className="alert error">
-              <strong>No se pudieron cargar los servidores</strong>
+              <strong>{t('app.loadError')}</strong>
               <p>{loadError}</p>
             </div>
           </div>
         )}
 
-        {creating !== null && (
+        {!showSettings && creating !== null && (
           <>
             <div className="topbar">
               {creating !== 'game' && <GameIcon game={createGame} size={24} />}
               <h2>
-                Crear un servidor nuevo
-                {GAME_IDS.length > 1 && creating !== 'game' && ` de ${gameInfo(createGame).name}`}
+                {GAME_IDS.length > 1 && creating !== 'game'
+                  ? t('app.create.titleGame', { game: gameInfo(createGame).name })
+                  : t('app.create.title')}
               </h2>
               {creating !== 'choosing' && creating !== 'game' && (
                 <span className="status">
-                  Modo {creating === 'basic' ? 'básico' : 'avanzado'}
+                  {creating === 'basic' ? t('app.create.modeBasic') : t('app.create.modeAdvanced')}
                 </span>
               )}
               {creating !== 'choosing' && creating !== 'game' && (
-                <button onClick={() => setCreating('choosing')}>Cambiar de modo</button>
+                <button onClick={() => setCreating('choosing')}>{t('app.create.changeMode')}</button>
               )}
             </div>
 
@@ -288,7 +343,7 @@ export function App(): React.JSX.Element {
           </>
         )}
 
-        {creating === null && selected && (
+        {!showSettings && creating === null && selected && (
           <ServerPanel
             // Cambiar de servidor vuelve a su pantalla principal, en vez de
             // arrastrar la pestaña o la configuración que tenía abiertas el otro.
@@ -309,17 +364,17 @@ export function App(): React.JSX.Element {
           />
         )}
 
-        {creating === null && !selected && !loadError && (
+        {!showSettings && creating === null && !selected && !loadError && (
           <div className="empty">
             <div style={{ fontSize: 44 }}>🧊</div>
             <div>
               <strong style={{ display: 'block', marginBottom: 6, color: 'var(--text)' }}>
-                Aún no tienes servidores
+                {t('app.empty.title')}
               </strong>
-              Crea el primero y estarás jugando en unos minutos.
+              {t('app.empty.text')}
             </div>
             <button className="primary" onClick={startCreate}>
-              Crear mi primer servidor
+              {t('app.empty.button')}
             </button>
           </div>
         )}

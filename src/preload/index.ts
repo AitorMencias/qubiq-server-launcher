@@ -8,11 +8,24 @@ import {
   ZOMBOID_IPC,
   ENSHROUDED_IPC,
   RUST_IPC,
+  REMOTE_IPC,
   EVENTS,
   type MemoryInfo,
   type SystemMemory
 } from '../shared/ipc'
+import type {
+  RemoteActivityEntry,
+  RemoteInvite,
+  RemotePermissions,
+  RemoteStatus
+} from '../shared/remote'
 import type { InstallableVersion, PortProtocol, UpdateCheck } from '../shared/games'
+import type {
+  BootInfo,
+  DataFolderInfo,
+  RelocationPlan,
+  RelocationStatus
+} from '../shared/dataFolder'
 import type { OfficialPluginStatus } from '../shared/games/minecraft/officialPlugins'
 import type {
   AppSettings,
@@ -673,6 +686,27 @@ const api = {
       ipcRenderer.invoke(IPC.updateSettings, changes)
   },
 
+  app: {
+    /** Idioma y traslado en curso, antes de pintar nada. */
+    boot: (): Promise<BootInfo> => ipcRenderer.invoke(IPC.bootInfo),
+    /** Ya se ha enseñado el resultado del traslado. */
+    dismissRelocation: (): Promise<void> => ipcRenderer.invoke(IPC.relocationDismiss)
+  },
+
+  dataFolder: {
+    info: (): Promise<DataFolderInfo> => ipcRenderer.invoke(IPC.dataFolderInfo),
+    /** Selector de carpetas de Windows. Null si se cancela. */
+    choose: (): Promise<string | null> => ipcRenderer.invoke(IPC.dataFolderChoose),
+    plan: (chosen: string): Promise<RelocationPlan> => ipcRenderer.invoke(IPC.dataFolderPlan, chosen),
+    /**
+     * Deja el traslado pedido y reinicia la app. Solo vuelve si algo lo impide,
+     * con el plan y sus problemas.
+     */
+    apply: (chosen: string): Promise<RelocationPlan> =>
+      ipcRenderer.invoke(IPC.dataFolderApply, chosen),
+    open: (): Promise<void> => ipcRenderer.invoke(IPC.dataFolderOpen)
+  },
+
   instances: {
     list: (): Promise<InstanceState[]> => ipcRenderer.invoke(IPC.listInstances),
     get: (id: string): Promise<InstanceState> => ipcRenderer.invoke(IPC.getInstance, id),
@@ -726,6 +760,23 @@ const api = {
     openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IPC.openExternal, url)
   },
 
+  /** Acceso remoto por órdenes (§19.31). */
+  remote: {
+    status: (): Promise<RemoteStatus> => ipcRenderer.invoke(REMOTE_IPC.status),
+    activity: (limit?: number): Promise<RemoteActivityEntry[]> =>
+      ipcRenderer.invoke(REMOTE_IPC.activity, limit),
+    setEnabled: (enabled: boolean): Promise<RemoteStatus> =>
+      ipcRenderer.invoke(REMOTE_IPC.setEnabled, enabled),
+    setPort: (port: number): Promise<RemoteStatus> => ipcRenderer.invoke(REMOTE_IPC.setPort, port),
+    createInvite: (permissions: RemotePermissions): Promise<RemoteInvite> =>
+      ipcRenderer.invoke(REMOTE_IPC.createInvite, permissions),
+    cancelInvite: (): Promise<void> => ipcRenderer.invoke(REMOTE_IPC.cancelInvite),
+    updateDevice: (id: string, permissions: RemotePermissions): Promise<RemoteStatus> =>
+      ipcRenderer.invoke(REMOTE_IPC.updateDevice, id, permissions),
+    revokeDevice: (id: string): Promise<RemoteStatus> =>
+      ipcRenderer.invoke(REMOTE_IPC.revokeDevice, id)
+  },
+
   minecraft,
   satisfactory,
   valheim,
@@ -735,6 +786,7 @@ const api = {
   rust,
 
   on: {
+    remote: (handler: () => void) => subscribe<[]>(EVENTS.remote, handler),
     log: (handler: (id: string, line: LogLine) => void) =>
       subscribe<[string, LogLine]>(EVENTS.log, handler),
     status: (handler: (id: string, status: ServerStatus) => void) =>
@@ -746,7 +798,9 @@ const api = {
     progress: (handler: (update: ProgressUpdate) => void) =>
       subscribe<[ProgressUpdate]>(EVENTS.progress, handler),
     diagnosis: (handler: (id: string, diagnosis: Diagnosis) => void) =>
-      subscribe<[string, Diagnosis]>(EVENTS.diagnosis, handler)
+      subscribe<[string, Diagnosis]>(EVENTS.diagnosis, handler),
+    relocation: (handler: (status: RelocationStatus) => void) =>
+      subscribe<[RelocationStatus]>(EVENTS.relocation, handler)
   }
 }
 

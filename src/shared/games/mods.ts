@@ -1,3 +1,4 @@
+import { formatNumber } from '../i18n'
 /**
  * Mods con cargador y catálogo, compartidos entre el núcleo y la interfaz.
  *
@@ -128,6 +129,6 @@ export interface ModInstallResult {
 /** Tamaño en MB o KB, para las pantallas de mods de los dos juegos. */
 export function modSizeLabel(bytes: number): string {
   return bytes >= 1024 ** 2
-    ? `${(bytes / 1024 ** 2).toFixed(1)} MB`
+    ? `${formatNumber(bytes / 1024 ** 2, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`
     : `${Math.max(1, Math.round(bytes / 1024))} KB`
 }

@@ -21,6 +21,7 @@
     "e2e:rust": "vite build --config scripts/vite.e2e-rust.config.ts && node out/e2e-rust/e2e-rust.mjs",
     "e2e:custom": "vite build --config scripts/vite.e2e-custom.config.ts && node out/e2e-custom/e2e-custom.mjs",
     "e2e:factorio": "vite build --config scripts/vite.e2e-factorio.config.ts && node out/e2e-factorio/e2e-factorio.mjs",
+    "e2e:remote": "vite build --config scripts/vite.e2e-remote.config.ts && node out/e2e-remote/e2e-remote.mjs",
     "postinstall": "node -e \"try{require('electron/install.js')}catch(e){}\"",
     "dist": "npm run build && electron-builder --win",
     "dist:dir": "npm run build && electron-builder --win --dir",

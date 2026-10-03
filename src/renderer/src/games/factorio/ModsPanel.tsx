@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
+import { modSizeLabel } from '@shared/games/mods'
+import { Rich, quote, t } from '../../i18n'
 
 /**
  * Mods de un servidor de Factorio, del portal oficial.
@@ -43,9 +45,7 @@ interface Installed {
 }
 
 function formatSize(bytes: number): string {
-  return bytes > 1024 ** 2
-    ? `${(bytes / 1024 ** 2).toFixed(1)} MB`
-    : `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return modSizeLabel(bytes)
 }
 
 export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
@@ -100,7 +100,7 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
       setResults(await window.qubiq.factorio.mods.search(query.trim()))
     } catch (err) {
       setError(
-        `No se ha podido consultar el portal de mods: ${err instanceof Error ? err.message : String(err)}`
+        t('fa.mods.searchFailed', { error: err instanceof Error ? err.message : String(err) })
       )
     } finally {
       setSearching(false)
@@ -112,9 +112,7 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
     try {
       const found = await window.qubiq.factorio.portal.credentialsFromGame()
       if (!found) {
-        setError(
-          'No se ha encontrado una sesión de Factorio en este equipo. Entra con tu usuario y contraseña de factorio.com.'
-        )
+        setError(t('fa.mods.noSession'))
         return
       }
       setCredentials(found)
@@ -142,25 +140,22 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo completar la acción</strong>
+          <strong>{t('panel.actionFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
       {notice && <div className="alert info">{notice}</div>}
 
       <div className="alert info">
-        <strong>Todos los que entren necesitan los mismos mods</strong>
-        <p>
-          Si no coinciden con los del servidor, Factorio no les deja pasar. Los cambios se aplican
-          {running ? ' cuando reinicies el servidor.' : ' al arrancar el servidor.'}
-        </p>
+        <strong>{t('fa.mods.sameTitle')}</strong>
+        <p>{running ? t('fa.mods.sameTextRunning') : t('fa.mods.sameText')}</p>
       </div>
 
       <div className="card">
-        <h3>Instalados</h3>
+        <h3>{t('catalog.installedTitle')}</h3>
         {installed.length === 0 ? (
           <p className="hint" style={{ marginBottom: 0 }}>
-            Ninguno. El servidor va con el juego tal cual.
+            {t('catalog.none')}
           </p>
         ) : (
           installed.map((mod) => (
@@ -180,9 +175,9 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                 <span>
                   <strong>{mod.name}</strong>
                   <div className="help" style={{ margin: 0 }}>
-                    {mod.version ? `Versión ${mod.version} · ` : ''}
+                    {mod.version ? `${t('catalog.version', { version: mod.version })} · ` : ''}
                     {formatSize(mod.sizeBytes)}
-                    {mod.enabled ? '' : ' · desactivado'}
+                    {mod.enabled ? '' : ` · ${t('mc.content.disabled')}`}
                   </div>
                 </span>
               </label>
@@ -193,11 +188,11 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                 onClick={() =>
                   void act(
                     () => window.qubiq.factorio.mods.remove(manifest.id, mod.name),
-                    `«${mod.name}» quitado.`
+                    t('catalog.modRemoved', { name: quote(mod.name) })
                   )
                 }
               >
-                Quitar
+                {t('catalog.remove')}
               </button>
             </div>
           ))
@@ -205,16 +200,14 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
       </div>
 
       <div className="card">
-        <h3>Añadir del portal oficial</h3>
-        <p className="hint">
-          Busca por nombre o por lo que hace. Salen primero los más descargados.
-        </p>
+        <h3>{t('fa.mods.addTitle')}</h3>
+        <p className="hint">{t('fa.mods.addHint')}</p>
 
         <div className="row" style={{ marginBottom: 14 }}>
           <input
             className="grow"
             value={query}
-            placeholder="Por ejemplo: Factory Planner, Even Distribution…"
+            placeholder={t('common.forExample', { examples: 'Factory Planner, Even Distribution…' })}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void search()
@@ -225,12 +218,12 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
             disabled={searching || query.trim().length === 0}
             onClick={() => void search()}
           >
-            {searching ? 'Buscando…' : 'Buscar'}
+            {searching ? t('catalog.searching') : t('catalog.search')}
           </button>
         </div>
 
         {results?.length === 0 && (
-          <p className="hint">No hay ningún mod que se llame así ni que hable de eso.</p>
+          <p className="hint">{t('catalog.noResults.mod')}</p>
         )}
         {results?.map((mod) => (
           <div className="row between" key={mod.name} style={{ marginBottom: 12 }}>
@@ -239,14 +232,14 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
               <p className="hint" style={{ margin: 0 }}>
                 {mod.summary}
                 <br />
-                {mod.name} · de {mod.owner} · {mod.downloadsCount.toLocaleString('es-ES')} descargas
-                {mod.factorioVersion && ` · para Factorio ${mod.factorioVersion}`}
+                {mod.name} · {t('catalog.byAuthor', { author: mod.owner, count: mod.downloadsCount })}
+                {mod.factorioVersion && ` · ${t('fa.mods.forVersion', { version: mod.factorioVersion })}`}
               </p>
             </div>
             <button
               style={{ flexShrink: 0 }}
               disabled={busy || !credentials || installedNames.has(mod.name)}
-              title={credentials ? undefined : 'Identifícate abajo para poder descargar'}
+              title={credentials ? undefined : t('fa.mods.loginBelow')}
               onClick={() =>
                 void act(async () => {
                   if (!credentials) return
@@ -256,64 +249,60 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                     credentials,
                     gameVersion
                   )
-                }, `«${mod.title}» instalado.`)
+                }, t('catalog.installedNotice', { name: quote(mod.title) }))
               }
             >
-              {installedNames.has(mod.name) ? 'Instalado' : 'Instalar'}
+              {installedNames.has(mod.name) ? t('catalog.installed') : t('catalog.install')}
             </button>
           </div>
         ))}
       </div>
 
       <div className="card">
-        <h3>Cuenta de factorio.com</h3>
+        <h3>{t('fa.mods.account')}</h3>
         {credentials ? (
           <div className="row between">
             <span>
-              Descargando como <strong>{credentials.username}</strong>.
+              <Rich k="fa.mods.downloadingAs" values={{ user: <strong>{credentials.username}</strong> }} />
             </span>
             <button style={{ flexShrink: 0 }} onClick={() => setCredentials(null)}>
-              Olvidar
+              {t('fa.mods.forget')}
             </button>
           </div>
         ) : (
           <>
-            <p className="hint">
-              El portal no deja descargar sin cuenta. Si tienes Factorio en este equipo, la app
-              puede usar la sesión que ya tiene el juego, sin pedirte la contraseña.
-            </p>
+            <p className="hint">{t('fa.mods.accountHint')}</p>
             <div className="row" style={{ marginBottom: 16 }}>
               <button className="primary" onClick={() => void useGameSession()}>
-                Usar la sesión del juego
+                {t('fa.mods.useSession')}
               </button>
             </div>
 
             <div className="field">
-              <label>O entra con tu usuario de factorio.com</label>
+              <label>{t('fa.mods.orLogin')}</label>
               <input
                 type="text"
                 value={user}
-                placeholder="Usuario"
+                placeholder={t('fa.source.user')}
                 onChange={(e) => setUser(e.target.value)}
               />
             </div>
             <div className="field">
-              <label>Contraseña</label>
+              <label>{t('vh.summary.password')}</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
               <div className="help">
-                Se usa una vez para pedir un permiso de descarga y <strong>no se guarda</strong>.
-                Ese permiso tampoco se escribe en disco: vale mientras la app esté abierta.
+                <Rich k="fa.mods.passwordHelp" values={{ notSaved: <strong>{t('fa.source.notSaved')}</strong> }} />
               </div>
             </div>
             <button
               disabled={busy || user.trim().length === 0 || password.length === 0}
               onClick={() => void login()}
             >
-              Entrar
+              {t('fa.mods.login')}
             </button>
           </>
         )}

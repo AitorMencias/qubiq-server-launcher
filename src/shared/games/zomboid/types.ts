@@ -1,3 +1,4 @@
+import { labelled, t, type MessageKey } from '../../i18n'
 /**
  * Tipos de Project Zomboid compartidos entre el núcleo y la interfaz.
  *
@@ -138,55 +139,29 @@ export interface PresetInfo {
   description: string
 }
 
-export const PRESETS: PresetInfo[] = [
-  {
-    id: 'rising',
-    file: 'Rising.lua',
-    name: 'Alzamiento',
-    description:
-      'Un entorno más acogedor y menos estresante para quienes sueñan con construir la granja ' +
-      'perfecta de superviviente. Pero no bajes la guardia.'
+/**
+ * Las dificultades del propio juego. Sus nombres y descripciones son los que
+ * usa Project Zomboid en cada idioma, para que se reconozcan dentro del juego.
+ */
+export const PRESETS: PresetInfo[] = (
+  [
+    ['rising', 'Rising.lua'],
+    ['survivor', null],
+    ['apocalypse', 'Apocalypse.lua'],
+    ['outbreak', 'Outbreak.lua'],
+    ['sixmonths', 'SixMonthsLater.lua'],
+    ['extinction', 'Extinction.lua']
+  ] as [ZomboidPreset, string | null][]
+).map(([id, file]) => ({
+  id,
+  file,
+  get name() {
+    return t(`pz.preset.${id}.name`)
   },
-  {
-    id: 'survivor',
-    file: null,
-    name: 'Superviviente',
-    description:
-      'Combate potente. Mayor expectativa de vida. Un desafío basado en el anterior modo ' +
-      'Supervivencia de PZ.'
-  },
-  {
-    id: 'apocalypse',
-    file: 'Apocalypse.lua',
-    name: 'Apocalipsis',
-    description:
-      'La experiencia canónica de Zomboid. Tomate tu tiempo, extrema la precaución y vigila tu espalda.'
-  },
-  {
-    id: 'outbreak',
-    file: 'Outbreak.lua',
-    name: 'Brote',
-    description:
-      'Una experiencia acelerada para jugadores con menos tiempo para jugar. Menos farmeo, más ' +
-      'botín, misma letalidad.'
-  },
-  {
-    id: 'sixmonths',
-    file: 'SixMonthsLater.lua',
-    name: '6 meses después',
-    description:
-      'Horda grande, casas saqueadas y un mundo cubierto por la naturaleza. Sin agua ni ' +
-      'electricidad. Para jugadores expertos.'
-  },
-  {
-    id: 'extinction',
-    file: 'Extinction.lua',
-    name: 'Extinción',
-    description:
-      'Un mundo brutal e implacable donde todo quiere verte muerto ahora mismo. No recomendado ' +
-      'para jugadores nuevos.'
+  get description() {
+    return t(`pz.preset.${id}.description`)
   }
-]
+}))
 
 export function presetInfo(id: ZomboidPreset): PresetInfo {
   return PRESETS.find((p) => p.id === id) ?? PRESETS[1]!
@@ -213,84 +188,73 @@ export interface SandboxChoice {
   options: { value: number; label: string }[]
 }
 
-export const BASIC_SANDBOX: SandboxChoice[] = [
-  {
-    key: 'Zombies',
-    label: 'Cuántos zombis hay',
-    help: 'Lo que más cambia la partida. «Normal» es lo que trae el juego.',
-    options: [
-      { value: 6, label: 'Ninguno' },
-      { value: 5, label: 'Pocos' },
-      { value: 4, label: 'Normal' },
-      { value: 3, label: 'Muchos' },
-      { value: 2, label: 'Muchísimos' },
-      { value: 1, label: 'Zombicidio' }
-    ]
-  },
-  {
-    key: 'ZombieRespawn',
-    label: 'Si vuelven a aparecer',
-    help: 'Si los zombis reaparecen en zonas ya limpiadas. Sin reaparición, una zona limpia se queda limpia.',
-    options: [
-      { value: 4, label: 'No reaparecen' },
-      { value: 3, label: 'Pocos' },
-      { value: 2, label: 'Normal' },
-      { value: 1, label: 'Muchos' }
-    ]
-  },
-  {
-    key: 'DayLength',
-    label: 'Cuánto dura un día',
-    help: 'En tiempo real. Los días largos dan para más, pero también se pasa más hambre.',
-    options: [
-      { value: 2, label: '30 minutos' },
-      { value: 3, label: '1 hora' },
-      { value: 4, label: '1 hora y media' },
-      { value: 5, label: '2 horas' },
-      { value: 7, label: '4 horas' },
-      { value: 27, label: 'Tiempo real' }
-    ]
-  },
-  {
-    key: 'WaterShut',
-    label: 'Cuándo se corta el agua',
-    help: 'Cuánto tarda en irse el agua corriente. Marca el ritmo de la partida entera.',
-    options: [
-      { value: 1, label: 'Enseguida' },
-      { value: 2, label: 'En 0-30 días' },
-      { value: 3, label: 'En 0-2 meses' },
-      { value: 4, label: 'En 0-6 meses' },
-      { value: 9, label: 'Nunca' }
-    ]
-  },
-  {
-    // ⚠ Los números son los mismos que los del agua, pero los tramos NO: aquí
-    // el 2 son «14-30 días», no «0-30». Copiar los del agua diría una cosa por
-    // otra.
-    key: 'ElecShut',
-    label: 'Cuándo se corta la luz',
-    help: 'Lo mismo con la electricidad. Sin luz no hay neveras ni cocinas eléctricas.',
-    options: [
-      { value: 1, label: 'Enseguida' },
-      { value: 2, label: 'En 14-30 días' },
-      { value: 3, label: 'En 14 días - 2 meses' },
-      { value: 4, label: 'En 14 días - 6 meses' },
-      { value: 9, label: 'Nunca' }
-    ]
-  },
-  {
-    // En la Build 42 el multiplicador de experiencia no es una clave suelta:
-    // vive dentro de `MultiplierConfig`, junto al de cada habilidad.
-    key: 'MultiplierConfig.Global',
-    label: 'A qué ritmo se sube de nivel',
-    help: 'Multiplica la experiencia que se gana en todas las habilidades. Subirlo hace la partida mucho más llevadera.',
-    options: [
-      { value: 1, label: 'Normal' },
-      { value: 2, label: 'El doble' },
-      { value: 3, label: 'El triple' },
-      { value: 5, label: 'Cinco veces' }
-    ]
+/** Una regla del modo básico, con sus textos traducidos al leerlos. */
+function sandbox(key: string, id: string, values: [number, string][]): SandboxChoice {
+  return {
+    key,
+    get label() {
+      return t(`pz.basic.${id}.label` as MessageKey)
+    },
+    get help() {
+      return t(`pz.basic.${id}.help` as MessageKey)
+    },
+    options: values.map(([value, option]) =>
+      Object.defineProperty({ value }, 'label', {
+        enumerable: true,
+        get: () => t(`pz.basic.${id}.${option}` as MessageKey)
+      }) as { value: number; label: string }
+    )
   }
+}
+
+export const BASIC_SANDBOX: SandboxChoice[] = [
+  sandbox('Zombies', 'zombies', [
+    [6, 'none'],
+    [5, 'few'],
+    [4, 'normal'],
+    [3, 'many'],
+    [2, 'lots'],
+    [1, 'insane']
+  ]),
+  sandbox('ZombieRespawn', 'respawn', [
+    [4, 'none'],
+    [3, 'few'],
+    [2, 'normal'],
+    [1, 'many']
+  ]),
+  sandbox('DayLength', 'day', [
+    [2, 'm30'],
+    [3, 'h1'],
+    [4, 'h1_5'],
+    [5, 'h2'],
+    [7, 'h4'],
+    [27, 'real']
+  ]),
+  sandbox('WaterShut', 'water', [
+    [1, 'instant'],
+    [2, 'd0_30'],
+    [3, 'm0_2'],
+    [4, 'm0_6'],
+    [9, 'never']
+  ]),
+  // ⚠ Los números son los mismos que los del agua, pero los tramos NO: aquí
+  // el 2 son «14-30 días», no «0-30». Copiar los del agua diría una cosa por
+  // otra.
+  sandbox('ElecShut', 'power', [
+    [1, 'instant'],
+    [2, 'd14_30'],
+    [3, 'd14_m2'],
+    [4, 'd14_m6'],
+    [9, 'never']
+  ]),
+  // En la Build 42 el multiplicador de experiencia no es una clave suelta:
+  // vive dentro de `MultiplierConfig`, junto al de cada habilidad.
+  sandbox('MultiplierConfig.Global', 'xp', [
+    [1, 'normal'],
+    [2, 'x2'],
+    [3, 'x3'],
+    [5, 'x5']
+  ])
 ]
 
 /**
@@ -554,35 +518,17 @@ export interface RoleInfo {
   assignable: boolean
 }
 
-export const ROLES: RoleInfo[] = [
-  { id: 'banned', label: 'Vetado', help: 'No puede entrar.', assignable: true },
-  { id: 'user', label: 'Jugador', help: 'Juega y ya está.', assignable: true },
-  {
-    id: 'priority',
-    label: 'Con prioridad',
-    help: 'Entra el primero cuando hay cola.',
-    assignable: false
-  },
-  {
-    id: 'observer',
-    label: 'Observador',
-    help: 'Puede teletransportarse y hacerse invulnerable, pero no cambiar nada.',
-    assignable: false
-  },
-  {
-    id: 'gm',
-    label: 'Máster',
-    help: 'Todo lo del observador y además dar objetos y experiencia.',
-    assignable: false
-  },
-  {
-    id: 'moderator',
-    label: 'Moderador',
-    help: 'Puede hacer de todo salvo tocar los roles y los ajustes del servidor.',
-    assignable: true
-  },
-  { id: 'admin', label: 'Administrador', help: 'Manda en todo.', assignable: true }
-]
+export const ROLES: RoleInfo[] = (
+  [
+    ['banned', true],
+    ['user', true],
+    ['priority', false],
+    ['observer', false],
+    ['gm', false],
+    ['moderator', true],
+    ['admin', true]
+  ] as [ZomboidRole, boolean][]
+).map(([id, assignable]) => labelled({ id, assignable }, `pz.role.${id}`))
 
 export function roleInfo(id: ZomboidRole): RoleInfo {
   return ROLES.find((r) => r.id === id) ?? ROLES[1]!

@@ -1,4 +1,5 @@
 import type { Distribution } from './types'
+import { t, type MessageKey } from '../../i18n'
 
 /**
  * Catálogo de plugins y mods propios que la aplicación sabe instalar y
@@ -69,15 +70,38 @@ export interface OfficialPlugin {
   setupNote?: string
 }
 
+/**
+ * Un campo del formulario, con su etiqueta y su ayuda traducidas al leerlas.
+ * La clave del diccionario sale de la ruta dentro de config.yml.
+ */
+function field(
+  path: string,
+  type: OfficialPluginField['type'],
+  extra: { placeholder?: string; onlyForRole?: string } = {}
+): OfficialPluginField {
+  return {
+    path,
+    type,
+    ...extra,
+    get label() {
+      return t(`mc.official.hu.${path}.label` as MessageKey)
+    },
+    get help() {
+      return t(`mc.official.hu.${path}.help` as MessageKey)
+    }
+  }
+}
+
 export const OFFICIAL_PLUGINS: OfficialPlugin[] = [
   {
     id: 'hardcore-utility',
     name: 'HardcoreUtility',
-    summary: 'Series hardcore con reinicio automático del mundo y lobby de espera.',
-    description:
-      'Lleva la cuenta de muertes y del tiempo de cada partida, y cuando alguien muere prepara ' +
-      'un mundo nuevo con otra semilla y reinicia el servidor solo. Se monta con dos servidores: ' +
-      'uno de lobby, donde esperáis, y otro donde se juega.',
+    get summary() {
+      return t('mc.official.hu.summary')
+    },
+    get description() {
+      return t('mc.official.hu.description')
+    },
     version: '0.1.0',
     jarFileName: 'HardcoreUtility-0.1.0.jar',
     distributions: ['paper'],
@@ -87,169 +111,57 @@ export const OFFICIAL_PLUGINS: OfficialPlugin[] = [
     // lobby, las dos veces con el paquete de transferencia. Un servidor que no
     // acepte transferencias rechaza al que llega, así que hace falta en ambos.
     serverProperties: { 'accepts-transfers': 'true' },
-    serverPropertiesNote:
-      'Se activará «Aceptar jugadores enviados desde otro servidor», que puedes ver en Ajustes. ' +
-      'El lobby y la partida se pasan a los jugadores entre sí; si el servidor no acepta ' +
-      'transferencias, rechaza a quien llegue desde el otro y se queda fuera con un error.',
+    get serverPropertiesNote() {
+      return t('mc.official.hu.serverPropertiesNote')
+    },
     roleKey: 'mode',
     roles: [
       {
         value: 'game',
-        label: 'Servidor de la partida',
-        description: 'Donde se juega. Aquí es donde el mundo se reinicia al morir alguien.',
+        get label() {
+          return t('mc.official.hu.role.game.label')
+        },
+        get description() {
+          return t('mc.official.hu.role.game.description')
+        },
         requiresHardcore: true
       },
       {
         value: 'lobby',
-        label: 'Servidor de lobby',
-        description: 'La sala de espera donde os reunís y votáis con /listo para empezar.'
+        get label() {
+          return t('mc.official.hu.role.lobby.label')
+        },
+        get description() {
+          return t('mc.official.hu.role.lobby.description')
+        }
       }
     ],
-    setupNote:
-      'Necesitas DOS servidores Paper: uno con el papel de lobby y otro con el de partida. ' +
-      'Instala el plugin en los dos y pon la misma clave compartida.',
+    get setupNote() {
+      return t('mc.official.hu.setupNote')
+    },
     fields: [
-      {
-        path: 'api-token',
-        label: 'Clave compartida',
-        help: 'Tiene que ser exactamente la misma en el lobby y en la partida.',
-        type: 'text',
-        placeholder: 'inventa-una-clave-larga'
-      },
+      field('api-token', 'text', { placeholder: 'inventa-una-clave-larga' }),
 
       // --- Partida ---------------------------------------------------------
-      {
-        path: 'game.lobby-host',
-        label: 'Dirección del lobby',
-        help: 'Con la que tus jugadores entran al lobby. Se usa para devolverlos al terminar.',
-        type: 'text',
-        placeholder: 'localhost',
-        onlyForRole: 'game'
-      },
-      {
-        path: 'game.lobby-port',
-        label: 'Puerto del lobby',
-        help: 'El puerto del otro servidor, el de espera.',
-        type: 'number',
-        onlyForRole: 'game'
-      },
-      {
-        path: 'game.lobby-local-host',
-        label: 'Dirección del lobby dentro de casa',
-        help:
-          'Para quien juegue desde este mismo PC o desde tu red (wifi de casa). Casi ningún ' +
-          'router deja salir a internet y volver a entrar a su propia red, así que a esos ' +
-          'jugadores hay que darles la dirección local. Déjalo vacío para usar la de arriba.',
-        type: 'text',
-        placeholder: '192.168.1.50',
-        onlyForRole: 'game'
-      },
-      {
-        path: 'game.lobby-local-port',
-        label: 'Puerto del lobby dentro de casa',
-        help: 'Normalmente el mismo de arriba. Déjalo en 0 para usarlo.',
-        type: 'number',
-        onlyForRole: 'game'
-      },
-      {
-        path: 'game.api-port',
-        label: 'Puerto interno',
-        help: 'Por aquí se comunican los dos servidores. No hace falta abrirlo en el router.',
-        type: 'number',
-        onlyForRole: 'game'
-      },
-      {
-        path: 'game.return-delay-seconds',
-        label: 'Segundos antes de volver al lobby',
-        help: 'Margen tras la muerte para que dé tiempo a ver qué ha pasado.',
-        type: 'number',
-        onlyForRole: 'game'
-      },
-      {
-        path: 'game.require-transfer',
-        label: 'Obligar a pasar por el lobby',
-        help: 'Expulsa a quien entre directo a la partida. Los operadores siempre pueden entrar.',
-        type: 'boolean',
-        onlyForRole: 'game'
-      },
-      {
-        path: 'game.archive-old-worlds',
-        label: 'Guardar los mundos terminados',
-        help: 'En vez de borrarlos, los mueve a una carpeta. Ocupan espacio, pero puedes volver a verlos.',
-        type: 'boolean',
-        onlyForRole: 'game'
-      },
-      {
-        path: 'game.pregeneration.enabled',
-        label: 'Pregenerar el mundo nuevo',
-        help: 'Prepara el terreno antes de empezar para que vaya fino. Necesita el plugin Chunky.',
-        type: 'boolean',
-        onlyForRole: 'game'
-      },
-      {
-        path: 'game.pregeneration.radius',
-        label: 'Radio a pregenerar (bloques)',
-        help: 'Cuanto más grande, más tarda en estar lista la partida.',
-        type: 'number',
-        onlyForRole: 'game'
-      },
+      field('game.lobby-host', 'text', { placeholder: 'localhost', onlyForRole: 'game' }),
+      field('game.lobby-port', 'number', { onlyForRole: 'game' }),
+      field('game.lobby-local-host', 'text', { placeholder: '192.168.1.50', onlyForRole: 'game' }),
+      field('game.lobby-local-port', 'number', { onlyForRole: 'game' }),
+      field('game.api-port', 'number', { onlyForRole: 'game' }),
+      field('game.return-delay-seconds', 'number', { onlyForRole: 'game' }),
+      field('game.require-transfer', 'boolean', { onlyForRole: 'game' }),
+      field('game.archive-old-worlds', 'boolean', { onlyForRole: 'game' }),
+      field('game.pregeneration.enabled', 'boolean', { onlyForRole: 'game' }),
+      field('game.pregeneration.radius', 'number', { onlyForRole: 'game' }),
 
       // --- Lobby -----------------------------------------------------------
-      {
-        path: 'lobby.game-host',
-        label: 'Dirección de la partida',
-        help: 'Con la que tus jugadores entran a la partida. Tiene que ser accesible para ellos.',
-        type: 'text',
-        placeholder: 'localhost',
-        onlyForRole: 'lobby'
-      },
-      {
-        path: 'lobby.game-port',
-        label: 'Puerto de la partida',
-        help: 'El puerto del servidor donde se juega.',
-        type: 'number',
-        onlyForRole: 'lobby'
-      },
-      {
-        path: 'lobby.game-local-host',
-        label: 'Dirección de la partida dentro de casa',
-        help:
-          'Para quien juegue desde este mismo PC o desde tu red (wifi de casa). Casi ningún ' +
-          'router deja salir a internet y volver a entrar a su propia red, así que a esos ' +
-          'jugadores hay que darles la dirección local. Déjalo vacío para usar la de arriba.',
-        type: 'text',
-        placeholder: '192.168.1.50',
-        onlyForRole: 'lobby'
-      },
-      {
-        path: 'lobby.game-local-port',
-        label: 'Puerto de la partida dentro de casa',
-        help: 'Normalmente el mismo de arriba. Déjalo en 0 para usarlo.',
-        type: 'number',
-        onlyForRole: 'lobby'
-      },
-      {
-        path: 'lobby.api-url',
-        label: 'Dirección interna de la partida',
-        help: 'Para consultar su estado. Si los dos servidores están en este PC, déjalo como está.',
-        type: 'text',
-        placeholder: 'http://127.0.0.1:25580',
-        onlyForRole: 'lobby'
-      },
-      {
-        path: 'lobby.min-players',
-        label: 'Jugadores mínimos para empezar',
-        help: 'Todos tienen que escribir /listo.',
-        type: 'number',
-        onlyForRole: 'lobby'
-      },
-      {
-        path: 'lobby.countdown-seconds',
-        label: 'Cuenta atrás (segundos)',
-        help: 'Lo que se espera desde que todos están listos hasta empezar.',
-        type: 'number',
-        onlyForRole: 'lobby'
-      }
+      field('lobby.game-host', 'text', { placeholder: 'localhost', onlyForRole: 'lobby' }),
+      field('lobby.game-port', 'number', { onlyForRole: 'lobby' }),
+      field('lobby.game-local-host', 'text', { placeholder: '192.168.1.50', onlyForRole: 'lobby' }),
+      field('lobby.game-local-port', 'number', { onlyForRole: 'lobby' }),
+      field('lobby.api-url', 'text', { placeholder: 'http://127.0.0.1:25580', onlyForRole: 'lobby' }),
+      field('lobby.min-players', 'number', { onlyForRole: 'lobby' }),
+      field('lobby.countdown-seconds', 'number', { onlyForRole: 'lobby' })
     ]
   }
 ]

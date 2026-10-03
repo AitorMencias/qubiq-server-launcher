@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import type { FactorioSave } from '@shared/games/factorio/types'
+import { modSizeLabel } from '@shared/games/mods'
+import { formatDate as formatDateTime, quote, t } from '../../i18n'
 
 /**
  * Partidas de un servidor de Factorio.
@@ -20,13 +22,11 @@ interface Props {
 }
 
 function formatSize(bytes: number): string {
-  return bytes > 1024 ** 2
-    ? `${(bytes / 1024 ** 2).toFixed(1)} MB`
-    : `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return modSizeLabel(bytes)
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('es-ES', {
+  return formatDateTime(iso, {
     dateStyle: 'short',
     timeStyle: 'short'
   })
@@ -78,22 +78,19 @@ export function SavesPanel({ state, onChanged }: Props): React.JSX.Element {
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo completar la acción</strong>
+          <strong>{t('panel.actionFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
       {notice && <div className="alert info">{notice}</div>}
 
       <div className="card">
-        <h3>La partida del servidor</h3>
-        <p className="hint">
-          Es la que se carga al arrancar. Se guarda sola cada {autosaveMinutes} minutos mientras hay
-          alguien dentro, y siempre al parar el servidor.
-        </p>
+        <h3>{t('fa.saves.title')}</h3>
+        <p className="hint">{t('fa.saves.hint', { n: autosaveMinutes })}</p>
 
         {principales.length === 0 && (
           <p className="hint" style={{ marginBottom: 14 }}>
-            Todavía no hay partida: se genera al instalar el servidor.
+            {t('fa.saves.none')}
           </p>
         )}
         {principales.map((save) => (
@@ -102,11 +99,11 @@ export function SavesPanel({ state, onChanged }: Props): React.JSX.Element {
               <strong>{save.name}</strong>
               {save.active && (
                 <span className="badge" style={{ marginLeft: 8 }}>
-                  en uso
+                  {t('mc.worlds.inUse')}
                 </span>
               )}
               <p className="hint" style={{ margin: 0 }}>
-                {formatSize(save.sizeBytes)} · guardada {formatDate(save.modifiedAt)}
+                {formatSize(save.sizeBytes)} · {t('fa.saves.savedAt', { date: formatDate(save.modifiedAt) })}
               </p>
             </div>
             {!save.active && (
@@ -116,7 +113,7 @@ export function SavesPanel({ state, onChanged }: Props): React.JSX.Element {
                 disabled={busy || running}
                 onClick={() => setConfirming(save)}
               >
-                Borrar
+                {t('backup.delete')}
               </button>
             )}
           </div>
@@ -126,29 +123,26 @@ export function SavesPanel({ state, onChanged }: Props): React.JSX.Element {
           <button
             disabled={busy || !running}
             onClick={() =>
-              void run(() => window.qubiq.factorio.saves.saveNow(manifest.id), 'Partida guardada.')
+              void run(() => window.qubiq.factorio.saves.saveNow(manifest.id), t('sf.saves.saved'))
             }
           >
-            Guardar ahora
+            {t('sf.saves.saveNow')}
           </button>
           {!running && (
             <p className="hint" style={{ margin: 0 }}>
-              Solo con el servidor en marcha.
+              {t('fa.saves.onlyRunning')}
             </p>
           )}
         </div>
       </div>
 
       <div className="card">
-        <h3>Autoguardados del juego</h3>
-        <p className="hint">
-          Los hace Factorio por su cuenta y los va sobrescribiendo. Volver a uno lo copia encima de
-          la partida del servidor, y antes se hace una copia de seguridad por si acaso.
-        </p>
+        <h3>{t('fa.saves.autoTitle')}</h3>
+        <p className="hint">{t('fa.saves.autoHint')}</p>
 
         {autosaves.length === 0 ? (
           <p className="hint" style={{ marginBottom: 0 }}>
-            Todavía no hay ninguno: aparecen a los pocos minutos de que alguien juegue.
+            {t('fa.saves.autoNone')}
           </p>
         ) : (
           autosaves.map((save) => (
@@ -165,24 +159,24 @@ export function SavesPanel({ state, onChanged }: Props): React.JSX.Element {
                 onClick={() =>
                   void run(
                     () => window.qubiq.factorio.saves.restoreAutosave(manifest.id, save.name),
-                    'Recuperado: el servidor arrancará desde ese punto.'
+                    t('fa.saves.restored')
                   )
                 }
               >
-                Volver a este punto
+                {t('fa.saves.backTo')}
               </button>
             </div>
           ))
         )}
         {running && autosaves.length > 0 && (
-          <p className="hint">Para volver a un autoguardado hay que parar el servidor.</p>
+          <p className="hint">{t('fa.saves.stopToRestore')}</p>
         )}
       </div>
 
       {confirming && (
         <div className="card danger-zone">
-          <h3>¿Borrar la partida «{confirming.name}»?</h3>
-          <p className="hint">No es la que juega el servidor, pero no se podrá recuperar.</p>
+          <h3>{t('fa.saves.confirmDelete', { name: quote(confirming.name) })}</h3>
+          <p className="hint">{t('fa.saves.confirmDeleteText')}</p>
           <div className="row">
             <button
               className="danger"
@@ -190,14 +184,14 @@ export function SavesPanel({ state, onChanged }: Props): React.JSX.Element {
               onClick={() =>
                 void run(
                   () => window.qubiq.factorio.saves.remove(manifest.id, confirming.name),
-                  'Partida borrada.'
+                  t('fa.saves.deleted')
                 )
               }
             >
-              Sí, borrarla
+              {t('sf.saves.yesDelete')}
             </button>
             <button disabled={busy} onClick={() => setConfirming(null)}>
-              Cancelar
+              {t('common.cancel')}
             </button>
           </div>
         </div>

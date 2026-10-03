@@ -1,5 +1,6 @@
 import type { PropertyDefinition } from '@shared/games/minecraft/types'
 import { KeyValueFile } from '../../../formats/keyValue'
+import { t, type MessageKey } from '@shared/i18n'
 
 /**
  * server.properties (§8): el editor clave=valor común, que preserva
@@ -8,33 +9,51 @@ import { KeyValueFile } from '../../../formats/keyValue'
 export { KeyValueFile as PropertiesFile }
 
 /**
+ * Una opción del catálogo con su etiqueta, su ayuda y los nombres de sus
+ * valores traducidos al leerlos (`mc.prop.<clave>.label`, `.help`, `.<valor>`).
+ *
+ * El catálogo vive en el núcleo, pero el proceso principal sigue el idioma de
+ * la configuración, así que llega a la interfaz ya traducido (`localizedCatalog`).
+ */
+function property(
+  def: Omit<PropertyDefinition, 'label' | 'help' | 'options'> & { options?: string[] }
+): PropertyDefinition {
+  const { options, ...rest } = def
+  return {
+    ...rest,
+    get label() {
+      return t(`mc.prop.${def.key}.label` as MessageKey)
+    },
+    get help() {
+      return t(`mc.prop.${def.key}.help` as MessageKey)
+    },
+    ...(options
+      ? {
+          options: options.map((value) => ({
+            value,
+            get label() {
+              return t(`mc.prop.${def.key}.${value}` as MessageKey)
+            }
+          }))
+        }
+      : {})
+  }
+}
+
+/**
  * Catálogo de opciones con etiquetas humanas (§8).
  * `level: 'basic'` es lo único que ve un usuario no técnico.
  * El tipo vive en `shared` porque lo consume también la interfaz.
  */
 export const PROPERTY_CATALOG: PropertyDefinition[] = [
-  {
-    key: 'motd',
-    label: 'Nombre que verán tus amigos',
-    help: 'El texto que aparece en su lista de servidores.',
-    level: 'basic',
-    type: 'text',
-    default: 'Un servidor de Minecraft'
-  },
-  {
+  property({ key: 'motd', level: 'basic', type: 'text', default: 'Un servidor de Minecraft' }),
+  property({
     key: 'difficulty',
-    label: 'Dificultad',
-    help: 'En Pacífico no aparecen monstruos hostiles.',
     level: 'basic',
     type: 'enum',
-    options: [
-      { value: 'peaceful', label: 'Pacífico' },
-      { value: 'easy', label: 'Fácil' },
-      { value: 'normal', label: 'Normal' },
-      { value: 'hard', label: 'Difícil' }
-    ],
+    options: ['peaceful', 'easy', 'normal', 'hard'],
     default: 'easy'
-  },
+  }),
   /*
    * ⚠ Hardcore NO es un valor de `gamemode`. Comprobado ejecutando un servidor
    * real y leyendo las 65 claves que genera: `gamemode` solo acepta
@@ -44,147 +63,59 @@ export const PROPERTY_CATALOG: PropertyDefinition[] = [
    * rechazara. Por eso la interfaz muestra un único selector de 5 opciones
    * (ver `GameModeField` en ConfigPanel) que escribe las DOS claves.
    */
-  {
+  property({
     key: 'gamemode',
-    label: 'Modo de juego',
-    help: 'Con qué modo entran los jugadores nuevos.',
     level: 'basic',
     type: 'enum',
-    options: [
-      { value: 'survival', label: 'Supervivencia' },
-      { value: 'creative', label: 'Creativo' },
-      { value: 'adventure', label: 'Aventura' },
-      { value: 'spectator', label: 'Espectador' }
-    ],
+    options: ['survival', 'creative', 'adventure', 'spectator'],
     default: 'survival'
-  },
-  {
-    key: 'hardcore',
-    label: 'Modo extremo (hardcore)',
-    help:
-      'Al morir, el jugador pasa a espectador y no puede volver a jugar en ese mundo. ' +
-      'Fuerza la dificultad a Difícil.',
-    level: 'basic',
-    type: 'boolean',
-    default: 'false'
-  },
-  {
-    key: 'max-players',
-    label: 'Jugadores como máximo',
-    help: 'Cuántas personas pueden estar conectadas a la vez.',
-    level: 'basic',
-    type: 'number',
-    min: 1,
-    max: 200,
-    default: '10'
-  },
-  {
-    key: 'pvp',
-    label: 'Los jugadores pueden pelearse entre sí',
-    help: 'Desactívalo para un mundo pacífico entre amigos.',
-    level: 'basic',
-    type: 'boolean',
-    default: 'true'
-  },
-  {
-    key: 'white-list',
-    label: 'Solo pueden entrar los invitados',
-    help: 'Con esto activado, únicamente entra quien esté en tu lista.',
-    level: 'basic',
-    type: 'boolean',
-    default: 'false'
-  },
-  {
-    key: 'online-mode',
-    label: 'Exigir cuenta oficial de Minecraft',
-    help:
-      'Déjalo activado. Desactivarlo permite que cualquiera entre usando el nombre ' +
-      'de otra persona.',
-    level: 'basic',
-    type: 'boolean',
-    default: 'true'
-  },
-  {
-    key: 'view-distance',
-    label: 'Distancia de visión',
-    help: 'En chunks. Bajarlo mejora bastante el rendimiento.',
-    level: 'basic',
-    type: 'number',
-    min: 3,
-    max: 32,
-    default: '10'
-  },
-  {
+  }),
+  property({ key: 'hardcore', level: 'basic', type: 'boolean', default: 'false' }),
+  property({ key: 'max-players', level: 'basic', type: 'number', min: 1, max: 200, default: '10' }),
+  property({ key: 'pvp', level: 'basic', type: 'boolean', default: 'true' }),
+  property({ key: 'white-list', level: 'basic', type: 'boolean', default: 'false' }),
+  property({ key: 'online-mode', level: 'basic', type: 'boolean', default: 'true' }),
+  property({ key: 'view-distance', level: 'basic', type: 'number', min: 3, max: 32, default: '10' }),
+  property({
     key: 'spawn-protection',
-    label: 'Zona protegida alrededor del punto de aparición',
-    help: 'En bloques. Solo los operadores pueden construir ahí. 0 lo desactiva.',
     level: 'advanced',
     type: 'number',
     min: 0,
     max: 64,
     default: '16'
-  },
-  {
+  }),
+  property({
     key: 'simulation-distance',
-    label: 'Distancia de simulación',
-    help: 'Hasta dónde siguen ocurriendo cosas. Afecta mucho al rendimiento.',
     level: 'advanced',
     type: 'number',
     min: 3,
     max: 32,
     default: '10'
-  },
-  {
-    key: 'level-seed',
-    label: 'Semilla del mundo',
-    help: 'Determina el terreno generado. Cambiarla genera un mundo distinto.',
-    level: 'advanced',
-    type: 'text',
-    default: '',
-    destructive: true
-  },
-  {
+  }),
+  property({ key: 'level-seed', level: 'advanced', type: 'text', default: '', destructive: true }),
+  property({
     key: 'level-type',
-    label: 'Tipo de mundo',
-    help: 'Normal, plano, amplificado... Cambiarlo afecta al terreno nuevo.',
     level: 'advanced',
     type: 'enum',
-    options: [
-      { value: 'minecraft:normal', label: 'Normal' },
-      { value: 'minecraft:flat', label: 'Superplano' },
-      { value: 'minecraft:large_biomes', label: 'Biomas grandes' },
-      { value: 'minecraft:amplified', label: 'Amplificado' }
-    ],
+    options: ['minecraft:normal', 'minecraft:flat', 'minecraft:large_biomes', 'minecraft:amplified'],
     default: 'minecraft:normal',
     destructive: true
-  },
-  {
-    key: 'enable-command-block',
-    label: 'Permitir bloques de comandos',
-    help: 'Necesario para mapas de aventura y automatizaciones.',
-    level: 'advanced',
-    type: 'boolean',
-    default: 'false'
-  },
-  {
-    key: 'allow-flight',
-    label: 'Permitir volar',
-    help: 'Actívalo si usas mods o plugins que dan vuelo, o te expulsará por trampas.',
-    level: 'advanced',
-    type: 'boolean',
-    default: 'false'
-  },
-  {
-    key: 'accepts-transfers',
-    label: 'Aceptar jugadores enviados desde otro servidor',
-    help:
-      'Necesario si usas un lobby o una red de servidores que mueve a los jugadores con /transfer. ' +
-      'Si no, déjalo apagado.',
-    level: 'advanced',
-    type: 'boolean',
-    default: 'false'
-  }
+  }),
+  property({ key: 'enable-command-block', level: 'advanced', type: 'boolean', default: 'false' }),
+  property({ key: 'allow-flight', level: 'advanced', type: 'boolean', default: 'false' }),
+  property({ key: 'accepts-transfers', level: 'advanced', type: 'boolean', default: 'false' })
 ]
+
+/**
+ * El catálogo como datos planos, con los textos ya en el idioma de ahora.
+ * Es lo que viaja por IPC: así no depende de cómo copie los getters Electron.
+ */
+export function localizedCatalog(): PropertyDefinition[] {
+  return PROPERTY_CATALOG.map((def) => ({
+    ...def,
+    ...(def.options ? { options: def.options.map((option) => ({ ...option })) } : {})
+  }))
+}
 
 /**
  * Claves que la interfaz gestiona con un control combinado y que por tanto NO

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import { gameInfo, memoryNeedGb } from '@shared/games'
+import { formatList, formatNumber, t } from './i18n'
 
 /**
  * Aviso antes de arrancar un servidor más con otros ya en marcha.
@@ -48,22 +49,23 @@ export function LoadNotice({ state }: { state: InstanceState }): React.JSX.Eleme
   if (used + need + SYSTEM_GB <= totalGb) return null
   const noCabe = used + need > totalGb
 
-  const nombres = others.map((s) => `${s.manifest.name} (${gameInfo(s.manifest.game).name})`)
-  const lista =
-    nombres.length === 1 ? nombres[0]! : `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
-  const gb = (n: number): string => n.toLocaleString('es-ES', { maximumFractionDigits: 1 })
+  const lista = formatList(
+    others.map((s) => `${s.manifest.name} (${gameInfo(s.manifest.game).name})`)
+  )
+  const gb = (n: number): string => formatNumber(n, { maximumFractionDigits: 1 })
 
   return (
     <div className={`alert ${noCabe ? 'error' : 'warn'}`}>
-      <strong>
-        {noCabe ? 'Con este no cabe en la memoria del equipo' : 'Con este, el equipo va a ir justo'}
-      </strong>
+      <strong>{noCabe ? t('load.noRoomTitle') : t('load.tightTitle')}</strong>
       <p>
-        {others.length === 1 ? 'Ya está en marcha' : 'Ya están en marcha'} {lista}, que usan unos{' '}
-        {gb(used)} GB. Este necesita unos {gb(need)} más, y el equipo tiene {gb(totalGb)} GB en total.
-        {noCabe
-          ? ' Si lo arrancas, lo normal es que alguno vaya a tirones o se cierre solo: para antes alguno que no estéis usando.'
-          : ' Puede ir bien, pero si jugáis en este mismo equipo, notaréis la diferencia.'}
+        {t('load.text', {
+          count: others.length,
+          list: lista,
+          used: gb(used),
+          need: gb(need),
+          total: gb(totalGb)
+        })}{' '}
+        {noCabe ? t('load.noRoom') : t('load.tight')}
       </p>
     </div>
   )

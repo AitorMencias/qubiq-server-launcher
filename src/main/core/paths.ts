@@ -93,6 +93,18 @@ export function launcherLogPath(id: string): string {
   return join(instanceDir(id), 'launcher.log')
 }
 
+/**
+ * Lo que es de la app dentro de la raíz de datos, y por tanto lo que se mueve
+ * al cambiarla de sitio.
+ *
+ * ⚠ Es una lista cerrada a propósito: en la carpeta por defecto conviven estos
+ * datos con los de Electron (`Cache`, `GPUCache`, `Local Storage`…), que están
+ * abiertos mientras la app corre y no se pueden llevar a ningún sitio. Si
+ * añades algo nuevo directamente en la raíz, añádelo aquí o se quedará atrás
+ * al mover la carpeta.
+ */
+export const DATA_ENTRIES = ['instances', 'runtimes', 'tools', 'cache', 'settings.json', 'remote'] as const
+
 export async function ensureDir(path: string): Promise<void> {
   await mkdir(path, { recursive: true })
 }

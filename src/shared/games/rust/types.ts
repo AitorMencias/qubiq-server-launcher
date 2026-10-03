@@ -1,4 +1,5 @@
 import type { ModRef } from '../mods'
+import { t, type MessageKey } from '../../i18n'
 
 /**
  * Tipos de Rust compartidos entre el núcleo y la interfaz.
@@ -124,29 +125,25 @@ export interface WorldSizeInfo {
  * primera vez, que es cuando genera el mapa (2000: 109 s y 3,2 GB; 3000: 171 s
  * y 4,2 GB; 4000: 306 s y 5,6 GB). Las siguientes veces arranca en segundos.
  */
-export const WORLD_SIZES: WorldSizeInfo[] = [
-  {
-    size: 2000,
-    label: 'Pequeño',
-    players: 'para 2 a 4',
-    memoryGb: 3.2,
-    firstStart: 'unos 2 minutos'
+export const WORLD_SIZES: WorldSizeInfo[] = (
+  [
+    [2000, 3.2],
+    [3000, 4.2],
+    [4000, 5.6]
+  ] as [number, number][]
+).map(([size, memoryGb]) => ({
+  size,
+  memoryGb,
+  get label() {
+    return t(`rust.size.${size}.label` as MessageKey)
   },
-  {
-    size: 3000,
-    label: 'Mediano',
-    players: 'para 4 a 10',
-    memoryGb: 4.2,
-    firstStart: 'unos 3 minutos'
+  get players() {
+    return t(`rust.size.${size}.players` as MessageKey)
   },
-  {
-    size: 4000,
-    label: 'Grande',
-    players: 'para 10 o más',
-    memoryGb: 5.6,
-    firstStart: 'unos 5 minutos'
+  get firstStart() {
+    return t(`rust.size.${size}.firstStart` as MessageKey)
   }
-]
+}))
 
 /** El que propone el asistente: el de un grupo de amigos. */
 export const DEFAULT_WORLD_SIZE = 3000
@@ -300,10 +297,12 @@ export interface RustSettingInfo {
 export const RUST_SETTINGS: RustSettingInfo[] = [
   {
     key: 'server.pve',
-    label: 'Sin peleas entre jugadores',
-    help:
-      'Los jugadores no se pueden hacer daño entre ellos. Los animales, los científicos y el ' +
-      'entorno siguen matando igual.',
+    get label() {
+      return t('rust.set.server.pve.label')
+    },
+    get help() {
+      return t('rust.set.server.pve.help')
+    },
     group: 'partida',
     basic: true,
     default: false,
@@ -311,42 +310,60 @@ export const RUST_SETTINGS: RustSettingInfo[] = [
   },
   {
     key: 'server.radiation',
-    label: 'Radiación en los monumentos',
-    help: 'Apagada, se puede entrar en cualquier monumento sin traje ni pastillas.',
+    get label() {
+      return t('rust.set.server.radiation.label')
+    },
+    get help() {
+      return t('rust.set.server.radiation.help')
+    },
     group: 'partida',
     default: true,
     kind: { type: 'switch' }
   },
   {
     key: 'craft.instant',
-    label: 'Fabricar al instante',
-    help: 'Todo se fabrica sin esperar. Cambia mucho el ritmo de la partida.',
+    get label() {
+      return t('rust.set.craft.instant.label')
+    },
+    get help() {
+      return t('rust.set.craft.instant.help')
+    },
     group: 'partida',
     default: false,
     kind: { type: 'switch' }
   },
   {
     key: 'server.planttickscale',
-    label: 'Velocidad de las plantas',
-    help: 'Con 2, los cultivos crecen el doble de rápido.',
+    get label() {
+      return t('rust.set.server.planttickscale.label')
+    },
+    get help() {
+      return t('rust.set.server.planttickscale.help')
+    },
     group: 'partida',
     default: 1,
     kind: { type: 'number', min: 0.1, max: 10, step: 0.1, unit: '×' }
   },
   {
     key: 'server.itemdespawn',
-    label: 'Lo tirado al suelo dura',
-    help: 'Lo que se tira o se cae al morir desaparece pasado este tiempo.',
+    get label() {
+      return t('rust.set.server.itemdespawn.label')
+    },
+    get help() {
+      return t('rust.set.server.itemdespawn.help')
+    },
     group: 'partida',
     default: 300,
     kind: { type: 'minutes', min: 1, max: 120 }
   },
   {
     key: 'decay.scale',
-    label: 'Deterioro de las construcciones',
-    help:
-      'Con 1 las bases se deterioran como en el juego normal si no se pagan; con 0 no se ' +
-      'deterioran nunca. Con pocos jugadores, 0 evita volver y encontrarse la base caída.',
+    get label() {
+      return t('rust.set.decay.scale.label')
+    },
+    get help() {
+      return t('rust.set.decay.scale.help')
+    },
     group: 'construir',
     basic: true,
     default: 1,
@@ -354,68 +371,98 @@ export const RUST_SETTINGS: RustSettingInfo[] = [
   },
   {
     key: 'server.stability',
-    label: 'Las construcciones se pueden derrumbar',
-    help: 'Apagado, nada se cae aunque se quiten los apoyos.',
+    get label() {
+      return t('rust.set.server.stability.label')
+    },
+    get help() {
+      return t('rust.set.server.stability.help')
+    },
     group: 'construir',
     default: true,
     kind: { type: 'switch' }
   },
   {
     key: 'relationshipmanager.maxteamsize',
-    label: 'Tamaño máximo de un equipo',
-    help: 'Cuántos pueden ir en el mismo equipo. Con 0 no hay equipos.',
+    get label() {
+      return t('rust.set.relationshipmanager.maxteamsize.label')
+    },
+    get help() {
+      return t('rust.set.relationshipmanager.maxteamsize.help')
+    },
     group: 'jugadores',
     default: 8,
     kind: { type: 'number', min: 0, max: 50, unit: 'jugadores' }
   },
   {
     key: 'server.idlekick',
-    label: 'Echar a quien se queda quieto',
-    help: 'Minutos sin hacer nada antes de que el servidor lo eche. Con 0, nunca.',
+    get label() {
+      return t('rust.set.server.idlekick.label')
+    },
+    get help() {
+      return t('rust.set.server.idlekick.help')
+    },
     group: 'jugadores',
     default: 30,
     kind: { type: 'number', min: 0, max: 600, unit: 'min' }
   },
   {
     key: 'chat.localchat',
-    label: 'Chat solo de cerca',
-    help: 'Encendido, los mensajes solo los leen quienes están a menos de 100 metros.',
+    get label() {
+      return t('rust.set.chat.localchat.label')
+    },
+    get help() {
+      return t('rust.set.chat.localchat.help')
+    },
     group: 'jugadores',
     default: false,
     kind: { type: 'switch' }
   },
   {
     key: 'server.saveinterval',
-    label: 'Guardar cada',
-    help: 'Cada cuánto guarda el servidor por su cuenta. Parar el servidor desde la app guarda siempre.',
+    get label() {
+      return t('rust.set.server.saveinterval.label')
+    },
+    get help() {
+      return t('rust.set.server.saveinterval.help')
+    },
     group: 'partida',
     default: 600,
     kind: { type: 'minutes', min: 1, max: 60 }
   },
   {
     key: 'server.url',
-    label: 'Página web',
-    help: 'Un enlace que sale en la ficha del servidor dentro del juego. Opcional.',
+    get label() {
+      return t('rust.set.server.url.label')
+    },
+    get help() {
+      return t('rust.set.server.url.help')
+    },
     group: 'lista',
     default: '',
     kind: { type: 'text', placeholder: 'https://…' }
   },
   {
     key: 'server.headerimage',
-    label: 'Imagen de cabecera',
-    help: 'Dirección de una imagen de 512×256 que sale en la ficha del servidor. Opcional.',
+    get label() {
+      return t('rust.set.server.headerimage.label')
+    },
+    get help() {
+      return t('rust.set.server.headerimage.help')
+    },
     group: 'lista',
     default: '',
     kind: { type: 'text', placeholder: 'https://…/imagen.png' }
   }
 ]
 
-export const RUST_SETTING_GROUPS: { id: RustSettingInfo['group']; label: string }[] = [
-  { id: 'partida', label: 'La partida' },
-  { id: 'construir', label: 'Construir' },
-  { id: 'jugadores', label: 'Los jugadores' },
-  { id: 'lista', label: 'En la lista del juego' }
-]
+export const RUST_SETTING_GROUPS: { id: RustSettingInfo['group']; label: string }[] = (
+  ['partida', 'construir', 'jugadores', 'lista'] as const
+).map((id) => ({
+  id,
+  get label() {
+    return t(`rust.group.${id}`)
+  }
+}))
 
 export type RustSettings = Record<string, RustSettingValue>
 

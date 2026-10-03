@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ExposureMode } from '@shared/types'
-import { GAMES, defaultPortFor } from '@shared/games'
+import { defaultPortFor } from '@shared/games'
 import {
   MIN_PASSWORD_LENGTH,
   PRESETS,
@@ -9,7 +9,16 @@ import {
   type EnshroudedRole
 } from '@shared/games/enshrouded/types'
 import { D20Loader } from '../../D20Loader'
-import { Choices, StepDots, StepFrame, SummaryRow, labelOf, type Option } from '../../WizardParts'
+import {
+  Choices,
+  StepDots,
+  StepFrame,
+  SteamAgreement,
+  SummaryRow,
+  labelOf,
+  type Option
+} from '../../WizardParts'
+import { t } from '../../i18n'
 import { rolesFor } from './roles'
 
 /**
@@ -40,39 +49,32 @@ type Stage = Step | 'resumen'
 
 const STEPS: Step[] = ['nombre', 'mundo', 'gente', 'claves', 'dificultad', 'conexion']
 
-const CONNECTIONS: Option<ExposureMode>[] = [
-  {
-    value: 'local',
-    title: 'Solo desde mi casa',
-    sub: 'Quien esté en tu mismo wifi o router. No hay que tocar nada más.'
-  },
-  {
-    value: 'router',
-    title: 'Desde cualquier sitio, abriendo el router',
-    sub: 'El mejor ping. Hay que abrir un puerto UDP y no funciona si tu compañía usa CGNAT.'
-  },
-  {
-    value: 'tunnel',
-    title: 'Desde cualquier sitio, con playit.gg',
-    sub: 'Sin tocar el router, pero dependiendo de un servicio de fuera y con algo más de retardo.'
-  }
-]
+/** Se construyen al pintar, para que salgan en el idioma de ese momento. */
+function connections(): Option<ExposureMode>[] {
+  return [
+    { value: 'local', title: t('wizard.connection.local'), sub: t('wizard.connection.local.sub') },
+    { value: 'router', title: t('wizard.connection.router'), sub: t('fa.wizard.routerSub') },
+    { value: 'tunnel', title: t('wizard.connection.tunnel'), sub: t('en.wizard.tunnelSub') }
+  ]
+}
 
 /** Los tres de siempre delante; «A mi manera» se deja para el modo avanzado. */
 const SIMPLE_PRESETS = PRESETS.filter((p) => p.value !== 'Custom')
 
-const PLAYER_CHOICES: Option<string>[] = [
-  { value: '4', title: 'Cuatro', sub: 'Lo normal para jugar con amigos. Es lo que pide menos al equipo.' },
-  { value: '8', title: 'Ocho', sub: 'Un grupo grande. Conviene tener 12 GB de memoria libres.' },
-  { value: '16', title: 'Dieciséis', sub: 'El máximo que admite Enshrouded. Pide un equipo con holgura.' }
-]
+function playerChoices(): Option<string>[] {
+  return (['4', '8', '16'] as const).map((value) => ({
+    value,
+    title: t(`en.wizard.players.${value}`),
+    sub: t(`en.wizard.players.${value}.sub`)
+  }))
+}
 
 export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX.Element {
   const [stage, setStage] = useState<Stage>('nombre')
   /** true si se ha vuelto a un paso desde el resumen: al terminar, se regresa a él. */
   const [editing, setEditing] = useState(false)
 
-  const [name, setName] = useState('Mi Enshrouded')
+  const [name, setName] = useState(() => t('en.wizard.defaultName'))
   const [worldName, setWorldName] = useState('')
   const [players, setPlayers] = useState('4')
   // Rellenas de partida: el servidor también las sortea, y así nadie se queda
@@ -162,12 +164,11 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
-            <p className="hint">
-              Enshrouded ocupa 8,8 GB, así que la descarga da para un café. Arrancarlo después es lo
-              de menos: el mundo se genera en unos segundos.
+            <h3>{t('wizard.preparing')}</h3>
+            <p className="hint">{t('en.wizard.preparingHint')}</p>
+            <p style={{ margin: '10px 0 0', fontSize: 13 }}>
+              {progress?.detail ?? t('panel.working')}
             </p>
-            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
             {progress?.progress != null && (
               <div className="progress">
                 <div style={{ width: `${Math.round(progress.progress * 100)}%` }} />
@@ -175,7 +176,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -185,6 +186,8 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
     )
   }
 
+  const CONNECTIONS = connections()
+
   return (
     <div className="panel">
       <div className="wizard">
@@ -192,15 +195,15 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {error && (
           <div className="alert error">
-            <strong>Algo ha fallado</strong>
+            <strong>{t('catalog.error')}</strong>
             <p>{error}</p>
           </div>
         )}
 
         {stage === 'nombre' && (
           <StepFrame
-            title="¿Cómo se va a llamar?"
-            help="Es el nombre con el que sale en la lista de servidores del juego."
+            title={t('wizard.name.title')}
+            help={t('en.wizard.name.help')}
           >
             <input
               value={name}
@@ -216,8 +219,8 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'mundo' && (
           <StepFrame
-            title="¿Y el mundo?"
-            help="Es el nombre de la partida guardada. Si lo dejas vacío, se llama como el servidor."
+            title={t('vh.wizard.world.title')}
+            help={t('en.wizard.world.help')}
           >
             <input
               value={worldName}
@@ -230,27 +233,27 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               }}
             />
             <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-              Más adelante podrás crear otros mundos y cambiar de uno a otro sin perder este.
+              {t('vh.wizard.world.more')}
             </div>
           </StepFrame>
         )}
 
         {stage === 'gente' && (
           <StepFrame
-            title="¿Cuánta gente vais a ser?"
-            help="Decide las plazas del servidor. Se puede cambiar después."
+            title={t('wizard.players.title')}
+            help={t('en.wizard.players.help')}
           >
-            <Choices options={PLAYER_CHOICES} value={players} onChange={setPlayers} columns={1} />
+            <Choices options={playerChoices()} value={players} onChange={setPlayers} columns={1} />
           </StepFrame>
         )}
 
         {stage === 'claves' && (
           <StepFrame
-            title="Las dos contraseñas"
-            help="En Enshrouded no hay una contraseña del servidor: hay una por rol, y la que usas al entrar decide lo que puedes hacer dentro."
+            title={t('en.wizard.passwords.title')}
+            help={t('en.wizard.passwords.help')}
           >
             <div className="field" style={{ textAlign: 'left' }}>
-              <label>Administrador — para ti</label>
+              <label>{t('en.wizard.adminLabel')}</label>
               <input
                 type="text"
                 value={adminPassword}
@@ -258,53 +261,46 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
                 autoFocus
                 onChange={(e) => setAdminPassword(e.target.value)}
               />
-              <div className="help">
-                Con esta puedes construir donde quieras, abrir cualquier cofre y echar o vetar a
-                alguien desde el propio juego.
-              </div>
+              <div className="help">{t('en.wizard.adminHelp')}</div>
             </div>
 
             <div className="field" style={{ textAlign: 'left' }}>
-              <label>Amigo — para los demás</label>
+              <label>{t('en.wizard.friendLabel')}</label>
               <input
                 type="text"
                 value={friendPassword}
                 maxLength={40}
                 onChange={(e) => setFriendPassword(e.target.value)}
               />
-              <div className="help">
-                Pueden construir, picar y abrir cofres, pero no echar a nadie ni tocar los altares
-                que marcan hasta dónde llega cada base.
-              </div>
+              <div className="help">{t('en.wizard.friendHelp')}</div>
             </div>
 
             {(adminPassword.trim().length > 0 || friendPassword.trim().length > 0) &&
               (!adminOk || !friendOk) && (
                 <div className="alert error" style={{ textAlign: 'left' }}>
-                  <strong>Se quedan cortas</strong>
-                  <p>Pon al menos {MIN_PASSWORD_LENGTH} caracteres en las dos.</p>
+                  <strong>{t('en.wizard.tooShort')}</strong>
+                  <p>{t('en.wizard.tooShortText', { min: MIN_PASSWORD_LENGTH })}</p>
                 </div>
               )}
             {!distintas && (
               <div className="alert error" style={{ textAlign: 'left' }}>
-                <strong>Son la misma</strong>
-                <p>
-                  Si dos roles comparten contraseña, el servidor no sabe cuál de los dos darle a
-                  quien entra, y ni siquiera arranca.
-                </p>
+                <strong>{t('en.wizard.same')}</strong>
+                <p>{t('en.wizard.sameText')}</p>
               </div>
             )}
             <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-              Se ven a propósito: las vas a tener que repartir. En modo avanzado hay dos roles más
-              (Invitado y Visitante) para quien solo venga de visita.
+              {t('en.wizard.visible', {
+                guest: t('en.role.Guest'),
+                visitor: t('en.role.Visitor')
+              })}
             </div>
           </StepFrame>
         )}
 
         {stage === 'dificultad' && (
           <StepFrame
-            title="¿Cómo de duro lo queréis?"
-            help="Afecta a todo el mundo por igual. Se puede cambiar después desde Configuración."
+            title={t('vh.wizard.difficulty.title')}
+            help={t('vh.wizard.difficulty.help', { section: t('panel.configuration') })}
           >
             <Choices
               options={SIMPLE_PRESETS.map((p) => ({
@@ -317,119 +313,87 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               columns={1}
             />
             <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-              En modo avanzado se puede afinar cada cosa por separado: vida, hambre, cantidad de
-              bichos, duración del día…
+              {t('en.wizard.difficultyMore')}
             </div>
           </StepFrame>
         )}
 
         {stage === 'conexion' && (
           <StepFrame
-            title="¿Desde dónde se van a conectar?"
-            help="Si alguien jugará desde otra casa, hay que abrir el router o usar un túnel."
+            title={t('wizard.connection.title')}
+            help={t('en.wizard.connection.help')}
           >
             <Choices options={CONNECTIONS} value={connection} onChange={setConnection} columns={1} />
             <div className="alert warn" style={{ textAlign: 'left', marginTop: 14 }}>
-              <strong>Enshrouded siempre sale en su lista de servidores</strong>
-              <p>
-                El juego no tiene forma de crear un servidor privado: en cuanto arranca se anuncia
-                con la dirección de tu casa, elijas lo que elijas aquí. Lo que sí impide que entre
-                cualquiera son las contraseñas de los roles, que ya has puesto.
-              </p>
+              <strong>{t('en.wizard.publicTitle')}</strong>
+              <p>{t('en.wizard.publicText')}</p>
             </div>
           </StepFrame>
         )}
 
         {stage === 'resumen' && (
           <div className="step-frame">
-            <h2>Todo listo, revísalo</h2>
-            <p className="step-help">
-              Así va a quedar tu servidor. Si algo no cuadra, toca en &quot;cambiar&quot;.
-            </p>
+            <h2>{t('wizard.summary.title')}</h2>
+            <p className="step-help">{t('wizard.summary.help', { change: t('wizard.change') })}</p>
 
             <div className="card" style={{ textAlign: 'left' }}>
-              <SummaryRow label="Nombre" value={name} onEdit={() => edit('nombre')} />
-              <SummaryRow label="Mundo" value={world} onEdit={() => edit('mundo')} />
-              <SummaryRow label="Plazas" value={players} onEdit={() => edit('gente')} />
+              <SummaryRow label={t('wizard.summary.name')} value={name} onEdit={() => edit('nombre')} />
+              <SummaryRow label={t('vh.summary.world')} value={world} onEdit={() => edit('mundo')} />
+              <SummaryRow label={t('en.summary.slots')} value={players} onEdit={() => edit('gente')} />
               <SummaryRow
-                label="Contraseña de admin"
+                label={t('pz.summary.admin')}
                 value={adminPassword}
                 onEdit={() => edit('claves')}
               />
               <SummaryRow
-                label="Contraseña de amigo"
+                label={t('en.summary.friend')}
                 value={friendPassword}
                 onEdit={() => edit('claves')}
               />
               <SummaryRow
-                label="Dificultad"
+                label={t('mc.wizard.summary.difficulty')}
                 value={presetInfo(preset).label}
                 onEdit={() => edit('dificultad')}
               />
               <SummaryRow
-                label="Se conectan"
+                label={t('wizard.summary.connect')}
                 value={labelOf(CONNECTIONS, connection)}
                 onEdit={() => edit('conexion')}
               />
               <SummaryRow
-                label="Puerto"
+                label={t('help.router.port')}
                 value={`${defaultPortFor('enshrouded')} (UDP)`}
-                autoNote="o el primero libre"
+                autoNote={t('pz.summary.portNote')}
               />
               <SummaryRow
-                label="Versión"
-                value="la última de Steam"
-                autoNote="la elige el juego"
+                label={t('version.title')}
+                value={t('wizard.summary.latestSteam')}
+                autoNote={t('wizard.summary.gameChooses')}
                 last
               />
             </div>
 
             <div className="alert info" style={{ textAlign: 'left' }}>
-              <strong>Son 8,8 GB de descarga</strong>
-              <p>
-                Es lo que ocupa el servidor de Enshrouded. Se descarga una vez por servidor y se
-                queda en tu equipo. Conviene tener 6 GB de memoria libres para que arranque, y 12
-                para ir cómodo.
-              </p>
+              <strong>{t('en.wizard.download.title')}</strong>
+              <p>{t('en.wizard.download.text')}</p>
             </div>
 
-            <div className="card" style={{ textAlign: 'left', marginBottom: 0 }}>
-              <h3>Condiciones</h3>
-              <p className="hint">
-                El servidor se descarga de Steam de forma anónima, sin cuenta ni contraseña. Steam
-                pide aceptar su acuerdo para usar sus descargas.
-              </p>
-              <label className="row" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  style={{ width: 16, height: 16, flexShrink: 0 }}
-                />
-                <span>
-                  He leído y acepto el{' '}
-                  <a
-                    href={GAMES.enshrouded.agreements[0]!.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: 'var(--accent)' }}
-                  >
-                    Acuerdo de Suscriptor de Steam
-                  </a>
-                </span>
-              </label>
-            </div>
+            <SteamAgreement basic agreed={agreed} onChange={setAgreed} />
           </div>
         )}
 
         <div className="row between wizard-nav">
           <button onClick={back}>
-            {editing ? 'Volver al resumen' : stepIndex <= 0 && onStep ? 'Cancelar' : 'Atrás'}
+            {editing
+              ? t('wizard.backToSummary')
+              : stepIndex <= 0 && onStep
+                ? t('common.cancel')
+                : t('wizard.back')}
           </button>
 
           {onStep ? (
             <button className="primary" disabled={!canContinue} onClick={next}>
-              {editing ? 'Listo' : 'Siguiente →'}
+              {editing ? t('wizard.done') : t('wizard.next')}
             </button>
           ) : (
             <button
@@ -437,7 +401,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               disabled={!agreed || !clavesOk}
               onClick={() => void create()}
             >
-              Crear servidor
+              {t('wizard.create')}
             </button>
           )}
         </div>

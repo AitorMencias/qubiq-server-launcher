@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ExposureMode } from '@shared/types'
-import { GAMES, defaultPortFor } from '@shared/games'
+import { defaultPortFor } from '@shared/games'
 import {
   DEFAULT_MAX_PLAYERS,
   MIN_PASSWORD_LENGTH,
@@ -9,6 +9,8 @@ import {
 } from '@shared/games/factorio/types'
 import { D20Loader } from '../../D20Loader'
 import { GameSource, type GameSourceChoice } from './GameSource'
+import { SteamAgreement } from '../../WizardParts'
+import { Rich, t } from '../../i18n'
 
 /**
  * Asistente en modo avanzado de Factorio: todo en una pantalla.
@@ -27,7 +29,7 @@ interface Props {
 
 export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JSX.Element {
   const [source, setSource] = useState<GameSourceChoice | null>(null)
-  const [name, setName] = useState('Mi fábrica')
+  const [name, setName] = useState(() => t('sf.wizard.defaultName'))
   const [description, setDescription] = useState('')
   const [password, setPassword] = useState('')
   const [maxPlayers, setMaxPlayers] = useState(DEFAULT_MAX_PLAYERS)
@@ -86,9 +88,9 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
+            <h3>{t('wizard.preparing')}</h3>
             <p style={{ margin: '10px 0 0', fontSize: 13 }}>
-              {progress?.detail ?? 'Trabajando...'}
+              {progress?.detail ?? t('panel.working')}
             </p>
             {progress?.progress != null && (
               <div className="progress">
@@ -97,7 +99,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -111,57 +113,54 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>El juego</h3>
-        <p className="hint">
-          Factorio no tiene servidor aparte: el servidor es el propio juego, así que hace falta
-          tenerlo. Se copia sin imágenes ni sonidos y queda en unos 250 MB.
-        </p>
+        <h3>{t('fa.create.game')}</h3>
+        <p className="hint">{t('fa.create.gameHint')}</p>
         <GameSource value={source} onChange={setSource} />
       </div>
 
       <div className="card">
-        <h3>Servidor</h3>
+        <h3>{t('panel.tab.server')}</h3>
 
         <div className="field">
-          <label>Nombre</label>
+          <label>{t('wizard.summary.name')}</label>
           <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
-          <div className="help">Es el que verán tus amigos al conectarse.</div>
+          <div className="help">{t('fa.create.nameHelp')}</div>
         </div>
 
         <div className="field">
-          <label>Descripción</label>
+          <label>{t('fa.create.description')}</label>
           <input
             value={description}
             maxLength={200}
-            placeholder={`Servidor de ${name}`}
+            placeholder={t('fa.create.descriptionPlaceholder', { name })}
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
 
         <div className="field">
-          <label>Contraseña</label>
+          <label>{t('vh.summary.password')}</label>
           <input
             type="text"
             value={password}
             maxLength={40}
-            placeholder={`Al menos ${MIN_PASSWORD_LENGTH} caracteres, o vacío`}
+            placeholder={t('vh.create.passwordPlaceholder', { min: MIN_PASSWORD_LENGTH })}
             onChange={(e) => setPassword(e.target.value)}
           />
           {!passwordOk && (
             <div className="help" style={{ color: 'var(--danger)' }}>
-              Hacen falta al menos {MIN_PASSWORD_LENGTH} caracteres, o ninguno.
+              {t('fa.create.passwordShort', { min: MIN_PASSWORD_LENGTH })}
             </div>
           )}
         </div>
 
         <div className="field">
-          <label>Jugadores como mucho</label>
+          <label>{t('details.maxPlayers')}</label>
           <input
             type="number"
             min={1}
@@ -179,10 +178,9 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             style={{ width: 16, height: 16, flexShrink: 0 }}
           />
           <span>
-            <strong>Comprobar con factorio.com quién entra</strong>
+            <strong>{t('fa.create.verify')}</strong>
             <div className="help" style={{ margin: 0 }}>
-              Así nadie entra con el nombre de otro. El servidor consulta a{' '}
-              <code>auth.factorio.com</code> al arrancar.
+              <Rich k="fa.create.verifyHelp" values={{ host: <code>auth.factorio.com</code> }} />
             </div>
           </span>
         </label>
@@ -194,15 +192,15 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             onChange={(e) => setAutoPause(e.target.checked)}
             style={{ width: 16, height: 16, flexShrink: 0 }}
           />
-          <span>Pausar la partida cuando no queda nadie dentro</span>
+          <span>{t('fa.create.autoPause')}</span>
         </label>
       </div>
 
       <div className="card">
-        <h3>Mapa</h3>
+        <h3>{t('fa.summary.map')}</h3>
 
         <div className="field">
-          <label>Ajustes de generación</label>
+          <label>{t('fa.create.mapGen')}</label>
           <select value={preset} onChange={(e) => setPreset(e.target.value as FactorioPreset)}>
             {PRESETS.map((p) => (
               <option key={p.id} value={p.id}>
@@ -214,13 +212,13 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         </div>
 
         <div className="field">
-          <label>Semilla</label>
+          <label>{t('fa.create.seed')}</label>
           <input
             value={seed}
-            placeholder="Vacío = al azar"
+            placeholder={t('fa.create.seedPlaceholder')}
             onChange={(e) => setSeed(e.target.value)}
           />
-          <div className="help">La misma semilla con los mismos ajustes da el mismo mapa.</div>
+          <div className="help">{t('fa.create.seedHelp')}</div>
         </div>
 
         <label className="row" style={{ cursor: spaceAgeImposible ? 'default' : 'pointer' }}>
@@ -232,21 +230,19 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             style={{ width: 16, height: 16, flexShrink: 0 }}
           />
           <span>
-            <strong>Con Space Age</strong>
+            <strong>{t('fa.wizard.spaceAge')}</strong>
             <div className="help" style={{ margin: 0 }}>
-              {spaceAgeImposible
-                ? 'El Factorio elegido no trae la expansión.'
-                : 'Se decide ahora y no se puede cambiar: el mapa se genera con la expansión o sin ella.'}
+              {spaceAgeImposible ? t('fa.create.noExpansion') : t('fa.create.spaceAgeHelp')}
             </div>
           </span>
         </label>
       </div>
 
       <div className="card">
-        <h3>Conexión</h3>
+        <h3>{t('panel.tab.connection')}</h3>
 
         <div className="field">
-          <label>Puerto</label>
+          <label>{t('help.router.port')}</label>
           <input
             type="number"
             min={1024}
@@ -255,55 +251,30 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             onChange={(e) => setPort(Number(e.target.value))}
           />
           <div className="help">
-            Uno solo, <strong>UDP</strong>. La consola remota que usa la app va en el siguiente,
-            pero solo escucha en este equipo: no hay que abrirla.
+            <Rich k="fa.create.portHelp" values={{ udp: <strong>UDP</strong> }} />
           </div>
         </div>
 
         <div className="field">
-          <label>¿Cómo van a entrar?</label>
+          <label>{t('vh.create.howJoin')}</label>
           <select
             value={connection}
             onChange={(e) => setConnection(e.target.value as ExposureMode)}
           >
-            <option value="local">Solo en mi casa (misma red)</option>
-            <option value="router">Abriendo el puerto en el router</option>
-            <option value="tunnel">Con playit.gg</option>
+            <option value="local">{t('connection.mode.local')}</option>
+            <option value="router">{t('fa.create.routerOption')}</option>
+            <option value="tunnel">{t('vh.create.tunnelOption')}</option>
           </select>
         </div>
       </div>
 
-      <div className="card">
-        <h3>Condiciones</h3>
-        <p className="hint">
-          El juego viene de Steam, copiado de tu instalación o descargado con tu cuenta.
-        </p>
-        <label className="row" style={{ cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            style={{ width: 16, height: 16, flexShrink: 0 }}
-          />
-          <span>
-            He leído y acepto el{' '}
-            <a
-              href={GAMES.factorio.agreements[0]!.url}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: 'var(--accent)' }}
-            >
-              Acuerdo de Suscriptor de Steam
-            </a>
-          </span>
-        </label>
-      </div>
+      <SteamAgreement agreed={agreed} onChange={setAgreed} hint={t('fa.create.steamHint')} />
 
       <div className="row">
         <button className="primary" disabled={!canCreate} onClick={() => void create()}>
-          Crear servidor
+          {t('wizard.create')}
         </button>
-        <button onClick={onCancel}>Cancelar</button>
+        <button onClick={onCancel}>{t('common.cancel')}</button>
       </div>
     </div>
   )

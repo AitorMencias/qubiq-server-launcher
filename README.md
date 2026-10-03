@@ -88,6 +88,17 @@ Funciones disponibles:
   **en caliente**, y Oxide se repone solo tras cada actualización en cuanto sale el suyo
 - **Varios servidores a la vez** — antes de arrancar uno más, la app suma lo que usan los que están
   en marcha y avisa si no cabe. El selector de juego compara lo que pide cada uno en una tabla
+- **Diez idiomas** — español, inglés, ruso, alemán, italiano, francés, portugués, chino, hindi y
+  japonés. Arranca en el de Windows (si no está, en inglés) y se cambia en *Configuración de la app*.
+  Los mensajes que genera el núcleo (errores de instalación o arranque) siguen en español por ahora
+- **Configuración de la app** — idioma, modo y **carpeta de datos**: se puede llevar a otro disco;
+  antes se comprueba si cabe y si algo lo impide, y el traslado se hace al volver a abrir la app
+- **Control remoto** — arrancar, parar, reiniciar y ver la consola desde el móvil u otro PC, con una
+  página que sirve la propia app por HTTPS. **Solo esas órdenes**: desde fuera no se toca la
+  configuración, los ficheros ni el equipo. Cada dispositivo se empareja con un código, firma cada
+  orden y tiene sus permisos: **qué servidores ve** (ninguno de serie; se marcan uno a uno), si puede
+  arrancar y parar, y la consola (de solo lectura salvo que se dé más). Cada servidor enseña quién está
+  jugando. Desactivado de serie; activado, la app se queda en la bandeja al cerrar la ventana
 
 ---
 
@@ -120,7 +131,7 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run build` | Compila a `out/` |
 | `npm start` | Ejecuta lo compilado |
 | `npm run typecheck` | Comprueba tipos de los tres lados (main, preload, renderer) |
-| `npm run smoke` | 1095 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, frecuencia de las copias automáticas (límites y recomendación), reinicio, red y que no haya caracteres de control invisibles en el código. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro; y sus mods de ficsit.app, contra el `.uplugin` y el registro reales de SML (elegir versión según la build del juego, descartar los mods de solo cliente y traducir la lista de lo que ha cargado), con una sección de contrato contra la API de verdad. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación; y sus mods de Thunderstore, contra el `LogOutput.log` real de BepInEx (dónde acaba cada fichero de un paquete, identificadores y dependencias, y no confundir los errores de vídeo del propio juego con problemas de mods), con una sección de contrato contra la API de verdad. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Project Zomboid, contra los ficheros reales de su servidor (su `servertest.ini` de 144 claves, su `SandboxVars.lua` de 300 opciones y su registro): aislamiento de la carpeta del usuario, Steam apagado, claves que gestiona la app, lectura del registro sin enseñar la IP de quien entra, editor de tablas Lua (ida y vuelta byte a byte, límites con coma decimal y nombres de cada valor), aplicar un preajuste de dificultad sobre el fichero comentado, que las reglas del modo básico existan de verdad en el juego, y los mods del taller (leer un `mod.info` real, la regla de las carpetas de versión medida contra el servidor, las tres claves que se le escriben y las salidas reales de SteamCMD al descargar, incluidas las que fallan con código 0). De Enshrouded, contra las grabaciones reales de su servidor: que **ninguna línea de la consola enseñe la IP pública** que él escribe en su registro, que tocar un ajuste obligue a poner el preajuste en «Custom» (con cualquier otro los ignora en silencio, y está medido), que la lista de vetados se escriba con el nombre que usa el servidor (`bannedAccounts`) y no con el que dice su propio README (`bans`), que los cuatro preajustes de dificultad digan ajuste a ajuste lo que el servidor aplica de verdad, que los 37 ajustes de la pantalla sean claves que el juego reconoce, su consulta de Steam, las dos reglas de los roles que el servidor trata como error interno, y la salida de su cargador de mods. De Rust, contra las grabaciones reales de su servidor (registro, consola remota, consulta de Steam y la ayuda de cada variable que da el propio servidor): que **ninguna línea enseñe la IP pública ni la contraseña de la consola remota**, que se tiren las líneas que el servidor escribe dos veces, que la consola remota recoja todas las respuestas de una orden y distinga el silencio de una orden que no existe, que **la sesión haga todas las órdenes por una sola conexión** (Rust admite cuatro por dirección y no suelta las cerradas), la línea de órdenes (consola remota en 127.0.0.1 y nada negativo), `server.cfg`, `users.cfg` y `bans.cfg`, que los valores de serie de los ajustes sean los del servidor, las fechas del borrado mensual con el cambio de hora, qué borra un borrado (los planos, solo si se pide), cuándo vale una Oxide para la build instalada y la cabecera y las dependencias de un plugin. De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON, .properties y Lua, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
+| `npm run smoke` | 1334 comprobaciones. Comunes: migración del manifiesto, un juego falso que recorre el contrato entero, frecuencia de las copias automáticas (límites y recomendación), reinicio, red y que no haya caracteres de control invisibles en el código. Idiomas: que los diez tengan las mismas claves y **las mismas variables** que el español, los plurales que pide cada idioma, nada sin traducir, que ningún catálogo enseñe una clave sin texto (las montadas con plantillas) en ninguno de los diez, elegir idioma según Windows y guardarlo. Control remoto: lo que se rechaza (firma mala, repetida o caducada, servidor inventado o que no es de ese dispositivo, dispositivo quitado o sin permiso, comando fuera de la lista del nivel 2, campos de más, códigos adivinados), IP enmascaradas en la consola, que un servidor borrado salga de todos los dispositivos (y uno nuevo con su nombre no herede el permiso), qué jugadores dice cada juego, límites y bloqueo, y una vuelta por HTTPS con el certificado de Windows (cabeceras, compresión y que no sale ningún fichero que no sea la página). Carpeta de datos: la comprobación previa (misma carpeta, anidadas, espacios, red, destino ocupado, servidores encendidos, ruta de los mods de Valheim) y el traslado renombrando y copiando, sin tocar lo de Electron ni lo que ya hubiera en el destino. De Steam, contra respuestas reales grabadas: SteamCMD, RCON, A2S, WebRCON, parada con Ctrl+Break, puertos UDP, Visual C++ y firmas. De Satisfactory, contra las respuestas reales grabadas de su API: reclamar, estado, partidas, ajustes, errores, argumentos de arranque y lectura de su registro; y sus mods de ficsit.app, contra el `.uplugin` y el registro reales de SML (elegir versión según la build del juego, descartar los mods de solo cliente y traducir la lista de lo que ha cargado), con una sección de contrato contra la API de verdad. De Valheim, contra las líneas reales de su registro y la consulta de Steam grabada de su servidor publicado: argumentos de arranque, catálogo de dificultad y modificadores, lectura del registro, A2S, parada, validaciones del asistente y listas de moderación; y sus mods de Thunderstore, contra el `LogOutput.log` real de BepInEx (dónde acaba cada fichero de un paquete, identificadores y dependencias, y no confundir los errores de vídeo del propio juego con problemas de mods), con una sección de contrato contra la API de verdad. De Factorio, contra las líneas reales de su registro con un cliente de verdad entrando y hablando: lectura del registro (entradas, salidas, chat, rechazos), diagnóstico de cierres, lo que se le escribe en `server-settings.json` y el interruptor de Space Age. De Project Zomboid, contra los ficheros reales de su servidor (su `servertest.ini` de 144 claves, su `SandboxVars.lua` de 300 opciones y su registro): aislamiento de la carpeta del usuario, Steam apagado, claves que gestiona la app, lectura del registro sin enseñar la IP de quien entra, editor de tablas Lua (ida y vuelta byte a byte, límites con coma decimal y nombres de cada valor), aplicar un preajuste de dificultad sobre el fichero comentado, que las reglas del modo básico existan de verdad en el juego, y los mods del taller (leer un `mod.info` real, la regla de las carpetas de versión medida contra el servidor, las tres claves que se le escriben y las salidas reales de SteamCMD al descargar, incluidas las que fallan con código 0). De Enshrouded, contra las grabaciones reales de su servidor: que **ninguna línea de la consola enseñe la IP pública** que él escribe en su registro, que tocar un ajuste obligue a poner el preajuste en «Custom» (con cualquier otro los ignora en silencio, y está medido), que la lista de vetados se escriba con el nombre que usa el servidor (`bannedAccounts`) y no con el que dice su propio README (`bans`), que los cuatro preajustes de dificultad digan ajuste a ajuste lo que el servidor aplica de verdad, que los 37 ajustes de la pantalla sean claves que el juego reconoce, su consulta de Steam, las dos reglas de los roles que el servidor trata como error interno, y la salida de su cargador de mods. De Rust, contra las grabaciones reales de su servidor (registro, consola remota, consulta de Steam y la ayuda de cada variable que da el propio servidor): que **ninguna línea enseñe la IP pública ni la contraseña de la consola remota**, que se tiren las líneas que el servidor escribe dos veces, que la consola remota recoja todas las respuestas de una orden y distinga el silencio de una orden que no existe, que **la sesión haga todas las órdenes por una sola conexión** (Rust admite cuatro por dirección y no suelta las cerradas), la línea de órdenes (consola remota en 127.0.0.1 y nada negativo), `server.cfg`, `users.cfg` y `bans.cfg`, que los valores de serie de los ajustes sean los del servidor, las fechas del borrado mensual con el cambio de hora, qué borra un borrado (los planos, solo si se pide), cuándo vale una Oxide para la build instalada y la cabecera y las dependencias de un plugin. De Minecraft: lógica pura, mundos, plugins oficiales, configuración de plugins y mods (editores de YAML, TOML, JSON, .properties y Lua, lectura de jars y el recorrido de buscar, leer y guardar), NeoForge (de qué Minecraft es cada versión y su catálogo), servidores a medida (reconocer la carpeta, carpetas que no se pueden traer, moverla sin perder nada, scripts de inicio, copia sin pausas y memoria en `user_jvm_args.txt`) y contrato con las APIs externas |
 | `npm run e2e [dist]` | Ciclo completo con un servidor real: instalar, arrancar, ping, copia en caliente, parada limpia, restauración y borrado. `dist`: `paper` (por defecto), `vanilla`, `fabric`, `forge`, `neoforge` |
 | `npm run e2e:custom` | Servidor a medida de verdad: monta un server pack de NeoForge 1.21.1 con su instalador oficial en una carpeta aparte, lo trae (comprueba que se **mueve**), arranca con su run.bat usando el Java de la app, pone la memoria en `user_jvm_args.txt`, para limpio sin quedarse en el `pause` y, con un script que se reinicia solo, comprueba que forzar el cierre mata también a Java |
 | `npm run e2e:restart` | Reinicio a petición del servidor: comprueba que reinicia cuando el plugin lo pide y que **no** reinicia cuando la parada es manual |
@@ -130,6 +141,7 @@ que falte la primera vez y arranca el modo desarrollo.
 | `npm run e2e:zomboid` | Project Zomboid de verdad: instalar, primer arranque que escribe la configuración y genera el mundo, puerto UDP (y comprobar que el segundo **no** se abre sin Steam), jugadores por RCON, ajustes en caliente, cuentas y niveles de acceso, reglas de la partida con el servidor parado, copia en caliente, parada con `quit`, **un mod real del taller que el servidor carga de verdad**, restauración y **comprobar que no se ha tocado `%USERPROFILE%\Zomboid`**. Guarda una copia del juego en `%LOCALAPPDATA%\qubiq-dev\e2e-zomboid-juego` y la **mueve** dentro de la instancia: **no se puede enlazar**, porque Zomboid no arranca si llega a su carpeta por un `mklink /J`. `-- --descargar` baja los 6,7 GB de cero. Arranca sin Steam: no se anuncia en ningún sitio |
 | `npm run e2e:enshrouded` | Enshrouded de verdad: instalar, comprobar el fichero de configuración que se le escribe, arrancar, un solo puerto UDP (y que **no** abre el siguiente), su consulta de Steam, **la trampa del preajuste medida en vivo** (se toca un ajuste, se arranca y el propio servidor dice por consola que aplica «Custom»), que un veto puesto desde el juego sobreviva a que la app reescriba el fichero, copia en caliente, parada con Ctrl+Break, parar mientras arranca, mundos, **un mod real que Shroudtopia carga de verdad** (con su cargador, apagarlo, encenderlo y quitarlo) y restauración. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\enshrouded` con un enlace; `-- --descargar` baja los 8,8 GB de cero. ⚠ **Esta prueba publica el servidor**: Enshrouded no se puede arrancar sin anunciarse |
 | `npm run e2e:rust` | Rust de verdad, con un mapa de 1000 m para que no tarde: instalar, `server.cfg`, arrancar, **ni IP ni contraseña ni líneas dobladas en la consola**, puertos (la consola remota solo en 127.0.0.1, Rust+ cerrado), su consulta de Steam, la consola de la app, ajustes preguntados al servidor, **una sola conexión a la consola remota tras medio minuto de sondeo**, moderación en caliente y con el servidor parado, copia en caliente, parada con `quit`, parar mientras genera el mapa sin matarlo, **Oxide con un plugin de uMod, otro en caliente y quitarlo dejando los DLL idénticos a los de Steam**, borrado con el servidor en marcha y restaurar una copia de antes del borrado con su semilla. Reutiliza la instalación de `%LOCALAPPDATA%\qubiq-dev\steam\rust` con un enlace; `-- --descargar` baja los 5,5 GB de cero. ⚠ **Esta prueba publica el servidor**: Rust no se puede arrancar sin anunciarse |
+| `npm run e2e:remote` | Control remoto contra un Paper de verdad, todo por HTTPS y con órdenes firmadas: emparejar dos dispositivos, arrancar (y que el de solo mirar no pueda), la consola en vivo, `list` sí y `op` no con el nivel 2, reiniciar con parada limpia, parar y el registro de actividad. Escucha solo en 127.0.0.1 |
 | `npm run e2e:steam` | Cimientos de Steam con servidores reales: descarga y firma de SteamCMD, instalación de Valheim (~2 GB) con progreso, segunda ejecución sin descarga, comprobación de actualizaciones, viaje de ida y vuelta a una rama anterior y parada con Ctrl+Break que guarda el mundo. Lo descargado se reutiliza entre ejecuciones (`%LOCALAPPDATA%\qubiq-dev\e2e-steam`); `-- --limpio` empieza de cero |
 
 `npm run smoke` es el que avisa cuando una API de terceros cambia. La v2 de Paper murió de un día
@@ -179,6 +191,9 @@ Los servidores, mundos, copias y runtimes de Java viven en `%APPDATA%\qubiq-serv
   fijada explícitamente en [`main/index.ts`](src/main/index.ts) en vez de derivarse del nombre de la
   app (que cambia entre una y otra).
 
+Se pueden llevar a otra carpeta desde *Configuración de la app → Carpeta de datos*. La de siempre
+sigue guardando la configuración de Electron y `data-location.json`, que dice dónde están los datos.
+
 ---
 
 ## Arquitectura
@@ -191,13 +206,20 @@ puerta abierta a una CLI o un panel web sin reescribir nada.
 src/
 ├── shared/                  Tipos y contrato IPC (los usan ambos lados)
 │   ├── types.ts             Lo común: manifiesto v2, estado, copias, conexión
+│   ├── i18n/                Idiomas: t(), plurales y formatos; locales/<idioma>/<área>.ts
+│   ├── dataFolder.ts        Carpeta de datos y su traslado, en códigos (la interfaz los dice)
+│   ├── remote.ts            Control remoto: órdenes, texto que se firma, niveles de consola, IP fuera
 │   └── games/               Catálogo de juegos (nombre, condiciones, capacidades)
 │       └── minecraft/       Tipos de Minecraft y catálogo de plugins oficiales
 ├── main/
 │   ├── index.ts             Proceso principal: ventana, cierre limpio, antisuspensión
+│   ├── dataFolder.ts        Dónde están los datos y el traslado pendiente, al arrancar
 │   ├── ipc/                 Puente comandos/eventos: común + canales `minecraft:`
 │   └── core/                EL NÚCLEO — sin dependencias de Electron
 │       ├── paths.ts         Rutas en disco (todo lo específico de Windows vive aquí)
+│       ├── dataFolder/      Comprobar y hacer el traslado de la carpeta de datos
+│       ├── remote/          Control remoto: servidor HTTPS, certificado, firmas, defensas y la
+│       │                    tabla de órdenes (lo único que se puede hacer desde fuera)
 │       ├── net/             HTTP con caché degradable, descargas verificadas, IPs y puertos
 │       │                    (TCP y UDP), RCON, WebRCON, consulta A2S y servidores de Steam
 │       ├── formats/         Clave=valor que preserva comentarios y VDF de Valve (solo lectura)
@@ -250,6 +272,8 @@ src/
     ├── App.tsx, ServerPanel.tsx…   Armazón común (botón grande, jugadores, consola, copias)
     ├── GameChooser.tsx, WizardParts.tsx  Elegir juego y las piezas del asistente básico
     ├── CatalogModsPanel.tsx  Pestaña de mods de los juegos con cargador y catálogo
+    ├── RemoteAccessCard.tsx  Configuración → Acceso remoto
+    ├── remote/          La página remota (remote.html): emparejar, servidores y consola
     └── games/
         ├── types.ts         Lo que aporta cada juego a la interfaz (GameUi)
         ├── minecraft/       Asistentes, Ajustes, Mundos, Plugins/Mods, plugins oficiales
@@ -276,6 +300,7 @@ Los datos del usuario viven fuera del proyecto, en `%APPDATA%/qubiq-server-launc
 runtimes/          JDKs compartidos (jdk-21, jdk-25...)
 tools/steamcmd/    SteamCMD, compartido por los juegos de Steam
 cache/             Manifiestos e instaladores
+remote/            Acceso remoto: config.json (dispositivos), certificado y actividad
 instances/
   <id>/
     instance.json  Manifiesto v2: la INTENCIÓN del usuario (juego, condiciones y `data` del juego)
@@ -288,6 +313,58 @@ instances/
 ---
 
 ## Cosas que conviene saber antes de tocar el código
+
+**El control remoto es una lista cerrada de órdenes, no un panel.** Lo que se puede hacer desde fuera
+está entero en el `switch` de [`core/remote/orders.ts`](src/main/core/remote/orders.ts): listar,
+arrancar, parar, reiniciar, ver la consola y enviar a la consola. **Ninguna orden puede aceptar
+rutas, ficheros, mods ni configuración**: un plugin, un mod o el `.bat` de un servidor a medida
+corren con los permisos del usuario de Windows, y eso convertiría el acceso a la app en acceso al PC
+(ANALISIS.md §19.31). Más reglas:
+- El texto que se firma lo montan los dos lados con `orderMessage` de `shared/remote.ts`. Si añades
+  un argumento, va ahí y en `parseOrder`, que rechaza cualquier campo que no conozca.
+- La lista del nivel 2 (`LEVEL2_COMMANDS`) es solo de hablar, listar, expulsar y guardar. Nada que dé
+  permisos ni cambie el mundo, y nada encadenado.
+- Lo que sale por la consola remota pasa por `maskAddresses`: las IP de los jugadores no salen.
+- La página (`remote.html`) se compila con la interfaz y la sirve el anfitrión. No usa
+  `window.qubiq`: todo va por `renderer/src/remote/api.ts`, firmado. En `npm run dev` no hay
+  `out/renderer`, así que la página remota solo se sirve tras `npm run build`.
+- Las pruebas escuchan en `127.0.0.1` (`listenHost`; en los recorridos de interfaz,
+  `QUBIQ_REMOTE_LISTEN=127.0.0.1`) para no abrirse a la red de casa.
+- **Cada dispositivo ve solo sus servidores** (`permissions.servers`, ninguno de serie). Uno que
+  existe pero no es suyo da `unknown-server`, igual que uno inventado. El id de un servidor sale de
+  su nombre, así que **al borrar uno se quita de todos los dispositivos** (`service` emite
+  `removed`; al arrancar también se limpian los que ya no existen): si no, otro nuevo con el mismo
+  nombre heredaría el permiso.
+- **Hay una sola copia de la app** (`requestSingleInstanceLock`): con el acceso remoto encendido,
+  cerrar la ventana la esconde en la bandeja. Al salir, el acceso remoto se cierra **síncrono** en
+  `will-quit` (`shutdownNow`). No se cancela la salida para esperar a nada: un segundo `app.quit()`
+  no hace nada, y `app.exit()` dejaba a veces procesos de Chromium huérfanos.
+
+**Idiomas: ningún texto de la interfaz a pelo.** Todo pasa por `t('clave', vars)` de
+`src/shared/i18n` (en la interfaz, desde `renderer/src/i18n.tsx`). Una clave nueva se añade en
+`locales/es/<área>.ts` y en los otros nueve idiomas: el español es la referencia de tipos, así que
+el typecheck falla si falta en alguno, y el smoke si una traducción no usa las mismas `{variables}`.
+Más reglas que ya han mordido (ANALISIS.md §19.29):
+- Los textos de un catálogo (ajustes, preajustes, roles, tamaños de mapa) son **getters**
+  (`labelled`, `choice`, `get label()`), para que salgan en el idioma del momento. Lo que se manda
+  por IPC se copia antes (`localizedCatalog`): el clon estructurado no lleva getters.
+- Una clave montada con plantilla (`` `mc.prop.${key}.label` ``) que no existe se enseña tal cual;
+  el smoke recorre los catálogos en los diez idiomas buscando textos con forma de clave.
+- Plurales con `{ one, other }` (el ruso además `few` y `many`; chino y japonés solo `other`), no con
+  `count === 1 ? … : …`. Listas con `formatList`, comillas con `quote`, tamaños con `formatSize`,
+  `formatBytes` y `unitLabel` (ГБ en ruso, Go en francés), fechas con `formatDate*`.
+- Un número dentro de una frase se interpola sin separador de miles (son puertos y semillas). Si es
+  una cantidad, se pasa ya formateada con `formatNumber`.
+- Trozos que no son texto (`<strong>`, `<code>`) con `<Rich k="clave" values={…} />`, nunca
+  partiendo la frase en varias claves: el orden de las palabras cambia de un idioma a otro.
+- El núcleo todavía devuelve frases en español. Lo nuevo que tenga que contar algo a la interfaz
+  debería devolver un código con datos, como `shared/dataFolder.ts`.
+
+**La carpeta de datos se puede mover.** Lo que se mueve es la lista cerrada `DATA_ENTRIES` de
+`paths.ts`: si creas algo nuevo directamente en la raíz de datos, añádelo ahí o se quedará atrás.
+Nunca uses `app.getPath('userData')` para datos de la app: usa `dataRoot()`. El traslado se hace al
+arrancar, antes que el núcleo (`main/dataFolder.ts`); Chromium guarda lo suyo aparte, en
+`userData\electron` (`sessionData`), porque su `Cache` y nuestra `cache` eran la misma carpeta.
 
 **No compares versiones de Minecraft como strings.** Conviven el versionado por año (`26.2`) y el
 histórico (`1.21.8`), y `26.2` es *más nueva* que `1.21.11`. El orden autoritativo es el índice del

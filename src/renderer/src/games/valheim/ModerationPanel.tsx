@@ -5,6 +5,7 @@ import {
   type ValheimListEntry,
   type ValheimListKind
 } from '@shared/games/valheim/types'
+import { Rich, t } from '../../i18n'
 
 /**
  * Moderación de un servidor de Valheim.
@@ -80,23 +81,22 @@ export function ModerationPanel({ state }: Props): React.JSX.Element {
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>No se pudo cambiar la lista</strong>
+          <strong>{t('vh.mod.listFailed')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       <div className="alert info">
-        <strong>Valheim modera por identificador, no por nombre</strong>
+        <strong>{t('vh.mod.byIdTitle')}</strong>
         <p>
-          El servidor no dice cómo se llama el personaje de nadie: solo su identificador de Steam,
-          que es el número largo que aparece en la consola cuando alguien entra. Es lo que va en
-          estas listas.
+          {t('vh.mod.byIdText')}
           {running && players.length > 0 && (
             <>
               {' '}
-              Para moderar a quien está dentro ahora mismo, es más cómodo hacerlo desde{' '}
-              <strong>Jugadores</strong>, en la pantalla del servidor: ahí sale cada uno con sus
-              botones.
+              <Rich
+                k="vh.mod.usePlayers"
+                values={{ players: <strong>{t('panel.tab.players')}</strong> }}
+              />
             </>
           )}
         </p>
@@ -112,7 +112,7 @@ export function ModerationPanel({ state }: Props): React.JSX.Element {
 
             {entries.length === 0 ? (
               <div className="help" style={{ marginBottom: 14 }}>
-                Lista vacía. {list.emptyMeans}
+                {t('vh.mod.emptyList')} {list.emptyMeans}
               </div>
             ) : (
               entries.map((entry) => (
@@ -130,7 +130,7 @@ export function ModerationPanel({ state }: Props): React.JSX.Element {
                       )
                     }
                   >
-                    Quitar
+                    {t('catalog.remove')}
                   </button>
                 </div>
               ))
@@ -138,11 +138,10 @@ export function ModerationPanel({ state }: Props): React.JSX.Element {
 
             {list.kind === 'permitted' && entries.length > 0 && (
               <div className="alert warn">
-                <strong>Con esta lista puesta, solo entra quien esté en ella</strong>
+                <strong>{t('vh.mod.onlyListed')}</strong>
                 <p>
-                  Asegúrate de que estás tú: si no, te quedarás fuera de tu propio servidor.
-                  {candidates.length > 0 &&
-                    ' Y de los que están dentro ahora mismo, los que no estén en la lista no podrán volver a entrar.'}
+                  {t('vh.mod.onlyListedText')}
+                  {candidates.length > 0 && ` ${t('vh.mod.onlyListedInside')}`}
                 </p>
               </div>
             )}
@@ -151,7 +150,7 @@ export function ModerationPanel({ state }: Props): React.JSX.Element {
               <input
                 className="grow"
                 value={drafts[list.kind] ?? ''}
-                placeholder="Identificador de Steam (17 dígitos)"
+                placeholder={t('vh.mod.idPlaceholder')}
                 onChange={(e) => setDrafts((prev) => ({ ...prev, [list.kind]: e.target.value }))}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') add(list.kind, drafts[list.kind] ?? '')
@@ -162,7 +161,7 @@ export function ModerationPanel({ state }: Props): React.JSX.Element {
                 disabled={busy || (drafts[list.kind] ?? '').trim().length === 0}
                 onClick={() => add(list.kind, drafts[list.kind] ?? '')}
               >
-                Añadir
+                {t('mc.official.add')}
               </button>
             </div>
           </div>
@@ -170,11 +169,9 @@ export function ModerationPanel({ state }: Props): React.JSX.Element {
       })}
 
       <div className="card">
-        <h3>Cómo se sabe el identificador de alguien</h3>
+        <h3>{t('vh.mod.howId')}</h3>
         <p className="hint">
-          En la <strong>consola</strong> del servidor, cuando esa persona entra: sale como «Alguien
-          ha entrado (Steam 7656…)». También lo tiene cada uno en su perfil de Steam, en la
-          dirección de su página.
+          <Rich k="vh.mod.howIdText" values={{ console: <strong>{t('vh.mod.console')}</strong> }} />
         </p>
       </div>
     </div>

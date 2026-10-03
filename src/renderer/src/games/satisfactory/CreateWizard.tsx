@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { ExposureMode } from '@shared/types'
-import { GAMES, defaultPortFor } from '@shared/games'
+import { defaultPortFor } from '@shared/games'
 import { RELIABLE_PORT, SERVER_OPTIONS } from '@shared/games/satisfactory/types'
 import { D20Loader } from '../../D20Loader'
 import { MemoryNotice } from './MemoryNotice'
+import { SteamAgreement } from '../../WizardParts'
+import { Rich, t } from '../../i18n'
 
 /**
  * Asistente de Satisfactory en modo avanzado: todo en un formulario.
@@ -20,7 +22,7 @@ interface Props {
 }
 
 export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JSX.Element {
-  const [name, setName] = useState('Mi fábrica')
+  const [name, setName] = useState(() => t('sf.wizard.defaultName'))
   const [sessionName, setSessionName] = useState('')
   const [expectedPlayers, setExpectedPlayers] = useState(4)
   const [adminPassword, setAdminPassword] = useState('')
@@ -86,12 +88,9 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
-            <p className="hint">
-              Descargando Satisfactory (unos 15 GB la primera vez). Después se arranca una vez para
-              reclamarlo y crear la partida.
-            </p>
-            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
+            <h3>{t('wizard.preparing')}</h3>
+            <p className="hint">{t('sf.create.preparingHint')}</p>
+            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? t('panel.working')}</p>
             {progress?.progress != null && (
               <div className="progress">
                 <div style={{ width: `${Math.round(progress.progress * 100)}%` }} />
@@ -99,7 +98,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -113,64 +112,58 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>1. Nombre</h3>
+        <h3>1. {t('wizard.summary.name')}</h3>
         <div className="field">
-          <label>Nombre del servidor</label>
+          <label>{t('wizard.serverName')}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
         </div>
         <div className="field">
-          <label>Nombre de la partida</label>
+          <label>{t('sf.create.sessionName')}</label>
           <input
             value={sessionName}
             placeholder={name}
             onChange={(e) => setSessionName(e.target.value)}
             maxLength={40}
           />
-          <div className="help">
-            Agrupa los guardados y es lo que se ve al entrar. Si lo dejas vacío, se llama como el
-            servidor.
-          </div>
+          <div className="help">{t('sf.create.sessionHelp')}</div>
         </div>
       </div>
 
       <div className="card">
-        <h3>2. Contraseñas</h3>
-        <p className="hint">
-          La de administrador manda en la partida y es la que usa esta app para hablar con el
-          servidor. La otra es la que escriben tus amigos al entrar.
-        </p>
+        <h3>2. {t('sf.create.passwords')}</h3>
+        <p className="hint">{t('sf.create.passwordsHint')}</p>
         <div className="field">
-          <label>Contraseña de administrador</label>
+          <label>{t('sf.wizard.summary.admin')}</label>
           <input
             type="text"
             value={adminPassword}
             onChange={(e) => setAdminPassword(e.target.value)}
             maxLength={40}
-            placeholder="Al menos 4 caracteres"
+            placeholder={t('sf.wizard.admin.placeholder')}
           />
         </div>
         <div className="field">
-          <label>Contraseña para entrar</label>
+          <label>{t('wizard.summary.joinPassword')}</label>
           <input
             type="text"
             value={clientPassword}
             onChange={(e) => setClientPassword(e.target.value)}
             maxLength={40}
-            placeholder="Vacío = sin contraseña"
+            placeholder={t('wizard.password.emptyNone')}
           />
         </div>
       </div>
 
       <div className="card">
-        <h3>3. Jugadores y conexión</h3>
+        <h3>3. {t('sf.create.playersConnection')}</h3>
         <div className="field">
-          <label>Jugadores a la vez: {expectedPlayers}</label>
+          <label>{t('wizard.playersAtOnce', { n: expectedPlayers })}</label>
           <input
             type="range"
             min={1}
@@ -179,14 +172,11 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             value={expectedPlayers}
             onChange={(e) => setExpectedPlayers(Number(e.target.value))}
           />
-          <div className="help">
-            El juego trae cuatro de serie; la app sube el límite al arrancar. Por encima de ocho no
-            hay nada garantizado y depende mucho de tu equipo.
-          </div>
+          <div className="help">{t('sf.create.playersHelp')}</div>
         </div>
 
         <div className="field">
-          <label>Puerto</label>
+          <label>{t('help.router.port')}</label>
           <input
             type="number"
             value={port}
@@ -195,29 +185,29 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             onChange={(e) => setPort(Number(e.target.value))}
           />
           <div className="help">
-            Lo usan el juego (UDP) y el panel del servidor (TCP). Además, Satisfactory abre siempre
-            el <strong>{RELIABLE_PORT}</strong> para su mensajería, y ese no se puede cambiar: por
-            eso solo puede haber un servidor de Satisfactory en marcha a la vez.
+            <Rich k="sf.create.portHelp" values={{ port: <strong>{RELIABLE_PORT}</strong> }} />
           </div>
         </div>
 
         <div className="field">
-          <label>¿Desde dónde se conectan?</label>
+          <label>{t('wizard.fromWhere')}</label>
           <select value={connection} onChange={(e) => setConnection(e.target.value as ExposureMode)}>
-            <option value="local">Solo desde mi red</option>
-            <option value="router">Desde internet, abriendo el router</option>
-            <option value="tunnel">Desde internet, con playit.gg</option>
+            <option value="local">{t('wizard.short.local')}</option>
+            <option value="router">{t('wizard.short.router')}</option>
+            <option value="tunnel">{t('wizard.short.tunnel')}</option>
           </select>
         </div>
       </div>
 
       <div className="card">
-        <h3>4. Ajustes de la partida</h3>
+        <h3>4. {t('sf.create.gameSettings')}</h3>
         <p className="hint">
-          Se pueden cambiar en caliente desde Configuración → Ajustes, con el servidor arrancado.
+          {t('sf.create.gameSettingsHint', {
+            path: `${t('panel.configuration')} → ${t('tab.settings')}`
+          })}
         </p>
         <div className="field">
-          <label>Guardado automático: cada {autosaveMinutes} min</label>
+          <label>{t('sf.create.autosave', { n: autosaveMinutes })}</label>
           <input
             type="range"
             min={1}
@@ -235,47 +225,27 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             onChange={(e) => setAutoPause(e.target.checked)}
             style={{ width: 16, height: 16, flexShrink: 0 }}
           />
-          <span>Pausar la partida cuando no haya nadie conectado</span>
+          <span>{t('sf.create.autoPause')}</span>
         </label>
       </div>
 
       <MemoryNotice totalMemoryMb={totalMemoryMb} players={expectedPlayers} />
 
-      <div className="card">
-        <h3>5. Condiciones</h3>
-        <p className="hint">
-          El servidor se descarga de Steam de forma anónima (15,5 GB). Steam pide aceptar su acuerdo
-          para usar sus descargas.
-        </p>
-        <label className="row" style={{ cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            style={{ width: 16, height: 16, flexShrink: 0 }}
-          />
-          <span>
-            He leído y acepto el{' '}
-            <a
-              href={GAMES.satisfactory.agreements[0]!.url}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: 'var(--accent)' }}
-            >
-              Acuerdo de Suscriptor de Steam
-            </a>
-          </span>
-        </label>
-      </div>
+      <SteamAgreement
+        number={5}
+        agreed={agreed}
+        onChange={setAgreed}
+        hint={t('sf.create.steamHint')}
+      />
 
       <div className="row between">
-        <button onClick={onCancel}>Cancelar</button>
+        <button onClick={onCancel}>{t('common.cancel')}</button>
         <button
           className="primary"
           disabled={!agreed || !adminOk || name.trim().length === 0}
           onClick={() => void create()}
         >
-          Crear servidor
+          {t('wizard.create')}
         </button>
       </div>
     </div>

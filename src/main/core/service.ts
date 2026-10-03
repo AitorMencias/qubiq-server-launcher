@@ -31,6 +31,7 @@ import * as network from './net/network'
 import * as settings from './settings/manager'
 import { serverDir, launcherLogPath, ensureBaseDirs } from './paths'
 import { evaluateRestart } from './runtime/restartPolicy'
+import { ConsoleHistory, type NumberedLine } from './runtime/consoleHistory'
 import { gameFor, gameOf, isKnownGame } from './games/registry'
 import { createMinecraftService, type GameHost } from './games/minecraft/service'
 import { createSatisfactoryService } from './games/satisfactory/service'
@@ -56,6 +57,10 @@ export interface ServiceEvents {
   joinCode: (instanceId: string, code: string | null) => void
   progress: (update: ProgressUpdate) => void
   diagnosis: (instanceId: string, diagnosis: Diagnosis) => void
+  /** Han cambiado los ajustes de la app (el proceso principal sigue el idioma). */
+  settings: (settings: AppSettings) => void
+  /** Se ha borrado un servidor (el control remoto lo quita de cada dispositivo). */
+  removed: (instanceId: string) => void
 }
 
 /**
@@ -78,6 +83,15 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
   private readonly pendingRestarts = new Map<string, NodeJS.Timeout>()
   /** Marcas de tiempo de reinicios recientes, para la política anti-bucle. */
   private readonly restartHistory = new Map<string, number[]>()
+  /** Últimas líneas de cada consola, para quien pregunta desde fuera (§19.31). */
+  private readonly history = new ConsoleHistory()
+
+  constructor() {
+    super()
+    // Todo lo que llega a la consola pasa por el evento `log`, también las
+    // líneas de sistema de la app: escuchar aquí no se deja ninguna.
+    this.on('log', (id: string, line: LogLine) => this.history.push(id, line))
+  }
 
   /** Operaciones exclusivas de Minecraft (propiedades, plugins, mundos). */
   readonly minecraft = createMinecraftService(this)
@@ -114,7 +128,9 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
   }
 
   async updateSettings(changes: Partial<AppSettings>): Promise<AppSettings> {
-    return settings.updateSettings(changes)
+    const updated = await settings.updateSettings(changes)
+    this.emit('settings', updated)
+    return updated
   }
 
   // --- Instancias -----------------------------------------------------------
@@ -291,7 +307,9 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
       await supervisor.stop()
     }
     this.supervisors.delete(id)
+    this.history.forget(id)
     await instances.deleteInstance(id)
+    this.emit('removed', id)
   }
 
   // --- Ejecución ------------------------------------------------------------
@@ -341,6 +359,26 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
   }
 
   /**
+   * Parar (si está en marcha) y volver a arrancar. `stop` no vuelve hasta que
+   * el proceso ha terminado de verdad, así que el arranque no tropieza con
+   * ficheros ni puertos que el anterior aún no ha soltado.
+   */
+  async restart(id: string): Promise<void> {
+    if (this.installing.has(id)) throw new Error('Hay una instalación en curso.')
+    await this.stop(id)
+    await this.start(id)
+  }
+
+  isInstalling(id: string): boolean {
+    return this.installing.has(id)
+  }
+
+  /** Líneas de consola posteriores a `after`, con su número (§19.31). */
+  consoleSince(id: string, after?: number, max?: number): { lines: NumberedLine[]; next: number } {
+    return this.history.since(id, after, max)
+  }
+
+  /**
    * Manda un comando al servidor.
    *
    * Lo normal es la entrada estándar del proceso, pero hay juegos que no la
@@ -377,6 +415,17 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
 
   hasRunningServers(): boolean {
     return [...this.supervisors.values()].some((s) => s.isRunning)
+  }
+
+  /**
+   * Nombres de los servidores encendidos o instalándose. Es lo que impide
+   * cambiar la carpeta de datos de sitio: hay que decir cuáles son.
+   */
+  async busyServerNames(): Promise<string[]> {
+    const manifests = await instances.listInstances()
+    return manifests
+      .filter((manifest) => this.installing.has(manifest.id) || this.isRunning(manifest.id))
+      .map((manifest) => manifest.name)
   }
 
   isRunning(id: string): boolean {

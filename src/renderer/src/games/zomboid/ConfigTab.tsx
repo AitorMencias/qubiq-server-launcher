@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ConfigChange, ConfigOption, EditableConfig } from '@shared/editableConfig'
 import { pathKey } from '@shared/editableConfig'
 import { OptionList, changeOf, sameAsOriginal, type Draft } from './OptionList'
+import { t } from '../../i18n'
 
 /**
  * Una pestaña que edita uno de los dos ficheros de configuración de Zomboid.
@@ -93,7 +94,7 @@ export function ConfigTab({
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -108,8 +109,8 @@ export function ConfigTab({
               y en la otra a la vez, que es lo que hace falta cuando hay 414
               ajustes repartidos entre las dos. */}
           <p className="cfg-count">
-            {config.options.length} opciones
-            {cambios > 0 ? ` · ${cambios} cambiada${cambios === 1 ? '' : 's'}` : ''}
+            {t('cfg.count', { count: config.options.length })}
+            {cambios > 0 ? ` · ${t('pz.cfg.changed', { count: cambios })}` : ''}
           </p>
 
           <div className="row cfg-actions">
@@ -118,11 +119,11 @@ export function ConfigTab({
               disabled={busy || cambios === 0 || blocked !== undefined}
               onClick={() => void guardar()}
             >
-              {busy ? 'Guardando…' : 'Guardar cambios'}
+              {busy ? t('common.saving') : t('common.saveChanges')}
             </button>
             {cambios > 0 && (
               <button disabled={busy} onClick={() => setDrafts(new Map())}>
-                Descartar
+                {t('cfg.discard')}
               </button>
             )}
             {extra}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { InstanceState } from '@shared/types'
 import { modSizeLabel, type ModsView } from '@shared/games/mods'
+import { Rich, t } from '../../i18n'
 
 /**
  * Mods de un servidor de Enshrouded, con Shroudtopia de cargador.
@@ -71,7 +72,7 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
     if (!file) return
     run('add', async () => {
       const next = await window.qubiq.enshrouded.mods.addFile(manifest.id, file)
-      setNotice('Mod instalado. Se cargará la próxima vez que arranques el servidor.')
+      setNotice(t('en.mods.installed'))
       return next
     })
   }
@@ -81,11 +82,11 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
       <div className="panel">
         {error ? (
           <div className="alert error">
-            <strong>No se pudo leer la lista de mods</strong>
+            <strong>{t('en.mods.readFailed')}</strong>
             <p>{error}</p>
           </div>
         ) : (
-          <p className="hint">Leyendo los mods…</p>
+          <p className="hint">{t('en.mods.reading')}</p>
         )}
       </div>
     )
@@ -97,7 +98,7 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -105,25 +106,18 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
 
       {running && (
         <div className="alert info">
-          <strong>El servidor está arrancado</strong>
-          <p>
-            Los mods se cargan al arrancar el proceso, así que para poner o quitar alguno hay que
-            parar el servidor.
-          </p>
+          <strong>{t('vh.settings.running')}</strong>
+          <p>{t('en.mods.runningText')}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Cómo se amplía Enshrouded</h3>
+        <h3>{t('en.mods.howTitle')}</h3>
         <p className="hint">
-          Enshrouded todavía no tiene mods oficiales ni taller de Steam: su estudio dice que
-          llegarán. Mientras tanto, la comunidad usa un cargador, <strong>{loader.name}</strong>,
-          que se pone al lado del ejecutable y carga los mods que dejes en su carpeta.
+          <Rich k="en.mods.howText" values={{ loader: <strong>{loader.name}</strong> }} />
         </p>
         <p className="hint">
-          Los mods se descargan de <strong>Nexus Mods</strong>, que no deja que un programa se los
-          baje por ti sin una cuenta de pago. Así que el fichero lo bajas tú y lo traes aquí: la app
-          se encarga del resto.
+          <Rich k="en.mods.nexusText" values={{ nexus: <strong>Nexus Mods</strong> }} />
         </p>
         <div className="row">
           <button
@@ -131,30 +125,29 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
               void window.qubiq.system.openExternal('https://www.nexusmods.com/games/enshrouded')
             }
           >
-            Abrir Nexus Mods
+            {t('en.mods.openNexus')}
           </button>
           <button onClick={() => void window.qubiq.enshrouded.mods.openFolder(manifest.id)}>
-            Abrir la carpeta de mods
+            {t('mc.content.openFolder.mods')}
           </button>
         </div>
       </div>
 
       <div className="card">
-        <h3>El cargador</h3>
+        <h3>{t('en.mods.loader')}</h3>
         {loader.installed ? (
           <>
             <p className="hint">
-              {loader.name} {loader.version ?? ''} está puesto. Se engancha con un{' '}
-              <code>winmm.dll</code> al lado del ejecutable y va contando por la consola qué mods
-              encuentra y cuáles carga.
+              <Rich
+                k="en.mods.loaderInstalled"
+                vars={{ name: `${loader.name} ${loader.version ?? ''}`.trim() }}
+                values={{ dll: <code>winmm.dll</code> }}
+              />
             </p>
             {update && (
               <div className="alert info">
-                <strong>Hay una versión nueva: {update}</strong>
-                <p>
-                  Conviene ponerla cuando Enshrouded se actualiza: el cargador se engancha a
-                  direcciones concretas del juego y una versión vieja puede dejar los mods a medias.
-                </p>
+                <strong>{t('version.newerNamed', { version: update })}</strong>
+                <p>{t('en.mods.updateText')}</p>
                 <button
                   className="primary"
                   disabled={busy !== null || running}
@@ -162,7 +155,7 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                     run('loader', () => window.qubiq.enshrouded.mods.installLoader(manifest.id))
                   }
                 >
-                  {busy === 'loader' ? 'Actualizando…' : `Actualizar a ${update}`}
+                  {busy === 'loader' ? t('version.updating') : t('catalog.updateTo', { version: update })}
                 </button>
               </div>
             )}
@@ -173,22 +166,19 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                 run('removeLoader', () => window.qubiq.enshrouded.mods.removeLoader(manifest.id))
               }
             >
-              {busy === 'removeLoader' ? 'Quitando…' : 'Quitar el cargador'}
+              {busy === 'removeLoader' ? t('en.mods.removing') : t('en.mods.removeLoader')}
             </button>
             {mods.length > 0 && (
               // `p.hint` y no `.help`: suelta en una tarjeta, `.help` sale a
               // tamaño normal y compite con el texto de arriba.
               <p className="hint" style={{ margin: '8px 0 0' }}>
-                Quita antes los mods: sin cargador se quedarían en el disco sin cargarse.
+                {t('en.mods.removeModsFirst')}
               </p>
             )}
           </>
         ) : (
           <>
-            <p className="hint">
-              Sin cargador, un mod en la carpeta no hace absolutamente nada. Se instala solo al
-              poner el primer mod, o desde aquí.
-            </p>
+            <p className="hint">{t('en.mods.noLoader')}</p>
             <button
               className="primary"
               disabled={busy !== null || running}
@@ -196,25 +186,26 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                 run('loader', () => window.qubiq.enshrouded.mods.installLoader(manifest.id))
               }
             >
-              {busy === 'loader' ? 'Instalando…' : `Instalar ${loader.name}`}
+              {busy === 'loader'
+                ? t('catalog.installing')
+                : t('en.mods.installLoader', { name: loader.name })}
             </button>
           </>
         )}
       </div>
 
       <div className="card">
-        <h3>Mods instalados</h3>
+        <h3>{t('pz.mods.installedTitle')}</h3>
         {mods.length === 0 ? (
           <p className="hint">
-            Todavía no hay ninguno. Baja el fichero del mod de Nexus Mods (un <code>.dll</code>, o
-            un <code>.zip</code> que lo lleve dentro) y tráelo aquí.
+            <Rich k="en.mods.none" values={{ dll: <code>.dll</code>, zip: <code>.zip</code> }} />
           </p>
         ) : (
           mods.map((mod) => (
             <div className="field" key={mod.id}>
               <label>
                 {mod.name}
-                {!mod.enabled && <span className="badge"> apagado</span>}
+                {!mod.enabled && <span className="badge"> {t('catalog.off')}</span>}
               </label>
               <div className="row between">
                 <span className="help">
@@ -230,7 +221,7 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                       )
                     }
                   >
-                    {mod.enabled ? 'Apagar' : 'Encender'}
+                    {mod.enabled ? t('pz.mods.turnOff') : t('pz.mods.turnOn')}
                   </button>
                   <button
                     className="danger"
@@ -239,7 +230,7 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
                       run(mod.id, () => window.qubiq.enshrouded.mods.remove(manifest.id, mod.id))
                     }
                   >
-                    Quitar
+                    {t('catalog.remove')}
                   </button>
                 </div>
               </div>
@@ -252,27 +243,21 @@ export function ModsPanel({ state, onChanged }: Props): React.JSX.Element {
           disabled={busy !== null || running}
           onClick={() => void addFile()}
         >
-          {busy === 'add' ? 'Instalando…' : 'Traer un mod…'}
+          {busy === 'add' ? t('catalog.installing') : t('en.mods.bring')}
         </button>
       </div>
 
       <div className="card">
-        <h3>Lo que conviene saber</h3>
+        <h3>{t('help.tunnel.knowTitle')}</h3>
         <p className="hint">
-          <strong>Apagar un mod es sacar su fichero de la carpeta</strong>, no renombrarlo: el
-          cargador recorre la carpeta entera buscando <code>.dll</code>. La app lo aparta fuera del
-          servidor y lo devuelve al encenderlo.
+          <strong>{t('en.mods.know1Title')}</strong>{' '}
+          <Rich k="en.mods.know1" values={{ dll: <code>.dll</code> }} />
         </p>
         <p className="hint">
-          <strong>Hay mods que también hay que poner en el juego de cada uno.</strong> Los que solo
-          tocan las reglas del servidor valen con ponerlos aquí; los que añaden objetos o cambian lo
-          que se ve, no. Lo dice la ficha de cada mod en Nexus.
+          <strong>{t('en.mods.know2Title')}</strong> {t('en.mods.know2')}
         </p>
         <p className="hint">
-          <strong>Una actualización de Enshrouded puede romperlos.</strong> Este cargador se
-          engancha a direcciones de memoria del juego, así que cuando el juego cambia hay que
-          esperar a que sus autores publiquen versión nueva. Cuando pasa, sale en la consola: «el
-          mod X no encaja con esta versión».
+          <strong>{t('en.mods.know3Title')}</strong> {t('en.mods.know3')}
         </p>
       </div>
     </div>

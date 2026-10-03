@@ -7,6 +7,7 @@ import {
   type ZomboidBannedIp,
   type ZomboidRole
 } from '@shared/games/zomboid/types'
+import { t } from '../../i18n'
 
 /**
  * Las cuentas del servidor de Zomboid.
@@ -81,7 +82,7 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
@@ -89,28 +90,19 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
 
       {!running && (
         <div className="alert info">
-          <strong>Con el servidor parado solo se puede mirar</strong>
-          <p>
-            En Zomboid las cuentas viven dentro de la base de datos del propio servidor, y la única
-            forma honesta de tocarla es pedírselo a él. Arráncalo para poder nombrar
-            administradores, vetar o expulsar.
-          </p>
+          <strong>{t('pz.moderation.stoppedTitle')}</strong>
+          <p>{t('pz.moderation.stoppedText')}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>Cuentas</h3>
-        <p className="hint">
-          Cada jugador se crea la suya la primera vez que entra, con el usuario y la contraseña que
-          escriba. No tienen nada que ver con Steam.
-        </p>
+        <h3>{t('pz.moderation.accounts')}</h3>
+        <p className="hint">{t('pz.moderation.accountsHint')}</p>
 
         {loading ? (
-          <p className="hint">Cargando…</p>
+          <p className="hint">{t('pz.mods.loading')}</p>
         ) : accounts.length === 0 ? (
-          <p className="hint">
-            Todavía no ha entrado nadie. En cuanto alguien entre, su cuenta aparecerá aquí.
-          </p>
+          <p className="hint">{t('pz.moderation.none')}</p>
         ) : (
           <div>
             {accounts.map((account) => (
@@ -122,11 +114,13 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                 <div className="grow" style={{ minWidth: 0 }}>
                   <div className="row" style={{ gap: 8, alignItems: 'center' }}>
                     <strong>{account.username}</strong>
-                    {account.online && <span className="badge">dentro ahora</span>}
+                    {account.online && <span className="badge">{t('pz.moderation.online')}</span>}
                   </div>
                   <div className="help" style={{ margin: 0 }}>
                     {roleInfo(account.role).label} · {roleInfo(account.role).help}
-                    {account.lastConnection ? ` · última vez: ${account.lastConnection}` : ''}
+                    {account.lastConnection
+                      ? ` · ${t('pz.moderation.lastSeen', { date: account.lastConnection })}`
+                      : ''}
                   </div>
                 </div>
 
@@ -144,7 +138,10 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                           account.username,
                           e.target.value as ZomboidRole
                         ),
-                      `${account.username} ahora es ${roleInfo(e.target.value as ZomboidRole).label.toLowerCase()}.`
+                      t('pz.moderation.roleSet', {
+                        user: account.username,
+                        role: roleInfo(e.target.value as ZomboidRole).label
+                      })
                     )
                   }
                 >
@@ -166,11 +163,11 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                   onClick={() =>
                     void run(
                       () => window.qubiq.zomboid.accounts.kick(id, account.username),
-                      `${account.username} ha sido expulsado.`
+                      t('pz.moderation.kicked', { user: account.username })
                     )
                   }
                 >
-                  Echar
+                  {t('fa.action.kick')}
                 </button>
               </div>
             ))}
@@ -179,22 +176,19 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
       </div>
 
       <div className="card">
-        <h3>Dar de alta a alguien</h3>
-        <p className="hint">
-          Hace falta cuando el servidor está cerrado a jugadores nuevos: entonces solo entra quien
-          tenga una cuenta creada por ti. Dale su usuario y su contraseña.
-        </p>
+        <h3>{t('pz.moderation.addTitle')}</h3>
+        <p className="hint">{t('pz.moderation.addHint')}</p>
         <div className="row">
           <input
             className="grow"
-            placeholder="Usuario"
+            placeholder={t('fa.source.user')}
             value={newUser}
             disabled={!running || busy}
             onChange={(e) => setNewUser(e.target.value)}
           />
           <input
             className="grow"
-            placeholder="Contraseña"
+            placeholder={t('vh.summary.password')}
             value={newPassword}
             disabled={!running || busy}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -207,28 +201,27 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                 await window.qubiq.zomboid.accounts.add(id, newUser, newPassword)
                 setNewUser('')
                 setNewPassword('')
-              }, 'Cuenta creada.')
+              }, t('pz.moderation.created'))
             }
           >
-            Crear cuenta
+            {t('pz.moderation.create')}
           </button>
         </div>
       </div>
 
       {bannedIps.length > 0 && (
         <div className="card">
-          <h3>Direcciones vetadas</h3>
-          <p className="hint">
-            Vetar una dirección corta a quien esté detrás de ella, se llame como se llame. Si es una
-            dirección compartida, puede llevarse por delante a más gente.
-          </p>
+          <h3>{t('pz.moderation.bannedIps')}</h3>
+          <p className="hint">{t('pz.moderation.bannedIpsHint')}</p>
           <div>
             {bannedIps.map((banned) => (
               <div className="row between" key={banned.ip} style={{ marginBottom: 8, gap: 10 }}>
                 <div className="grow" style={{ minWidth: 0 }}>
                   <strong>{banned.ip}</strong>
                   <div className="help" style={{ margin: 0 }}>
-                    {banned.username ? `de ${banned.username}` : 'sin nombre'}
+                    {banned.username
+                      ? t('pz.moderation.of', { user: banned.username })
+                      : t('pz.moderation.noName')}
                     {banned.reason ? ` · ${banned.reason}` : ''}
                   </div>
                 </div>
@@ -238,11 +231,11 @@ export function ModerationPanel({ state, onChanged }: Props): React.JSX.Element 
                   onClick={() =>
                     void run(
                       () => window.qubiq.zomboid.accounts.unbanIp(id, banned.ip),
-                      'Veto levantado.'
+                      t('pz.moderation.unbanned')
                     )
                   }
                 >
-                  Levantar el veto
+                  {t('pz.moderation.unban')}
                 </button>
               </div>
             ))}

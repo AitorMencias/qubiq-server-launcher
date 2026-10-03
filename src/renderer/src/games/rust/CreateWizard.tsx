@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ExposureMode } from '@shared/types'
-import { GAMES, defaultPortFor } from '@shared/games'
+import { defaultPortFor } from '@shared/games'
 import {
   DEFAULT_GAME_PORT,
   DEFAULT_WORLD_SIZE,
@@ -18,6 +18,8 @@ import {
 import { D20Loader } from '../../D20Loader'
 import { CheckRow } from '../../CheckRow'
 import { MemoryNotice } from './MemoryNotice'
+import { SteamAgreement } from '../../WizardParts'
+import { formatNumber, t } from '../../i18n'
 
 /**
  * Asistente en modo avanzado de Rust: un formulario con todo a la vista.
@@ -35,7 +37,7 @@ interface Props {
 }
 
 export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JSX.Element {
-  const [name, setName] = useState('Mi Rust')
+  const [name, setName] = useState(() => t('rust.wizard.defaultName'))
   const [description, setDescription] = useState('')
   const [port, setPort] = useState(DEFAULT_GAME_PORT)
   const [players, setPlayers] = useState(8)
@@ -91,11 +93,11 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
-            <p className="hint">
-              Rust ocupa 5,5 GB. El mapa se genera la primera vez que lo arranques, no ahora.
+            <h3>{t('wizard.preparing')}</h3>
+            <p className="hint">{t('rust.create.preparingHint')}</p>
+            <p style={{ margin: '10px 0 0', fontSize: 13 }}>
+              {progress?.detail ?? t('panel.working')}
             </p>
-            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
             {progress?.progress != null && (
               <div className="progress">
                 <div style={{ width: `${Math.round(progress.progress * 100)}%` }} />
@@ -103,7 +105,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -117,41 +119,37 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       <div className="alert warn">
-        <strong>Rust se anuncia siempre</strong>
-        <p>
-          No hay forma de crear un servidor privado: en cuanto arranca sale en la lista de
-          servidores del juego con la dirección de tu casa. Cualquiera que lo encuentre puede entrar;
-          quien moleste se echa y se veta desde la app.
-        </p>
+        <strong>{t('rust.create.publicTitle')}</strong>
+        <p>{t('rust.create.publicText')}</p>
       </div>
 
       <div className="card">
-        <h3>El servidor</h3>
+        <h3>{t('en.create.server')}</h3>
 
         <div className="field">
-          <label>Nombre</label>
+          <label>{t('wizard.summary.name')}</label>
           <input value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
-          <div className="help">Con el que sale en la lista de servidores del juego.</div>
+          <div className="help">{t('en.create.nameHelp')}</div>
         </div>
 
         <div className="field">
-          <label>Descripción</label>
+          <label>{t('fa.create.description')}</label>
           <input
             value={description}
             maxLength={200}
-            placeholder="Opcional: sale en la ficha del servidor dentro del juego"
+            placeholder={t('rust.create.descriptionPlaceholder')}
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
 
         <div className="field">
-          <label>Plazas</label>
+          <label>{t('en.summary.slots')}</label>
           <input
             type="number"
             min={1}
@@ -159,38 +157,36 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
             value={players}
             onChange={(e) => setPlayers(Number(e.target.value))}
           />
-          <div className="help">Entre 1 y {MAX_PLAYERS}.</div>
+          <div className="help">{t('rust.create.slotsHelp', { max: MAX_PLAYERS })}</div>
         </div>
 
         <div className="field">
-          <label>Puerto</label>
+          <label>{t('help.router.port')}</label>
           <input type="number" value={port} onChange={(e) => setPort(Number(e.target.value))} />
           <div className="help">
-            El de juego, por UDP. Rust usa además los dos siguientes: el {rconPortFor(port)} (TCP) para
-            que la app hable con él, solo dentro de este equipo, y el {queryPortFor(port)} (UDP) para
-            la lista de Steam.
+            {t('rust.create.portHelp', { rcon: rconPortFor(port), query: queryPortFor(port) })}
           </div>
         </div>
 
         <CheckRow
-          label="Sin peleas entre jugadores (PvE)"
-          help="Los jugadores no se pueden hacer daño entre ellos. El resto del juego, igual."
+          label={t('rust.create.pve')}
+          help={t('rust.create.pveHelp')}
           checked={pve}
           onChange={setPve}
         />
         <CheckRow
-          label="Rust+ (la app del móvil)"
-          help={`Deja ver el mapa y recibir avisos de la base en el móvil. Necesita abrir un puerto TCP más (el ${rustPlusPortFor(port)}) si se usa desde fuera de casa.`}
+          label={t('rust.create.rustPlus')}
+          help={t('rust.create.rustPlusHelp', { port: rustPlusPortFor(port) })}
           checked={rustPlus}
           onChange={setRustPlus}
         />
       </div>
 
       <div className="card">
-        <h3>El mapa</h3>
+        <h3>{t('rust.create.map')}</h3>
 
         <div className="field">
-          <label>Tamaño</label>
+          <label>{t('rust.create.size')}</label>
           <div className="row" style={{ gap: 10 }}>
             <select
               value={WORLD_SIZES.some((w) => w.size === worldSize) ? String(worldSize) : 'otro'}
@@ -204,7 +200,7 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
                   {w.label} ({w.size} m)
                 </option>
               ))}
-              <option value="otro">Otro</option>
+              <option value="otro">{t('rust.create.other')}</option>
             </select>
             <input
               type="number"
@@ -218,16 +214,20 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
           </div>
           <div className="help">
             {!sizeOk
-              ? `Tiene que estar entre ${MIN_WORLD_SIZE} y ${MAX_WORLD_SIZE} metros.`
+              ? t('rust.create.sizeRange', { min: MIN_WORLD_SIZE, max: MAX_WORLD_SIZE })
               : medido
-                ? `${medido.players[0]!.toUpperCase()}${medido.players.slice(1)}. Medido: unos ${medido.memoryGb.toLocaleString('es-ES')} GB de memoria y ${medido.firstStart} la primera vez.`
-                : 'Cuanto más grande, más memoria y más tarda el primer arranque (unos 5 minutos con 4000).'}
+                ? t('rust.create.measured', {
+                    players: medido.players.charAt(0).toUpperCase() + medido.players.slice(1),
+                    gb: formatNumber(medido.memoryGb),
+                    first: medido.firstStart
+                  })
+                : t('rust.create.sizeHelp')}
           </div>
         </div>
         <MemoryNotice worldSize={sizeOk ? worldSize : DEFAULT_WORLD_SIZE} />
 
         <div className="field">
-          <label>Semilla</label>
+          <label>{t('fa.create.seed')}</label>
           <div className="row" style={{ gap: 10 }}>
             <input
               type="number"
@@ -238,88 +238,62 @@ export function CreateWizard({ onCancel, onCreated, progress }: Props): React.JS
               style={{ flex: 1 }}
             />
             <button style={{ flex: 'none' }} onClick={() => setSeed(randomSeed())}>
-              Otra al azar
+              {t('rust.create.otherSeed')}
             </button>
           </div>
           <div className="help">
-            {seedOk
-              ? 'Decide la forma del mapa: la misma semilla con el mismo tamaño da siempre el mismo terreno.'
-              : `Tiene que ser un número entre 1 y ${MAX_SEED}.`}
+            {seedOk ? t('rust.create.seedHelp') : t('rust.create.seedRange', { max: MAX_SEED })}
           </div>
         </div>
       </div>
 
       <div className="card">
-        <h3>El borrado de cada mes</h3>
-        <p className="hint">
-          El primer jueves de cada mes sale una actualización de Rust que obliga a actualizar el
-          servidor y empieza un mapa nuevo. Aquí decides qué hace la app cuando llega.
-        </p>
+        <h3>{t('rust.create.wipeTitle')}</h3>
+        <p className="hint">{t('rust.create.wipeHint')}</p>
         <CheckRow
-          label="Hacerlo sola en cuanto salga la actualización"
-          help="Guarda una copia, actualiza, borra el mapa y vuelve a arrancar. Con la app cerrada, lo hace al abrirla. Apagado, sale un aviso con un botón."
+          label={t('rust.wipe.auto')}
+          help={t('rust.wipe.autoHelp')}
           checked={autoWipe}
           onChange={setAutoWipe}
         />
         <CheckRow
-          label="Mapa con otra forma cada mes"
-          help="Una semilla nueva en cada borrado. Apagado, el terreno se repite y solo se pierde lo construido."
+          label={t('rust.wipe.newSeed')}
+          help={t('rust.wipe.newSeedHelp')}
           checked={newSeed}
           onChange={setNewSeed}
         />
         <CheckRow
-          label="Borrar también los planos aprendidos"
-          help="Todo el mundo vuelve a aprender a fabricar desde cero. Facepunch lo hace él mismo algunos meses."
+          label={t('rust.wipe.blueprints')}
+          help={t('rust.wipe.blueprintsHelp')}
           checked={blueprints}
           onChange={setBlueprints}
         />
       </div>
 
       <div className="card">
-        <h3>Cómo se conectan</h3>
+        <h3>{t('en.create.howConnect')}</h3>
         <div className="field">
-          <label>Desde dónde</label>
+          <label>{t('en.create.fromWhere')}</label>
           <select value={connection} onChange={(e) => setConnection(e.target.value as ExposureMode)}>
-            <option value="local">Solo desde mi red</option>
-            <option value="router">Abriendo los puertos en el router</option>
-            <option value="tunnel">Con playit.gg</option>
+            <option value="local">{t('wizard.short.local')}</option>
+            <option value="router">{t('vh.create.routerOption')}</option>
+            <option value="tunnel">{t('vh.create.tunnelOption')}</option>
           </select>
           <div className="help">
-            Se puede cambiar después en Configuración → Conexión, con su guía paso a paso.
+            {t('en.create.changeLater', {
+              path: `${t('panel.configuration')} → ${t('panel.tab.connection')}`
+            })}
           </div>
         </div>
       </div>
 
-      <div className="card">
-        <h3>Condiciones</h3>
-        <p className="hint">
-          El servidor se descarga de Steam de forma anónima, sin cuenta ni contraseña.
-        </p>
-        <label className="row" style={{ cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            style={{ width: 16, height: 16, flexShrink: 0 }}
-          />
-          <span>
-            He leído y acepto el{' '}
-            <a
-              href={GAMES.rust.agreements[0]!.url}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: 'var(--accent)' }}
-            >
-              Acuerdo de Suscriptor de Steam
-            </a>
-          </span>
-        </label>
-      </div>
+      <SteamAgreement agreed={agreed} onChange={setAgreed} />
 
       <div className="row between">
-        <button onClick={onCancel}>Cancelar</button>
+        <button onClick={onCancel}>{t('common.cancel')}</button>
         <button className="primary" disabled={!canCreate} onClick={() => void create()}>
-          Crear servidor ({defaultPortFor('rust') === port ? 'puerto de serie' : `puerto ${port}`})
+          {t('wizard.create')} (
+          {defaultPortFor('rust') === port ? t('en.create.defaultPort') : t('en.create.port', { port })})
         </button>
       </div>
     </div>

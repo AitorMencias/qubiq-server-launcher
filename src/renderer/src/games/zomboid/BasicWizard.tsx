@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ExposureMode } from '@shared/types'
-import { GAMES, defaultPortFor } from '@shared/games'
+import { defaultPortFor } from '@shared/games'
 import {
   BASIC_SANDBOX,
   DEFAULT_MEMORY_MB,
@@ -11,7 +11,16 @@ import {
   type ZomboidPreset
 } from '@shared/games/zomboid/types'
 import { D20Loader } from '../../D20Loader'
-import { Choices, StepDots, StepFrame, SummaryRow, labelOf, type Option } from '../../WizardParts'
+import {
+  Choices,
+  StepDots,
+  StepFrame,
+  SteamAgreement,
+  SummaryRow,
+  labelOf,
+  type Option
+} from '../../WizardParts'
+import { Rich, formatList, formatSize, quote, t } from '../../i18n'
 
 /**
  * Asistente en modo básico de Project Zomboid.
@@ -38,23 +47,14 @@ type Stage = Step | 'resumen'
 
 const STEPS: Step[] = ['nombre', 'clave', 'dificultad', 'zombis', 'conexion']
 
-const CONNECTIONS: Option<ExposureMode>[] = [
-  {
-    value: 'local',
-    title: 'Solo desde mi casa',
-    sub: 'Quien esté en tu mismo wifi o router. No hay que tocar nada más.'
-  },
-  {
-    value: 'router',
-    title: 'Desde cualquier sitio, abriendo el router',
-    sub: 'El mejor ping. Hay que abrir un puerto UDP y no funciona si tu compañía usa CGNAT.'
-  },
-  {
-    value: 'tunnel',
-    title: 'Desde cualquier sitio, con playit.gg',
-    sub: 'Sin tocar el router y funciona con CGNAT, a cambio de algo de latencia.'
-  }
-]
+/** Se construyen al pintar, para que salgan en el idioma de ese momento. */
+function connections(): Option<ExposureMode>[] {
+  return [
+    { value: 'local', title: t('wizard.connection.local'), sub: t('wizard.connection.local.sub') },
+    { value: 'router', title: t('wizard.connection.router'), sub: t('fa.wizard.routerSub') },
+    { value: 'tunnel', title: t('wizard.connection.tunnel'), sub: t('pz.wizard.tunnelSub') }
+  ]
+}
 
 /** La primera pregunta de dificultad: los tres que cubren a casi todo el mundo. */
 const SIMPLE_PRESETS = PRESETS.filter((p) => ['rising', 'survivor', 'apocalypse'].includes(p.id))
@@ -66,7 +66,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
   const [stage, setStage] = useState<Stage>('nombre')
   const [editing, setEditing] = useState(false)
 
-  const [name, setName] = useState('Mi Zomboid')
+  const [name, setName] = useState(() => t('pz.wizard.defaultName'))
   const [adminPassword, setAdminPassword] = useState('')
   const [preset, setPreset] = useState<ZomboidPreset>('survivor')
   /** null = la que traiga la dificultad elegida. */
@@ -147,12 +147,11 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Preparando tu servidor</h3>
-            <p className="hint">
-              Son 6,7 GB de descarga y, después, un primer arranque de un minuto y medio: es el
-              propio Zomboid quien genera el mundo y escribe su configuración. Solo pasa esta vez.
+            <h3>{t('wizard.preparing')}</h3>
+            <p className="hint">{t('pz.wizard.preparingHint')}</p>
+            <p style={{ margin: '10px 0 0', fontSize: 13 }}>
+              {progress?.detail ?? t('panel.working')}
             </p>
-            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
             {progress?.progress != null && (
               <div className="progress">
                 <div style={{ width: `${Math.round(progress.progress * 100)}%` }} />
@@ -160,7 +159,7 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo preparar el servidor</strong>
+                <strong>{t('wizard.prepareFailed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -170,6 +169,8 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
     )
   }
 
+  const CONNECTIONS = connections()
+
   return (
     <div className="panel">
       <div className="wizard">
@@ -177,15 +178,15 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {error && (
           <div className="alert error">
-            <strong>Algo ha fallado</strong>
+            <strong>{t('catalog.error')}</strong>
             <p>{error}</p>
           </div>
         )}
 
         {stage === 'nombre' && (
           <StepFrame
-            title="¿Cómo se va a llamar?"
-            help="Es el nombre que verán tus amigos al añadir el servidor a su lista."
+            title={t('wizard.name.title')}
+            help={t('pz.wizard.name.help')}
           >
             <input
               value={name}
@@ -201,15 +202,15 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'clave' && (
           <StepFrame
-            title="Tu contraseña de administrador"
-            help="Con ella mandas dentro de la partida: echar a alguien, invocar cosas, arreglar destrozos."
+            title={t('pz.wizard.admin.title')}
+            help={t('pz.wizard.admin.help')}
           >
             <input
               type="text"
               value={adminPassword}
               maxLength={40}
               autoFocus
-              placeholder={`Al menos ${MIN_PASSWORD_LENGTH} caracteres, sin espacios`}
+              placeholder={t('pz.password.placeholder', { min: MIN_PASSWORD_LENGTH })}
               onChange={(e) => setAdminPassword(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && canContinue) next()
@@ -217,24 +218,20 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
             />
             {adminPassword.trim().length > 0 && !claveOk && (
               <div className="alert error" style={{ textAlign: 'left', marginTop: 14 }}>
-                <strong>No vale</strong>
-                <p>
-                  Tiene que tener al menos {MIN_PASSWORD_LENGTH} caracteres y no puede llevar
-                  espacios ni comillas: el servidor la recibe en su línea de órdenes.
-                </p>
+                <strong>{t('pz.password.invalid')}</strong>
+                <p>{t('pz.password.invalidText', { min: MIN_PASSWORD_LENGTH })}</p>
               </div>
             )}
             <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-              Entrarás al juego con el usuario <strong>admin</strong> y esta contraseña. Se ve a
-              propósito y queda guardada en este ordenador.
+              <Rich k="pz.wizard.admin.user" values={{ admin: <strong>admin</strong> }} />
             </div>
           </StepFrame>
         )}
 
         {stage === 'dificultad' && (
           <StepFrame
-            title="¿Cómo queréis que sea la partida?"
-            help="Son los mismos preajustes que trae el juego. Después se pueden afinar una a una las trescientas reglas."
+            title={t('pz.wizard.difficulty.title')}
+            help={t('pz.wizard.difficulty.help')}
           >
             <Choices
               options={SIMPLE_PRESETS.map((p) => ({
@@ -247,22 +244,24 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
               columns={1}
             />
             <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-              En modo avanzado están los otros tres: Brote, 6 meses después y Extinción.
+              {t('pz.wizard.difficulty.more', {
+                list: formatList([presetInfo('outbreak').name, presetInfo('sixmonths').name, presetInfo('extinction').name])
+              })}
             </div>
           </StepFrame>
         )}
 
         {stage === 'zombis' && (
           <StepFrame
-            title="¿Cuántos zombis?"
-            help="Es lo que más cambia la partida. Si no lo tienes claro, deja lo que traiga la dificultad."
+            title={t('pz.wizard.zombies.title')}
+            help={t('pz.wizard.zombies.help')}
           >
             <Choices
               options={[
                 {
                   value: 'preset',
-                  title: `Lo que traiga «${presetInfo(preset).name}»`,
-                  sub: 'La cantidad que el juego considera parte de esa dificultad.'
+                  title: t('pz.wizard.zombies.preset', { name: quote(presetInfo(preset).name) }),
+                  sub: t('pz.wizard.zombies.presetSub')
                 },
                 ...ZOMBIES.options.map((o) => ({
                   value: String(o.value),
@@ -279,118 +278,100 @@ export function BasicWizard({ onCancel, onCreated, progress }: Props): React.JSX
 
         {stage === 'conexion' && (
           <StepFrame
-            title="¿Desde dónde se van a conectar?"
-            help="Si alguien jugará desde otra casa, hay que abrir un puerto o usar un túnel."
+            title={t('wizard.connection.title')}
+            help={t('pz.wizard.connection.help')}
           >
             <Choices options={CONNECTIONS} value={connection} onChange={setConnection} columns={1} />
             <div className="help" style={{ textAlign: 'left', marginTop: 12 }}>
-              Zomboid necesita <strong>un puerto UDP</strong>. Cuando termines tendrás la guía en{' '}
-              <strong>Configuración → Conexión</strong>.
+              <Rich
+                k="pz.wizard.onePort"
+                values={{
+                  port: <strong>{t('pz.wizard.onePortBold')}</strong>,
+                  path: (
+                    <strong>
+                      {t('panel.configuration')} → {t('panel.tab.connection')}
+                    </strong>
+                  )
+                }}
+              />
             </div>
           </StepFrame>
         )}
 
         {stage === 'resumen' && (
           <div className="step-frame">
-            <h2>Todo listo, revísalo</h2>
-            <p className="step-help">
-              Así va a quedar tu servidor. Si algo no cuadra, toca en &quot;cambiar&quot;.
-            </p>
+            <h2>{t('wizard.summary.title')}</h2>
+            <p className="step-help">{t('wizard.summary.help', { change: t('wizard.change') })}</p>
 
             <div className="card" style={{ textAlign: 'left' }}>
-              <SummaryRow label="Nombre" value={name} onEdit={() => edit('nombre')} />
+              <SummaryRow label={t('wizard.summary.name')} value={name} onEdit={() => edit('nombre')} />
               <SummaryRow
-                label="Contraseña de admin"
+                label={t('pz.summary.admin')}
                 value={adminPassword}
                 onEdit={() => edit('clave')}
               />
               <SummaryRow
-                label="Dificultad"
+                label={t('mc.wizard.summary.difficulty')}
                 value={presetInfo(preset).name}
                 onEdit={() => edit('dificultad')}
               />
               <SummaryRow
-                label="Zombis"
+                label={t('pz.summary.zombies')}
                 value={
                   zombies === null
-                    ? `los de «${presetInfo(preset).name}»`
+                    ? t('pz.summary.zombiesPreset', { name: quote(presetInfo(preset).name) })
                     : (ZOMBIES.options.find((o) => o.value === zombies)?.label ?? String(zombies))
                 }
                 onEdit={() => edit('zombis')}
               />
               <SummaryRow
-                label="Se conectan"
+                label={t('wizard.summary.connect')}
                 value={labelOf(CONNECTIONS, connection)}
                 onEdit={() => edit('conexion')}
               />
               <SummaryRow
-                label="Puerto"
+                label={t('help.router.port')}
                 value={`${defaultPortFor('zomboid')} (UDP)`}
-                autoNote="o el primero libre"
+                autoNote={t('pz.summary.portNote')}
               />
               <SummaryRow
-                label="Memoria"
-                value={`${(DEFAULT_MEMORY_MB / 1024).toFixed(0)} GB`}
-                autoNote="se cambia después"
+                label={t('chooser.memory')}
+                value={formatSize(Math.round(DEFAULT_MEMORY_MB / 1024), 'GB')}
+                autoNote={t('pz.summary.memoryNote')}
               />
               <SummaryRow
-                label="Versión"
-                value="la última de Steam"
-                autoNote="la elige el juego"
+                label={t('version.title')}
+                value={t('wizard.summary.latestSteam')}
+                autoNote={t('wizard.summary.gameChooses')}
                 last
               />
             </div>
 
             <div className="alert info" style={{ textAlign: 'left' }}>
-              <strong>Son 6,7 GB y un rato de espera</strong>
-              <p>
-                Después de descargarlo, el servidor arranca una vez para generar el mundo y escribir
-                su configuración: tarda alrededor de un minuto y medio y solo pasa esta vez. Y ten a
-                mano {MEMORY_RECOMMENDED_GB} GB de memoria libre: la Build 42 pide bastante.
-              </p>
+              <strong>{t('pz.wizard.download.title')}</strong>
+              <p>{t('pz.wizard.download.text', { gb: MEMORY_RECOMMENDED_GB })}</p>
             </div>
 
-            <div className="card" style={{ textAlign: 'left', marginBottom: 0 }}>
-              <h3>Condiciones</h3>
-              <p className="hint">
-                El servidor se descarga de Steam de forma anónima, sin cuenta ni contraseña. Steam
-                pide aceptar su acuerdo para usar sus descargas.
-              </p>
-              <label className="row" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  style={{ width: 16, height: 16, flexShrink: 0 }}
-                />
-                <span>
-                  He leído y acepto el{' '}
-                  <a
-                    href={GAMES.zomboid.agreements[0]!.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: 'var(--accent)' }}
-                  >
-                    Acuerdo de Suscriptor de Steam
-                  </a>
-                </span>
-              </label>
-            </div>
+            <SteamAgreement basic agreed={agreed} onChange={setAgreed} />
           </div>
         )}
 
         <div className="row between wizard-nav">
           <button onClick={back}>
-            {editing ? 'Volver al resumen' : stepIndex <= 0 && onStep ? 'Cancelar' : 'Atrás'}
+            {editing
+              ? t('wizard.backToSummary')
+              : stepIndex <= 0 && onStep
+                ? t('common.cancel')
+                : t('wizard.back')}
           </button>
 
           {onStep ? (
             <button className="primary" disabled={!canContinue} onClick={next}>
-              {editing ? 'Listo' : 'Siguiente →'}
+              {editing ? t('wizard.done') : t('wizard.next')}
             </button>
           ) : (
             <button className="primary" disabled={!agreed || !claveOk} onClick={() => void create()}>
-              Crear servidor
+              {t('wizard.create')}
             </button>
           )}
         </div>

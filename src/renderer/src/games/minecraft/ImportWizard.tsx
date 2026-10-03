@@ -9,6 +9,7 @@ import type { MemoryInfo } from '@shared/ipc'
 import type { UiMode } from '@shared/types'
 import { D20Loader } from '../../D20Loader'
 import type { WizardProps } from '../types'
+import { Rich, formatNumber, formatSize, t, unitLabel } from '../../i18n'
 
 /**
  * Traer un servidor a medida (§19.x): una carpeta que el usuario ya tiene, como
@@ -31,7 +32,6 @@ interface Props extends WizardProps {
   onBack: () => void
 }
 
-const DEFAULT_NAME = 'Mi servidor'
 
 export function ImportWizard({
   mode,
@@ -101,7 +101,9 @@ export function ImportWizard({
       if (found.port) setPort(found.port)
       if (found.maxPlayers) setExpectedPlayers(Math.max(2, Math.min(50, found.maxPlayers)))
       // Si no se había escrito nombre, el de la carpeta dice más que «Mi servidor».
-      if (name.trim() === '' || name === DEFAULT_NAME) setName(lastSegment(folder).slice(0, 40))
+      if (name.trim() === '' || name === t('mc.wizard.defaultName')) {
+        setName(lastSegment(folder).slice(0, 40))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -158,13 +160,13 @@ export function ImportWizard({
         <div className="card loading-card" style={{ maxWidth: 620, margin: '40px auto 0' }}>
           <D20Loader size={84} />
           <div>
-            <h3>Trayendo tu servidor</h3>
+            <h3>{t('mc.import.bringing')}</h3>
             <p className="hint">
-              {inspection?.sameDrive
-                ? 'Lo movemos a QubiQ y preparamos el Java que necesita.'
-                : 'Está en otro disco, así que primero se copia entero; la carpeta original se borra solo cuando la copia está completa.'}
+              {inspection?.sameDrive ? t('mc.import.bringingSame') : t('mc.import.bringingOther')}
             </p>
-            <p style={{ margin: '10px 0 0', fontSize: 13 }}>{progress?.detail ?? 'Trabajando...'}</p>
+            <p style={{ margin: '10px 0 0', fontSize: 13 }}>
+              {progress?.detail ?? t('panel.working')}
+            </p>
             {progress?.progress != null && (
               <div className="progress">
                 <div style={{ width: `${Math.round(progress.progress * 100)}%` }} />
@@ -172,7 +174,7 @@ export function ImportWizard({
             )}
             {error && (
               <div className="alert error" style={{ marginTop: 16 }}>
-                <strong>No se pudo traer el servidor</strong>
+                <strong>{t('mc.import.failed')}</strong>
                 <p>{error}</p>
               </div>
             )}
@@ -193,24 +195,23 @@ export function ImportWizard({
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('catalog.error')}</strong>
           <p>{error}</p>
         </div>
       )}
 
       <div className="card">
-        <h3>1. ¿Dónde está el servidor?</h3>
+        <h3>{t('mc.import.where')}</h3>
         <p className="hint">
-          La carpeta donde está su <strong>run.bat</strong> (o su .jar): un server pack descargado
-          de CurseForge o Modrinth, o un servidor que ya tenías montado.
+          <Rich k="mc.import.whereHint" values={{ runBat: <strong>run.bat</strong> }} />
         </p>
         <div className="row">
           <button className={inspection ? '' : 'primary'} disabled={inspecting} onClick={() => void chooseFolder()}>
-            {inspection ? 'Elegir otra carpeta' : 'Elegir carpeta…'}
+            {inspection ? t('mc.import.otherFolder') : t('mc.import.chooseFolder')}
           </button>
           {inspecting && (
             <span className="row" style={{ gap: 8, color: 'var(--muted)' }}>
-              <D20Loader size={20} /> Mirando qué hay dentro…
+              <D20Loader size={20} /> {t('mc.import.inspecting')}
             </span>
           )}
         </div>
@@ -221,7 +222,7 @@ export function ImportWizard({
 
             {inspection.problems.length > 0 ? (
               <div className="alert error" style={{ marginTop: 12, marginBottom: 0 }}>
-                <strong>Esta carpeta no se puede traer</strong>
+                <strong>{t('mc.import.cannot')}</strong>
                 {inspection.problems.map((p) => (
                   <p key={p}>{p}</p>
                 ))}
@@ -232,31 +233,34 @@ export function ImportWizard({
                   <span className="chip good">
                     {inspection.distribution
                       ? DISTRIBUTION_LABELS[inspection.distribution].name
-                      : 'Tipo sin reconocer'}
+                      : t('mc.import.unknownType')}
                     {inspection.build ? ` ${inspection.build}` : ''}
                   </span>
                   <span className={`chip ${inspection.minecraftVersion ? 'good' : 'warn'}`}>
                     {inspection.minecraftVersion
                       ? `Minecraft ${inspection.minecraftVersion}`
-                      : 'Versión sin reconocer'}
+                      : t('mc.import.unknownVersion')}
                   </span>
                   {inspection.contentCount > 0 && (
                     <span className="chip">
-                      {inspection.contentCount} {inspection.distribution === 'paper' ? 'plugins' : 'mods'}
+                      {inspection.distribution === 'paper'
+                        ? t('mc.import.plugins', { count: inspection.contentCount })
+                        : t('mc.import.mods', { count: inspection.contentCount })}
                     </span>
                   )}
-                  <span className="chip">{inspection.hasWorld ? 'Con mundo' : 'Sin mundo todavía'}</span>
-                  <span className="chip">{formatSize(inspection.sizeBytes)}</span>
+                  <span className="chip">
+                    {inspection.hasWorld ? t('mc.import.withWorld') : t('mc.import.noWorld')}
+                  </span>
+                  <span className="chip">{sizeLabel(inspection.sizeBytes)}</span>
                 </div>
 
                 <div className="alert warn" style={{ marginTop: 12, marginBottom: 0 }}>
-                  <strong>La carpeta se va a mover a QubiQ</strong>
+                  <strong>{t('mc.import.willMove')}</strong>
                   <p>
-                    Dejará de estar donde está ahora. Si quieres conservar una copia ahí, hazla
-                    antes de seguir.{' '}
+                    {t('mc.import.willMoveText')}{' '}
                     {inspection.sameDrive
-                      ? 'Está en el mismo disco, así que es instantáneo.'
-                      : `Está en otro disco: se copiarán ${formatSize(inspection.sizeBytes)} y, cuando la copia esté completa, se borrará la original. Puede tardar un rato.`}
+                      ? t('mc.import.sameDrive')
+                      : t('mc.import.otherDrive', { size: sizeLabel(inspection.sizeBytes) })}
                   </p>
                 </div>
               </>
@@ -268,9 +272,9 @@ export function ImportWizard({
       {usable && (
         <>
           <div className="card">
-            <h3>2. ¿Con qué arranca?</h3>
+            <h3>{t('mc.import.startWith')}</h3>
             <p className="hint">
-              El archivo que abrías para encender el servidor. Normalmente es <strong>run.bat</strong>.
+              <Rich k="mc.import.startWithHint" values={{ runBat: <strong>run.bat</strong> }} />
             </p>
             <div className="choice-grid" style={{ gridTemplateColumns: '1fr' }}>
               {startFiles.map((file) => (
@@ -285,30 +289,26 @@ export function ImportWizard({
               ))}
             </div>
             <button style={{ marginTop: 10 }} onClick={() => void chooseStartFile()}>
-              Elegir otro archivo…
+              {t('mc.import.otherFile')}
             </button>
 
             {selected?.restartLoop && (
               <div className="alert warn" style={{ marginTop: 12, marginBottom: 0 }}>
-                <strong>Este archivo vuelve a arrancar el servidor cuando se cierra</strong>
-                <p>
-                  Con QubiQ no hace falta (tiene su propio reinicio automático) y hace que Parar no
-                  pueda cerrarlo limpiamente: tendría que forzarlo pasado un minuto. Si hay otro
-                  archivo sin ese bucle, mejor elige ese.
-                </p>
+                <strong>{t('mc.import.loopTitle')}</strong>
+                <p>{t('mc.import.loopText')}</p>
               </div>
             )}
           </div>
 
           <div className="card">
-            <h3>3. ¿Qué servidor es?</h3>
+            <h3>{t('mc.import.what')}</h3>
             <p className="hint">
               {inspection.distribution && inspection.minecraftVersion
-                ? 'Lo hemos reconocido solo. Cámbialo solo si no es correcto.'
-                : 'No lo hemos reconocido del todo: complétalo tú.'}
+                ? t('mc.import.recognized')
+                : t('mc.import.notRecognized')}
             </p>
             <div className="field">
-              <label>Tipo</label>
+              <label>{t('mc.wizard.summary.type')}</label>
               <select
                 value={distribution}
                 onChange={(e) => setDistribution(e.target.value as Distribution)}
@@ -319,34 +319,32 @@ export function ImportWizard({
                   </option>
                 ))}
               </select>
-              <div className="help">Decide si aparece la pestaña de Mods o la de Plugins.</div>
+              <div className="help">{t('mc.import.typeHelp')}</div>
             </div>
             <div className="field" style={{ marginBottom: 0 }}>
-              <label>Versión de Minecraft</label>
+              <label>{t('mc.wizard.summary.version')}</label>
               <select value={version} onChange={(e) => setVersion(e.target.value)}>
-                {!version && <option value="">Elige la versión…</option>}
+                {!version && <option value="">{t('mc.import.pickVersion')}</option>}
                 {versionOptions.map((v) => (
                   <option key={v} value={v}>
                     {v}
                   </option>
                 ))}
               </select>
-              <div className="help">
-                Con ella elegimos el Java que necesita, y es la que tendrán que usar tus amigos.
-              </div>
+              <div className="help">{t('mc.import.versionHelp')}</div>
             </div>
           </div>
 
           <div className="card">
-            <h3>4. Nombre y ajustes</h3>
+            <h3>{t('mc.import.nameAndSettings')}</h3>
             <div className="field">
-              <label>Nombre</label>
+              <label>{t('wizard.summary.name')}</label>
               <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
-              <div className="help">El que verás en la lista. Puedes cambiarlo luego.</div>
+              <div className="help">{t('mc.import.nameHelp')}</div>
             </div>
 
             <div className="field">
-              <label>¿Cuánta gente vais a ser? {expectedPlayers} jugadores</label>
+              <label>{t('mc.import.players', { count: expectedPlayers })}</label>
               <input
                 type="range"
                 min={2}
@@ -359,16 +357,14 @@ export function ImportWizard({
 
             {selected?.memory === 'script' ? (
               <div className="alert info" style={{ marginBottom: advanced ? 16 : 0 }}>
-                <strong>La memoria la decide tu archivo de inicio</strong>
+                <strong>{t('mc.import.scriptMemory')}</strong>
                 <p>
-                  {selected.setsMemory
-                    ? 'Lleva escrita la suya (-Xmx), y manda sobre cualquier otra. Para cambiarla, edita ese archivo.'
-                    : 'No usa user_jvm_args.txt, así que la app no tiene dónde ponerla. Para cambiarla, edita ese archivo.'}
+                  {selected.setsMemory ? t('mc.import.scriptSetsMemory') : t('mc.import.scriptNoArgs')}
                 </p>
               </div>
             ) : (
               <div className="field" style={advanced ? undefined : { marginBottom: 0 }}>
-                <label>Memoria asignada: {(memoryMb / 1024).toFixed(1)} GB</label>
+                <label>{t('mc.memory.label', { gb: gbText(memoryMb) })}</label>
                 <input
                   type="range"
                   min={2048}
@@ -382,17 +378,18 @@ export function ImportWizard({
                 />
                 <div className="help">
                   {overMemory
-                    ? 'Cuidado: estás asignando casi toda la memoria del equipo. Si además juegas en este PC, se puede quedar sin respuesta.'
-                    : `Recomendamos ${recommendedMb !== null ? `${(recommendedMb / 1024).toFixed(1)} GB` : '...'}; un modpack grande puede pedir más.`}
-                  {selected?.memory === 'jvm-args' &&
-                    ' Se guarda en su user_jvm_args.txt, cambiando solo las líneas de memoria.'}
+                    ? t('mc.memory.over')
+                    : t('mc.import.recommend', {
+                        gb: recommendedMb !== null ? `${gbText(recommendedMb)} ${unitLabel('GB')}` : '...'
+                      })}
+                  {selected?.memory === 'jvm-args' && ` ${t('mc.import.jvmArgs')}`}
                 </div>
               </div>
             )}
 
             {advanced && (
               <div className="field" style={{ marginBottom: 0 }}>
-                <label>Puerto</label>
+                <label>{t('help.router.port')}</label>
                 <input
                   type="number"
                   value={port}
@@ -402,18 +399,16 @@ export function ImportWizard({
                 />
                 <div className="help">
                   {inspection.port
-                    ? `Es el que tenía en su server.properties (${inspection.port}).`
-                    : 'Déjalo en 25565 salvo que ya tengas otro servidor usándolo.'}
+                    ? t('mc.import.portFromFile', { port: inspection.port })
+                    : t('mc.import.portDefault')}
                 </div>
               </div>
             )}
           </div>
 
           <div className="card">
-            <h3>Condiciones de Minecraft</h3>
-            <p className="hint">
-              Mojang exige aceptar su EULA para poder ejecutar un servidor.
-            </p>
+            <h3>{t('mc.wizard.eula.title')}</h3>
+            <p className="hint">{t('mc.import.eulaHint')}</p>
             <label className="row" style={{ cursor: 'pointer' }}>
               <input
                 type="checkbox"
@@ -422,15 +417,21 @@ export function ImportWizard({
                 style={{ width: 16, height: 16, flexShrink: 0 }}
               />
               <span>
-                He leído y acepto el{' '}
-                <a
-                  href="https://aka.ms/MinecraftEULA"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: 'var(--accent)' }}
-                >
-                  EULA de Minecraft
-                </a>
+                <Rich
+                  k="mc.wizard.eula.accept"
+                  values={{
+                    link: (
+                      <a
+                        href="https://aka.ms/MinecraftEULA"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        {t('mc.wizard.eula.link')}
+                      </a>
+                    )
+                  }}
+                />
               </span>
             </label>
           </div>
@@ -438,9 +439,9 @@ export function ImportWizard({
       )}
 
       <div className="row between">
-        <button onClick={onBack}>Atrás</button>
+        <button onClick={onBack}>{t('wizard.back')}</button>
         <button className="primary" disabled={!canCreate} onClick={() => void create()}>
-          Traer servidor
+          {t('mc.import.bring')}
         </button>
       </div>
     </div>
@@ -449,14 +450,14 @@ export function ImportWizard({
 
 /** Lo que conviene saber de un archivo de inicio antes de elegirlo. */
 function describeStart(file: StartFileInfo): string {
-  const what = file.kind === 'jar' ? 'Jar de Java' : 'Script de Windows'
+  const what = file.kind === 'jar' ? t('mc.start.jar') : t('mc.start.script')
   const memory =
     file.memory === 'app'
-      ? 'la memoria la pones aquí'
+      ? t('mc.start.memoryHere')
       : file.memory === 'jvm-args'
-        ? 'la memoria la pones aquí (va a su user_jvm_args.txt)'
-        : 'la memoria la decide el propio archivo'
-  const loop = file.restartLoop ? ' · se reinicia solo al cerrarse' : ''
+        ? t('mc.start.memoryJvmArgs')
+        : t('mc.start.memoryScript')
+  const loop = file.restartLoop ? ` · ${t('mc.start.loops')}` : ''
   return `${what} · ${memory}${loop}`
 }
 
@@ -465,7 +466,12 @@ function lastSegment(path: string): string {
   return parts[parts.length - 1] ?? path
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024 * 1024) return `${Math.max(1, Math.round(bytes / (1024 * 1024)))} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1).replace('.', ',')} GB`
+function sizeLabel(bytes: number): string {
+  if (bytes < 1024 * 1024 * 1024) return formatSize(Math.max(1, Math.round(bytes / (1024 * 1024))), 'MB')
+  return formatSize(bytes / (1024 * 1024 * 1024), 'GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+}
+
+/** Megas a gigas con un decimal y el separador del idioma: «6,0» / «6.0». */
+function gbText(mb: number): string {
+  return formatNumber(mb / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 }

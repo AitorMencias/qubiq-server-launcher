@@ -16,6 +16,8 @@ Project Zomboid, Enshrouded y Rust. Los juegos propuestos sin investigar quedan 
 | **5** | Project Zomboid | 0.8.0 | 1 |
 | **6** | Enshrouded | 0.9.0 | 3 |
 | **7** | Rust | 0.10.0 | 1 |
+| **R1** | Control remoto: anfitrión y cliente web | 0.12.0 | — |
+| **R2** | Control remoto: QubiQ como cliente de otro QubiQ | 0.13.0 | R1 |
 
 **Por qué este orden:** primero lo que tienen en común todos los juegos, luego los juegos de menos
 a más riesgo, y cada juego nuevo aprovechando lo que dejó el anterior.
@@ -517,6 +519,70 @@ descargar sin cuenta de pago, así que el fichero lo trae el usuario.
 
 ---
 
+## Control remoto (0.12.0 y 0.13.0)
+
+> **Estado: R1 hecha** (pendiente de publicar como 0.12.0); R2 sin empezar. Diseño, alternativas
+> descartadas, lo que salió al probar y lo que falta por comprobar (un móvil de verdad, entrar desde
+> fuera de casa) en [ANALISIS.md §19.31](ANALISIS.md).
+
+Administrar los servidores desde fuera del PC **sin dar acceso al PC**. No es un panel web
+completo: el QubiQ que tiene los servidores (el **anfitrión**) acepta una **lista cerrada de
+órdenes** y nada más. Un panel completo permitiría ejecutar código en el equipo (subir un plugin,
+cambiar el fichero de arranque, pasar rutas del disco); las órdenes lo dejan fuera por diseño.
+
+**Decidido por el usuario:**
+- **Órdenes:** listar servidores, arrancar, parar, reiniciar, ver consola y enviar a la consola.
+- **Consola remota en nivel 1 (solo lectura) por defecto.** El nivel 2 permite una lista de
+  comandos por juego y el 3, la consola libre; los da el dueño a cada dispositivo.
+- **Transporte:** conexión directa por HTTPS al puerto que el usuario abra en su router (le da igual
+  que se vea su IP). Tailscale sirve igual, sin cambios, para quien no pueda abrir puertos (CG-NAT).
+  Descartados por ahora: bot de Discord y túnel P2P propio.
+- **Dos clientes con exactamente los mismos poderes:** una página web (móvil y PC) que sirve el
+  propio anfitrión, y otro QubiQ que añade servidores remotos a su lista.
+
+**Reglas que no se pueden saltar:**
+- Ninguna orden acepta rutas, ficheros, mods ni configuración.
+- Cada orden va firmada por el dispositivo (Ed25519, o ECDSA P-256 si el navegador no tiene
+  Ed25519), con hora y número de uso único: no se puede falsificar ni repetir.
+- Desactivado por defecto, con interruptor general.
+- Las IP de los jugadores salen enmascaradas en la consola remota.
+- Cero dependencias de ejecución nuevas (`node:https`, `node:crypto`; el certificado lo genera
+  Windows con `New-SelfSignedCertificate`).
+
+### R1 — Anfitrión y cliente web (0.12.0)
+
+- [x] **Núcleo:** `service.restart`, historial de consola por servidor (últimas líneas, con número
+      de secuencia) y enmascarado de IP.
+- [x] **Órdenes:** tabla cerrada, permisos por dispositivo (**qué servidores**, ninguno de serie;
+      *controlar* sí/no y nivel de consola) y
+      lista de comandos del nivel 2 por juego.
+- [x] **Seguridad:** emparejamiento con código de un solo uso y caducidad, verificación de firma,
+      ventana de tiempo, números de uso único, límites de frecuencia, bloqueo de IP tras fallos y
+      registro de actividad.
+- [x] **Servidor HTTPS** con certificado propio (huella visible en la app), cabeceras estrictas y
+      solo los ficheros de la página remota.
+- [x] **App:** sección «Acceso remoto» en Configuración (interruptor, puerto, invitar, dispositivos,
+      permisos, actividad). Bandeja del sistema al cerrar la ventana con el acceso activo, e
+      instancia única.
+- [x] **Página remota:** emparejar, lista de servidores con estado y **lista de jugadores**, botones según
+      permisos, consola en vivo y envío según nivel. En los diez idiomas y usable en móvil.
+- [x] **Pruebas:** smoke (firma mala, repetida, caducada, servidor inventado, dispositivo revocado,
+      sin permiso, comando fuera de lista, enmascarado, servidor HTTPS de punta a punta) y
+      recorrido de la página a ancho de móvil. Además, `e2e:remote` contra un Paper de verdad.
+
+### R2 — QubiQ como cliente (0.13.0)
+
+- [ ] «Añadir servidor remoto»: dirección, código de emparejamiento y huella del certificado fijada.
+- [ ] Clave privada cifrada con `safeStorage` (DPAPI).
+- [ ] Servidores remotos en la lista con la marca «en <equipo>» y un panel reducido a las órdenes.
+- [ ] «Sin conexión» cuando el anfitrión no responde, distinto de un servidor caído.
+- [ ] e2e con dos QubiQ en el mismo equipo y datos aislados.
+
+**Para después:** editar la lista de comandos del nivel 2 desde la app, comprobar desde internet que
+el puerto del acceso remoto llega, y renovar el certificado avisando a los dispositivos.
+
+---
+
 ## Riesgos que cruzan todas las fases
 
 | Riesgo | Impacto | Mitigación |
@@ -533,6 +599,11 @@ descargar sin cuenta de pago, así que el fichero lo trae el usuario.
 ---
 
 ## Futuro (fuera de esta hoja de ruta)
+
+- **Idiomas (0.11.0, hecho a medias a propósito):** la interfaz está en diez idiomas y hay una
+  pantalla de Configuración de la app con idioma, modo y carpeta de datos movible (ANALISIS.md
+  §19.29). Falta la segunda entrega: los mensajes del núcleo. **Cada juego nuevo trae sus textos en
+  los diez idiomas** desde el principio, como una parte más de la plantilla de las fases.
 
 - **Juegos propuestos sin investigar** (lista en INVESTIGACION-JUEGOS.md §5): pasarán la misma criba
   y, si entran, seguirán la plantilla de las fases 2 a 7.

@@ -9,6 +9,7 @@ import {
 import { CheckRow } from '../../CheckRow'
 import { D20Loader } from '../../D20Loader'
 import { WipeExplainer, sinceLabel, wipeDateLabel } from './wipeText'
+import { formatSize, t } from '../../i18n'
 
 /**
  * El borrado mensual (*wipe*): cuándo toca, qué mapa hay, qué hace la app y el
@@ -29,8 +30,8 @@ interface Props {
 
 function mb(bytes: number): string {
   return bytes >= 1024 ** 3
-    ? `${(bytes / 1024 ** 3).toFixed(1)} GB`
-    : `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`
+    ? formatSize(bytes / 1024 ** 3, 'GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    : formatSize(Math.max(1, Math.round(bytes / 1024 ** 2)), 'MB')
 }
 
 export function WipePanel({ state, mode, onChanged }: Props): React.JSX.Element {
@@ -101,9 +102,7 @@ export function WipePanel({ state, mode, onChanged }: Props): React.JSX.Element 
       setConfirming(false)
       setWorldSize(null)
       setNotice(
-        running
-          ? 'Hecho. El servidor ha vuelto a arrancar y está generando el mapa nuevo.'
-          : 'Hecho. El mapa nuevo se generará la próxima vez que arranques el servidor.'
+        running ? t('rust.wipePanel.doneRunning') : t('rust.wipePanel.doneStopped')
       )
       onChanged()
     } catch (err) {
@@ -118,11 +117,11 @@ export function WipePanel({ state, mode, onChanged }: Props): React.JSX.Element 
       <div className="panel">
         {error ? (
           <div className="alert error">
-            <strong>No se pudo leer el mapa</strong>
+            <strong>{t('rust.wipePanel.readError')}</strong>
             <p>{error}</p>
           </div>
         ) : (
-          <p className="hint">Mirando el mapa…</p>
+          <p className="hint">{t('rust.wipePanel.reading')}</p>
         )}
       </div>
     )
@@ -137,21 +136,21 @@ export function WipePanel({ state, mode, onChanged }: Props): React.JSX.Element 
     <div className="panel">
       {error && (
         <div className="alert error">
-          <strong>Algo ha fallado</strong>
+          <strong>{t('rust.mod.failed')}</strong>
           <p>{error}</p>
         </div>
       )}
       {notice && <div className="alert info">{notice}</div>}
 
       <div className="card">
-        <h3>El borrado de cada mes</h3>
+        <h3>{t('rust.create.wipeTitle')}</h3>
         <div className="row between" style={{ marginBottom: 10 }}>
           <span style={{ color: 'var(--muted)' }}>
-            {view.moment === 'hoy' ? 'El de este mes' : 'El próximo'}
+            {view.moment === 'hoy' ? t('rust.wipePanel.thisMonth') : t('rust.wipePanel.next')}
           </span>
           <span>
             {wipeDateLabel(view.nextForcedWipe)}
-            {view.doneThisMonth && ' · hecho'}
+            {view.doneThisMonth && ` · ${t('rust.wipePanel.done')}`}
           </span>
         </div>
         <div className="hint">
@@ -160,88 +159,91 @@ export function WipePanel({ state, mode, onChanged }: Props): React.JSX.Element 
       </div>
 
       <div className="card">
-        <h3>El mapa de ahora</h3>
+        <h3>{t('rust.wipePanel.currentMap')}</h3>
         <div className="row between" style={{ marginBottom: 8 }}>
-          <span style={{ color: 'var(--muted)' }}>Tamaño</span>
+          <span style={{ color: 'var(--muted)' }}>{t('rust.create.size')}</span>
           <span>{worldSizeLabel(view.worldSize)}</span>
         </div>
         <div className="row between" style={{ marginBottom: 8 }}>
-          <span style={{ color: 'var(--muted)' }}>Semilla</span>
+          <span style={{ color: 'var(--muted)' }}>{t('fa.create.seed')}</span>
           <span>{view.seed}</span>
         </div>
         <div className="row between" style={{ marginBottom: 8 }}>
-          <span style={{ color: 'var(--muted)' }}>Empezó</span>
+          <span style={{ color: 'var(--muted)' }}>{t('rust.wipePanel.started')}</span>
           <span>{sinceLabel(view.current?.bornAt ?? null)}</span>
         </div>
         <div className="row between">
-          <span style={{ color: 'var(--muted)' }}>Ocupa</span>
+          <span style={{ color: 'var(--muted)' }}>{t('rust.wipePanel.size')}</span>
           <span>{view.current ? mb(view.current.bytes) : '—'}</span>
         </div>
         {antiguos.length > 0 && (
           <p className="hint" style={{ marginTop: 12, marginBottom: 0 }}>
-            Hay {antiguos.length === 1 ? 'otro mapa' : `${antiguos.length} mapas más`} de antes
-            ocupando {mb(bytesAntiguos)}: el juego ya no los carga. El próximo borrado se los lleva.
+            {t('rust.wipePanel.oldMaps', { count: antiguos.length, size: mb(bytesAntiguos) })}
           </p>
         )}
       </div>
 
       <div className="card">
-        <h3>Qué hace la app cuando llega</h3>
+        <h3>{t('rust.wipePanel.whatApp')}</h3>
         <CheckRow
-          label="Hacerlo sola en cuanto salga la actualización"
-          help="Guarda una copia, actualiza Rust, borra el mapa y vuelve a arrancar. Con la app cerrada, lo hace al abrirla. Apagado, en la pantalla del servidor sale un aviso con un botón."
+          label={t('rust.wipe.auto')}
+          help={t('rust.wipePanel.autoHelp')}
           checked={view.plan.auto}
           onChange={(auto) => void setPlan({ auto })}
         />
         <CheckRow
-          label="Mapa con otra forma cada mes"
-          help="Una semilla nueva en cada borrado. Apagado, el terreno se repite y solo se pierde lo construido."
+          label={t('rust.wipe.newSeed')}
+          help={t('rust.wipe.newSeedHelp')}
           checked={view.plan.newSeed}
           onChange={(value) => void setPlan({ newSeed: value })}
         />
         <CheckRow
-          label="Borrar también los planos aprendidos"
-          help="Todo el mundo vuelve a aprender a fabricar desde cero. Facepunch lo hace él mismo algunos meses, se marque o no."
+          label={t('rust.wipe.blueprints')}
+          help={t('rust.wipePanel.blueprintsHelp')}
           checked={view.plan.blueprints}
           onChange={(value) => void setPlan({ blueprints: value })}
         />
       </div>
 
       <div className="card danger-zone">
-        <h3>Empezar un mapa nuevo ahora</h3>
+        <h3>{t('rust.wipePanel.nowTitle')}</h3>
         <p className="hint">
-          Se pierde lo construido en el mapa de ahora. Antes se guarda una copia, que se puede
-          restaurar desde Configuración → Copias.
-          {running && ' El servidor se para, avisando a quien esté dentro, y vuelve a arrancar solo.'}
+          {t('rust.wipePanel.nowText', {
+            path: `${t('panel.configuration')} → ${t('panel.tab.backups')}`
+          })}
+          {running && ` ${t('rust.wipePanel.nowRunning')}`}
         </p>
 
         {!confirming ? (
           <button className="danger" disabled={busy} onClick={() => setConfirming(true)}>
-            Empezar un mapa nuevo…
+            {t('rust.wipePanel.nowButton')}
           </button>
         ) : (
           <>
             <CheckRow
-              label="Actualizar Rust antes, si hay versión nueva"
-              help="Es el borrado del mes: sin actualizar, a partir del primer jueves nadie con el juego al día puede entrar."
+              label={t('rust.wipePanel.update')}
+              help={t('rust.wipePanel.updateHelp')}
               checked={update}
               onChange={setUpdate}
             />
-            <CheckRow label="Con otra forma (semilla nueva)" checked={newSeed} onChange={setNewSeed} />
-            <CheckRow label="Borrar también los planos" checked={blueprints} onChange={setBlueprints} />
+            <CheckRow label={t('rust.wipePanel.newSeed')} checked={newSeed} onChange={setNewSeed} />
+            <CheckRow label={t('rust.wipePanel.blueprints')} checked={blueprints} onChange={setBlueprints} />
             {advanced && (
               <div className="field">
-                <label>Tamaño del mapa nuevo</label>
+                <label>{t('rust.wipePanel.newSize')}</label>
                 <select
                   value={worldSize ?? view.worldSize}
                   onChange={(e) => setWorldSize(Number(e.target.value))}
                 >
                   {!WORLD_SIZES.some((w) => w.size === view.worldSize) && (
-                    <option value={view.worldSize}>{view.worldSize} m (el de ahora)</option>
+                    <option value={view.worldSize}>
+                      {view.worldSize} m ({t('rust.wipePanel.current')})
+                    </option>
                   )}
                   {WORLD_SIZES.map((w) => (
                     <option key={w.size} value={w.size}>
-                      {w.label} ({w.size} m){w.size === view.worldSize ? ' — el de ahora' : ''}
+                      {w.label} ({w.size} m)
+                      {w.size === view.worldSize ? ` — ${t('rust.wipePanel.current')}` : ''}
                     </option>
                   ))}
                 </select>
@@ -249,19 +251,21 @@ export function WipePanel({ state, mode, onChanged }: Props): React.JSX.Element 
             )}
             <p className="hint">
               {preview.length === 0
-                ? 'No hay ningún mapa en disco todavía: no se borra nada.'
-                : `Se borran ${preview.length} ficheros del mapa${blueprints ? ' y de los planos' : ''}.`}
+                ? t('rust.wipePanel.nothing')
+                : blueprints
+                  ? t('rust.wipePanel.filesWithBlueprints', { count: preview.length })
+                  : t('rust.wipePanel.files', { count: preview.length })}
             </p>
             {busy ? (
               <div className="row" style={{ gap: 10, color: 'var(--muted)' }}>
                 <D20Loader size={22} />
-                <span>Trabajando… si hay que actualizar Rust, tarda un poco.</span>
+                <span>{t('rust.wipePanel.working')}</span>
               </div>
             ) : (
               <div className="row">
-                <button onClick={() => setConfirming(false)}>Cancelar</button>
+                <button onClick={() => setConfirming(false)}>{t('common.cancel')}</button>
                 <button className="danger" onClick={() => void wipeNow()}>
-                  Sí, empezar un mapa nuevo
+                  {t('rust.wipePanel.confirm')}
                 </button>
               </div>
             )}
@@ -321,13 +325,13 @@ export function WipeNotice({
   return (
     <div className={`alert ${hoy ? 'warn' : 'info'}`}>
       <strong>
-        {hoy ? 'Toca el borrado mensual de Rust' : `Se acerca el borrado mensual: ${wipeDateLabel(view.nextForcedWipe)}`}
+        {hoy
+          ? t('rust.notice.today')
+          : t('rust.notice.soon', { date: wipeDateLabel(view.nextForcedWipe) })}
       </strong>
       <p>
-        {hoy
-          ? 'Desde que Facepunch publica la actualización (hacia las 20:00 del primer jueves), quien tenga el juego al día no puede entrar en un servidor sin actualizar. Actualizar empieza un mapa nuevo.'
-          : 'Ese día sale una actualización de Rust que obliga a actualizar el servidor, y el servidor actualizado empieza un mapa nuevo.'}
-        {view.plan.auto && ' Lo tienes programado: la app lo hará sola en cuanto salga.'}
+        {hoy ? t('rust.notice.todayText') : t('rust.notice.soonText')}
+        {view.plan.auto && ` ${t('rust.notice.scheduled')}`}
       </p>
       {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
       <div className="row" style={{ marginTop: 10 }}>
@@ -337,16 +341,16 @@ export function WipeNotice({
             disabled={busy}
             onClick={() => void run(() => window.qubiq.rust.map.wipe(id, { update: true }))}
           >
-            {busy ? 'Trabajando…' : 'Hacerlo ahora'}
+            {busy ? t('rust.notice.working') : t('rust.notice.now')}
           </button>
         )}
         {!view.plan.auto && (
           <button disabled={busy} onClick={() => void run(() => window.qubiq.rust.map.setPlan(id, { auto: true }))}>
-            Que la app lo haga sola cada mes
+            {t('rust.notice.auto')}
           </button>
         )}
         <button disabled={busy} onClick={() => void run(() => window.qubiq.rust.map.dismiss(id))}>
-          Ahora no
+          {t('rust.notice.notNow')}
         </button>
       </div>
     </div>

@@ -21,7 +21,9 @@ import { factorioSmoke } from './factorio'
 import { zomboidSmoke } from './zomboid'
 import { enshroudedSmoke } from './enshrouded'
 import { rustSmoke } from './rust'
+import { i18nSmoke } from './i18n'
 import { steamSmoke } from './steam'
+import { remoteSmoke } from './remote'
 import { setDataRoot, setResourcesRoot, ensureBaseDirs } from '../../src/main/core/paths'
 
 async function main(): Promise<void> {
@@ -32,6 +34,8 @@ async function main(): Promise<void> {
   console.log(`Datos temporales en ${root}`)
 
   await commonSmoke()
+  await i18nSmoke()
+  await remoteSmoke()
   await steamSmoke()
   await satisfactorySmoke()
   await valheimSmoke()

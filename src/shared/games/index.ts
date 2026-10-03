@@ -1,4 +1,5 @@
 import type { AgreementId, GameId, InstanceManifest } from '../types'
+import { formatSize, t } from '../i18n'
 import { DISTRIBUTION_LABELS, contentKindFor } from './minecraft/types'
 import {
   DEFAULT_GAME_PORT,
@@ -179,10 +180,10 @@ export interface GameInfo {
   /** Ejemplo de dirección que da playit.gg para este juego, para reconocerla. */
   tunnelAddressExample: string
   /**
-   * Cómo se llama lo que se guarda: «mundo» en Minecraft y Valheim, «partida»
-   * en Satisfactory. Los textos comunes lo usan en vez de decir «mundo» a fuego.
+   * Qué se guarda: el mundo en Minecraft y Valheim, la partida en Satisfactory.
+   * Los textos comunes eligen con esto su variante en vez de decir «mundo» a fuego.
    */
-  save: SaveNoun
+  save: SaveKind
   /** Qué entra en una copia de seguridad, en una o dos frases. */
   backupScope: string
   /**
@@ -194,372 +195,487 @@ export interface GameInfo {
   moderationHint?: string
 }
 
-export interface SaveNoun {
-  singular: string
-  plural: string
-  feminine: boolean
+/**
+ * Qué es lo que se guarda en un juego: el mundo (Minecraft, Valheim,
+ * Enshrouded), la partida (Satisfactory, Factorio, Zomboid) o el mapa (Rust).
+ *
+ * Antes era el sustantivo en español con su género, para montar «el mundo» o
+ * «la partida» dentro de las frases. Eso no se traduce: en ruso cambia el caso,
+ * en alemán el artículo, en japonés no hay. Ahora cada frase que lo menciona
+ * tiene una variante por tipo (`…world`, `…game`, `…map`) en los diccionarios.
+ */
+export type SaveKind = 'world' | 'game' | 'map'
+
+/** Las comunes a todos los juegos de Steam: el servidor se baja de forma anónima. */
+export const STEAM_AGREEMENT: AgreementInfo = {
+  id: 'steam-subscriber',
+  get label() {
+    return t('games.agreement.steam')
+  },
+  url: 'https://store.steampowered.com/subscriber_agreement/'
 }
 
-/** «el mundo» / «la partida». */
-export function theSave(noun: SaveNoun): string {
-  return `${noun.feminine ? 'la' : 'el'} ${noun.singular}`
+/** Ejemplo de dirección de playit.gg: «algo.joinmc.link», con «algo» traducido. */
+function tunnelExample(domain: string): string {
+  return `${t('games.tunnelExampleHost')}.${domain}`
 }
 
-/** «Mundo restaurado» / «Partida restaurada». */
-export function saveParticiple(noun: SaveNoun, participle: string): string {
-  const word = noun.singular.charAt(0).toUpperCase() + noun.singular.slice(1)
-  return `${word} ${participle.replace(/o$/, noun.feminine ? 'a' : 'o')}`
-}
-
+/*
+ * Los textos son getters: se traducen al leerlos, en el idioma de ese momento.
+ * Así quien usa `gameInfo(...)` no cambia, y cambiar de idioma no deja nada
+ * atrás. El aviso de Minecraft no se traduce: sus normas de marca exigen ese
+ * texto literal (ANALISIS.md §13.1).
+ */
 export const GAMES: Record<GameId, GameInfo> = {
   minecraft: {
     id: 'minecraft',
     name: 'Minecraft',
     card: {
-      tagline: 'Construir y sobrevivir. El de siempre, con plugins o mods.',
-      players: 'Hasta ~20',
+      get tagline() {
+        return t('games.minecraft.tagline')
+      },
+      get players() {
+        return t('games.minecraft.players')
+      },
       memoryGb: { min: 2, recommended: 4 },
-      download: '≈ 1 GB',
+      get download() {
+        return t('games.minecraft.download')
+      },
       downloadMeasured: false,
-      highlights: [{ text: 'Plugins y mods', tone: 'neutral' }],
+      get highlights() {
+        return [{ text: t('games.minecraft.highlight1'), tone: 'neutral' as const }]
+      },
       requirements: {
-        startup: 'depende de los mods: de segundos a un par de minutos',
-        ports: 'uno TCP (25565)',
-        extra: 'Java: lo baja la app sola'
+        get startup() {
+          return t('games.minecraft.startup')
+        },
+        get ports() {
+          return t('games.minecraft.ports')
+        },
+        get extra() {
+          return t('games.minecraft.extra')
+        }
       }
     },
     agreements: [
-      { id: 'minecraft-eula', label: 'el EULA de Minecraft', url: 'https://aka.ms/MinecraftEULA' }
+      {
+        id: 'minecraft-eula',
+        get label() {
+          return t('games.agreement.minecraft')
+        },
+        url: 'https://aka.ms/MinecraftEULA'
+      }
     ],
     disclaimer:
       'NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.',
-    joinHint: 'En Minecraft: Multijugador → Añadir servidor.',
-    tunnelAddressExample: 'algo.joinmc.link',
-    save: { singular: 'mundo', plural: 'mundos', feminine: false },
-    backupScope:
-      'Se guarda el mundo y la configuración. Los jars no hacen falta: se pueden volver a descargar.'
+    get joinHint() {
+      return t('games.minecraft.joinHint')
+    },
+    get tunnelAddressExample() {
+      return tunnelExample('joinmc.link')
+    },
+    save: 'world',
+    get backupScope() {
+      return t('games.minecraft.backupScope')
+    }
   },
 
   satisfactory: {
     id: 'satisfactory',
     name: 'Satisfactory',
     card: {
-      tagline: 'Fábricas enormes montadas en equipo.',
-      players: 'Hasta 4 (ampliable)',
+      get tagline() {
+        return t('games.satisfactory.tagline')
+      },
+      get players() {
+        return t('games.satisfactory.players')
+      },
       memoryGb: { min: MEMORY_MIN_GB, recommended: MEMORY_RECOMMENDED_GB },
-      download: '15,5 GB',
+      get download() {
+        return t('games.satisfactory.download')
+      },
       downloadMeasured: true,
-      highlights: [
-        { text: 'Se configura sin abrir el juego', tone: 'good' },
-        { text: 'Solo uno a la vez', tone: 'warn' }
-      ],
+      get highlights() {
+        return [
+          { text: t('games.satisfactory.highlight1'), tone: 'good' as const },
+          { text: t('games.satisfactory.highlight2'), tone: 'warn' as const }
+        ]
+      },
       requirements: {
-        startup: 'unos 6 segundos',
-        ports: 'el 7777 por TCP y UDP, y el 8888 por TCP'
+        get startup() {
+          return t('games.satisfactory.startup')
+        },
+        get ports() {
+          return t('games.satisfactory.ports')
+        }
       }
     },
     // El servidor se descarga de Steam de forma anónima: lo que se acepta es el
     // acuerdo de Steam, no un EULA del juego.
-    agreements: [
-      {
-        id: 'steam-subscriber',
-        label: 'el Acuerdo de Suscriptor de Steam',
-        url: 'https://store.steampowered.com/subscriber_agreement/'
-      }
-    ],
-    disclaimer:
-      'Herramienta no oficial. No está asociada a Coffee Stain Studios ni a Satisfactory.',
-    joinHint: 'En Satisfactory: Servidores → Añadir servidor, con esta dirección.',
-    joinSteps: [
-      'Abre Satisfactory y entra en «Servidores» desde el menú principal.',
-      'Pulsa «Añadir servidor» y pega ahí la dirección.',
-      'Te pedirá la contraseña de administrador (la que pusiste al crear el servidor) para poder gestionarlo.',
-      'El servidor queda en tu lista: pulsa «Unirse» y, si le pusiste contraseña para entrar, escríbela.'
-    ],
-    joinWarning:
-      'No vale la conexión directa por IP: el juego exige un permiso que solo se consigue añadiendo ' +
-      'el servidor así. Si lo intentas por las bravas, Satisfactory contesta «Encryption token missing».',
-    tunnelAddressExample: 'algo.gl.at.ply.gg',
-    save: { singular: 'partida', plural: 'partidas', feminine: true },
-    backupScope:
-      'Se guardan las partidas y los ajustes del servidor. El juego no hace falta: se vuelve a descargar de Steam.',
-    moderationHint:
-      'Este juego no deja expulsar ni banear desde fuera. Entra tú a la partida con tu contraseña ' +
-      'de administrador y hazlo desde el menú del propio juego. Si hace falta cortar de raíz, para ' +
-      'el servidor o ponle una contraseña para entrar desde Ajustes.'
+    agreements: [STEAM_AGREEMENT],
+    get disclaimer() {
+      return t('games.satisfactory.disclaimer')
+    },
+    get joinHint() {
+      return t('games.satisfactory.joinHint')
+    },
+    get joinSteps() {
+      return [
+        t('games.satisfactory.join1'),
+        t('games.satisfactory.join2'),
+        t('games.satisfactory.join3'),
+        t('games.satisfactory.join4')
+      ]
+    },
+    get joinWarning() {
+      return t('games.satisfactory.joinWarning')
+    },
+    get tunnelAddressExample() {
+      return tunnelExample('gl.at.ply.gg')
+    },
+    save: 'game',
+    get backupScope() {
+      return t('games.satisfactory.backupScope')
+    },
+    get moderationHint() {
+      return t('games.satisfactory.moderationHint')
+    }
   },
 
   valheim: {
     id: 'valheim',
     name: 'Valheim',
     card: {
-      tagline: 'Sobrevivir, construir y matar jefes en un mundo vikingo.',
-      players: `Hasta ${VALHEIM_MAX_PLAYERS}`,
+      get tagline() {
+        return t('games.valheim.tagline')
+      },
+      get players() {
+        return t('games.upTo', { n: VALHEIM_MAX_PLAYERS })
+      },
       memoryGb: { min: VALHEIM_MEMORY_MIN_GB, recommended: VALHEIM_MEMORY_RECOMMENDED_GB },
-      download: '2 GB',
+      get download() {
+        return t('games.valheim.download')
+      },
       downloadMeasured: true,
-      highlights: [
-        { text: 'Se juega desde fuera sin abrir puertos', tone: 'good' },
-        { text: 'El más ligero de todos', tone: 'good' },
-        { text: 'No se modera en caliente', tone: 'warn' }
-      ],
+      get highlights() {
+        return [
+          { text: t('games.valheim.highlight1'), tone: 'good' as const },
+          { text: t('games.valheim.highlight2'), tone: 'good' as const },
+          { text: t('games.valheim.highlight3'), tone: 'warn' as const }
+        ]
+      },
       requirements: {
-        startup: '35 s con un mundo nuevo, 12 s después',
-        ports: 'dos UDP (2456 y 2457), o ninguno con crossplay'
+        get startup() {
+          return t('games.valheim.startup')
+        },
+        get ports() {
+          return t('games.valheim.ports')
+        }
       }
     },
-    // Igual que Satisfactory: el servidor se baja de Steam de forma anónima, y
-    // lo que se acepta es el acuerdo de Steam.
-    agreements: [
-      {
-        id: 'steam-subscriber',
-        label: 'el Acuerdo de Suscriptor de Steam',
-        url: 'https://store.steampowered.com/subscriber_agreement/'
-      }
-    ],
-    disclaimer: 'Herramienta no oficial. No está asociada a Iron Gate ni a Valheim.',
-    joinHint: 'En Valheim: Unirse a partida → Añadir servidor, con esta dirección.',
-    joinSteps: [
-      'Abre Valheim, elige tu personaje y entra en «Unirse a partida».',
-      'Pulsa «Añadir servidor» y pega ahí la dirección, con el puerto incluido.',
-      'Escribe la contraseña del servidor cuando te la pida.',
-      'El servidor queda en tu lista de favoritos: la próxima vez basta con pulsar «Conectar».'
-    ],
-    joinStepsCrossplay: [
-      'Abre Valheim, elige tu personaje y entra en «Unirse a partida».',
-      'Pulsa «Unirse con código» y escribe el código de 6 dígitos que da la app.',
-      'Escribe la contraseña del servidor cuando te la pida.',
-      'El código cambia cada vez que se arranca el servidor: habrá que pasarlo de nuevo.'
-    ],
-    tunnelAddressExample: 'algo.gl.at.ply.gg',
-    save: { singular: 'mundo', plural: 'mundos', feminine: false },
-    backupScope:
-      'Se guardan los mundos y las listas de moderación. El juego no hace falta: se vuelve a descargar de Steam.',
-    moderationHint:
-      'En Valheim se modera por identificador de Steam, no por nombre: el juego no dice cómo se ' +
-      'llama el personaje de nadie. Vetar a alguien lo echa al momento, y las listas completas ' +
-      '(administradores, vetados e invitados) están en Configuración → Moderación.'
+    agreements: [STEAM_AGREEMENT],
+    get disclaimer() {
+      return t('games.valheim.disclaimer')
+    },
+    get joinHint() {
+      return t('games.valheim.joinHint')
+    },
+    get joinSteps() {
+      return [
+        t('games.valheim.join1'),
+        t('games.valheim.join2'),
+        t('games.valheim.join3'),
+        t('games.valheim.join4')
+      ]
+    },
+    get joinStepsCrossplay() {
+      return [
+        t('games.valheim.join1'),
+        t('games.valheim.crossplay2'),
+        t('games.valheim.join3'),
+        t('games.valheim.crossplay4')
+      ]
+    },
+    get tunnelAddressExample() {
+      return tunnelExample('gl.at.ply.gg')
+    },
+    save: 'world',
+    get backupScope() {
+      return t('games.valheim.backupScope')
+    },
+    get moderationHint() {
+      return t('games.valheim.moderationHint')
+    }
   },
 
   factorio: {
     id: 'factorio',
     name: 'Factorio',
     card: {
-      tagline: 'Montar una fábrica enorme entre varios, y defenderla.',
-      players: `Hasta ${FACTORIO_MAX_PLAYERS} cómodamente`,
+      get tagline() {
+        return t('games.factorio.tagline')
+      },
+      get players() {
+        return t('games.upToComfortably', { n: FACTORIO_MAX_PLAYERS })
+      },
       memoryGb: { min: FACTORIO_MEMORY_MIN_GB, recommended: FACTORIO_MEMORY_RECOMMENDED_GB },
       // Medido en la fase 4: la descarga son 5 GB, pero el servidor se queda en
       // 246 MB porque no necesita ni imágenes ni sonidos.
-      download: '5 GB → 250 MB',
+      get download() {
+        return `${formatSize(5, 'GB')} → ${formatSize(250, 'MB')}`
+      },
       downloadMeasured: true,
       // Como en los demás juegos: primero lo bueno y el aviso al final.
-      highlights: [
-        { text: 'Arranca en un segundo', tone: 'good' },
-        { text: 'Con mods y con Space Age', tone: 'neutral' },
-        { text: 'Hace falta tener el juego', tone: 'warn' }
-      ],
+      get highlights() {
+        return [
+          { text: t('games.factorio.highlight1'), tone: 'good' as const },
+          { text: t('games.factorio.highlight2'), tone: 'neutral' as const },
+          { text: t('games.factorio.highlight3'), tone: 'warn' as const }
+        ]
+      },
       requirements: {
-        startup: 'un segundo',
-        ports: 'uno UDP (34197)',
-        extra: 'tener Factorio en tu cuenta de Steam'
+        get startup() {
+          return t('games.factorio.startup')
+        },
+        get ports() {
+          return t('games.factorio.ports')
+        },
+        get extra() {
+          return t('games.factorio.extra')
+        }
       }
     },
     // El juego se descarga de Steam con la cuenta del usuario (no hay servidor
     // dedicado anónimo), así que lo que se acepta sigue siendo el acuerdo de Steam.
-    agreements: [
-      {
-        id: 'steam-subscriber',
-        label: 'el Acuerdo de Suscriptor de Steam',
-        url: 'https://store.steampowered.com/subscriber_agreement/'
-      }
-    ],
-    disclaimer: 'Herramienta no oficial. No está asociada a Wube Software ni a Factorio.',
-    joinHint: 'En Factorio: Multijugador → Conectar a la dirección.',
-    joinSteps: [
-      'Abre Factorio y entra en «Multijugador» desde el menú principal.',
-      'Pulsa «Conectar a la dirección» y pega ahí la dirección, con el puerto incluido.',
-      'Escribe la contraseña del servidor cuando te la pida.',
-      'Tenéis que tener todos la misma versión del juego y los mismos mods que el servidor.'
-    ],
-    joinWarning:
-      'Si te saltas la contraseña, Factorio corta la conexión sin decir por qué (en el servidor ' +
-      'queda como «PasswordMissing»). Y si tu juego no está en la misma versión que el servidor, ' +
-      'no te dejará entrar: mira la versión en la ficha del servidor.',
-    tunnelAddressExample: 'algo.gl.at.ply.gg',
-    save: { singular: 'partida', plural: 'partidas', feminine: true },
-    backupScope:
-      'Se guardan las partidas, los mods y las listas de moderación. El juego no hace falta: se ' +
-      'vuelve a descargar de Steam.',
-    moderationHint:
-      'En Factorio se modera por nombre de cuenta de Factorio, que es el que se ve en el chat. ' +
-      'Vetar a alguien lo echa al momento.'
+    agreements: [STEAM_AGREEMENT],
+    get disclaimer() {
+      return t('games.factorio.disclaimer')
+    },
+    get joinHint() {
+      return t('games.factorio.joinHint')
+    },
+    get joinSteps() {
+      return [
+        t('games.factorio.join1'),
+        t('games.factorio.join2'),
+        t('games.factorio.join3'),
+        t('games.factorio.join4')
+      ]
+    },
+    get joinWarning() {
+      return t('games.factorio.joinWarning')
+    },
+    get tunnelAddressExample() {
+      return tunnelExample('gl.at.ply.gg')
+    },
+    save: 'game',
+    get backupScope() {
+      return t('games.factorio.backupScope')
+    },
+    get moderationHint() {
+      return t('games.factorio.moderationHint')
+    }
   },
 
   zomboid: {
     id: 'zomboid',
     name: 'Project Zomboid',
     card: {
-      tagline: 'Sobrevivir a la epidemia zombi todo lo que se pueda.',
-      players: `Hasta ${ZOMBOID_MAX_PLAYERS} cómodamente`,
+      get tagline() {
+        return t('games.zomboid.tagline')
+      },
+      get players() {
+        return t('games.upToComfortably', { n: ZOMBOID_MAX_PLAYERS })
+      },
       memoryGb: { min: ZOMBOID_MEMORY_MIN_GB, recommended: ZOMBOID_MEMORY_RECOMMENDED_GB },
-      download: '6,7 GB',
+      get download() {
+        return t('games.zomboid.download')
+      },
       downloadMeasured: true,
-      highlights: [
-        { text: 'Se modera y se manda como en Minecraft', tone: 'good' },
-        { text: 'Cientos de reglas de partida', tone: 'neutral' },
-        { text: 'Tarda un minuto largo en arrancar', tone: 'warn' }
-      ],
+      get highlights() {
+        return [
+          { text: t('games.zomboid.highlight1'), tone: 'good' as const },
+          { text: t('games.zomboid.highlight2'), tone: 'neutral' as const },
+          { text: t('games.zomboid.highlight3'), tone: 'warn' as const }
+        ]
+      },
       requirements: {
-        startup: 'unos 40 segundos (minuto y medio la primera vez)',
-        ports: 'uno UDP (16261), dos con Steam encendido'
+        get startup() {
+          return t('games.zomboid.startup')
+        },
+        get ports() {
+          return t('games.zomboid.ports')
+        }
       }
     },
-    // Como Valheim y Satisfactory: el servidor se baja de Steam de forma
-    // anónima, así que lo que se acepta es el acuerdo de Steam.
-    agreements: [
-      {
-        id: 'steam-subscriber',
-        label: 'el Acuerdo de Suscriptor de Steam',
-        url: 'https://store.steampowered.com/subscriber_agreement/'
-      }
-    ],
-    disclaimer: 'Herramienta no oficial. No está asociada a The Indie Stone ni a Project Zomboid.',
-    joinHint: 'En Project Zomboid: Unirse → Favoritos → Añadir servidor, con esta dirección.',
-    joinSteps: [
-      'Abre Project Zomboid y entra en «Unirse» desde el menú principal.',
-      'Ve a la pestaña «Favoritos» y pulsa «Añadir servidor» con esta dirección y su puerto.',
-      'Escribe el nombre de usuario y la contraseña que quieras: la primera vez se te crea la cuenta sola.',
-      'Si el servidor tiene contraseña, va en el campo «Contraseña del servidor», que es distinto al de tu cuenta.'
-    ],
-    joinWarning:
-      'Tu usuario y tu contraseña son de este servidor, no de Steam: te los inventas tú la primera ' +
-      'vez y con ellos vuelves a tu mismo personaje. Si te equivocas al escribirlos, el servidor te ' +
-      'dice que la contraseña no es válida en vez de crearte otra cuenta.',
-    tunnelAddressExample: 'algo.gl.at.ply.gg',
-    save: { singular: 'partida', plural: 'partidas', feminine: true },
-    backupScope:
-      'Se guardan la partida, los ajustes y la base de datos de cuentas (quién es administrador y ' +
-      'quién está vetado). El juego no hace falta: se vuelve a descargar de Steam.',
-    moderationHint:
-      'En Zomboid se modera por nombre de cuenta del servidor, no por Steam. Las órdenes viajan ' +
-      'por la consola remota, así que hay que tener el servidor arrancado: con él parado se ve ' +
-      'quién es quién, pero no se puede cambiar.'
+    agreements: [STEAM_AGREEMENT],
+    get disclaimer() {
+      return t('games.zomboid.disclaimer')
+    },
+    get joinHint() {
+      return t('games.zomboid.joinHint')
+    },
+    get joinSteps() {
+      return [
+        t('games.zomboid.join1'),
+        t('games.zomboid.join2'),
+        t('games.zomboid.join3'),
+        t('games.zomboid.join4')
+      ]
+    },
+    get joinWarning() {
+      return t('games.zomboid.joinWarning')
+    },
+    get tunnelAddressExample() {
+      return tunnelExample('gl.at.ply.gg')
+    },
+    save: 'game',
+    get backupScope() {
+      return t('games.zomboid.backupScope')
+    },
+    get moderationHint() {
+      return t('games.zomboid.moderationHint')
+    }
   },
 
   enshrouded: {
     id: 'enshrouded',
     name: 'Enshrouded',
     card: {
-      tagline: 'Sobrevivir, construir y explorar un mundo tragado por la niebla.',
-      players: `Hasta ${ENSHROUDED_MAX_PLAYERS}`,
+      get tagline() {
+        return t('games.enshrouded.tagline')
+      },
+      get players() {
+        return t('games.upTo', { n: ENSHROUDED_MAX_PLAYERS })
+      },
       memoryGb: { min: ENSHROUDED_MEMORY_MIN_GB, recommended: ENSHROUDED_MEMORY_RECOMMENDED_GB },
-      download: '8,8 GB',
+      get download() {
+        return t('games.enshrouded.download')
+      },
       downloadMeasured: true,
-      highlights: [
-        { text: 'Arranca en 3 segundos', tone: 'good' },
-        { text: 'Permisos por contraseña', tone: 'neutral' },
-        // Medido: no hay forma de apagarlo. Va el último, como en los demás,
-        // pero es lo que más cambia la decisión de crearlo o no.
-        { text: 'Sale siempre en la lista pública', tone: 'warn' }
-      ],
+      get highlights() {
+        return [
+          { text: t('games.enshrouded.highlight1'), tone: 'good' as const },
+          { text: t('games.enshrouded.highlight2'), tone: 'neutral' as const },
+          // Medido: no hay forma de apagarlo. Va el último, como en los demás,
+          // pero es lo que más cambia la decisión de crearlo o no.
+          { text: t('games.alwaysPublic'), tone: 'warn' as const }
+        ]
+      },
       requirements: {
-        startup: 'entre 2 y 4 segundos',
-        ports: 'uno UDP (15637)',
-        extra: 'sale siempre en la lista pública del juego'
+        get startup() {
+          return t('games.enshrouded.startup')
+        },
+        get ports() {
+          return t('games.enshrouded.ports')
+        },
+        get extra() {
+          return t('games.enshrouded.extra')
+        }
       }
     },
-    // Como Valheim, Satisfactory y Zomboid: el servidor se baja de Steam de
-    // forma anónima, así que lo que se acepta es el acuerdo de Steam.
-    agreements: [
-      {
-        id: 'steam-subscriber',
-        label: 'el Acuerdo de Suscriptor de Steam',
-        url: 'https://store.steampowered.com/subscriber_agreement/'
-      }
-    ],
-    disclaimer: 'Herramienta no oficial. No está asociada a Keen Games ni a Enshrouded.',
-    joinHint: 'En Enshrouded: Jugar → Servidores → Añadir servidor, con esta dirección.',
-    joinSteps: [
-      'Abre Enshrouded y entra en «Servidores» desde el menú de jugar.',
-      'Pulsa «Añadir servidor» y pega ahí la dirección, con el puerto incluido.',
-      'Escribe la contraseña del rol que te hayan dado: la contraseña decide qué puedes hacer dentro.',
-      'El servidor queda en tus favoritos, que es donde sale aunque la lista pública tarde en refrescarse.'
-    ],
-    joinWarning:
-      'En Enshrouded no hay una contraseña del servidor, sino una por rol. Con la de Administrador ' +
-      'puedes echar y vetar; con la de Invitado no puedes ni abrir cofres. Si te dan la que no es, ' +
-      'entrarás igual pero con otros permisos.',
-    tunnelAddressExample: 'algo.gl.at.ply.gg',
-    save: { singular: 'mundo', plural: 'mundos', feminine: false },
-    backupScope:
-      'Se guardan los mundos y la configuración, con los roles y los vetados. El juego no hace ' +
-      'falta: se vuelve a descargar de Steam. Con el servidor en marcha, la copia se hace justo ' +
-      'después de uno de sus guardados, que son cada cinco minutos.',
-    moderationHint:
-      'Enshrouded no deja echar a nadie desde fuera del juego: su propio servidor dice que el ' +
-      'expulsar de un dedicado «no está implementado». Lo que sí se puede es quitar un veto desde ' +
-      'aquí, y vetar desde dentro del juego con la contraseña de Administrador (pestaña Social).'
+    agreements: [STEAM_AGREEMENT],
+    get disclaimer() {
+      return t('games.enshrouded.disclaimer')
+    },
+    get joinHint() {
+      return t('games.enshrouded.joinHint')
+    },
+    get joinSteps() {
+      return [
+        t('games.enshrouded.join1'),
+        t('games.enshrouded.join2'),
+        t('games.enshrouded.join3'),
+        t('games.enshrouded.join4')
+      ]
+    },
+    get joinWarning() {
+      return t('games.enshrouded.joinWarning')
+    },
+    get tunnelAddressExample() {
+      return tunnelExample('gl.at.ply.gg')
+    },
+    save: 'world',
+    get backupScope() {
+      return t('games.enshrouded.backupScope')
+    },
+    get moderationHint() {
+      return t('games.enshrouded.moderationHint')
+    }
   },
 
   rust: {
     id: 'rust',
     name: 'Rust',
     card: {
-      tagline: 'Sobrevivir, construir una base y defenderla. Cada mes, mapa nuevo.',
-      players: `Hasta ${RUST_MAX_PLAYERS} en un PC de casa`,
+      get tagline() {
+        return t('games.rust.tagline')
+      },
+      get players() {
+        return t('games.rust.players', { n: RUST_MAX_PLAYERS })
+      },
       memoryGb: { min: RUST_MEMORY_MIN_GB, recommended: RUST_MEMORY_RECOMMENDED_GB },
-      download: '5,5 GB',
+      get download() {
+        return t('games.rust.download')
+      },
       downloadMeasured: true,
-      highlights: [
-        { text: 'Se modera en caliente', tone: 'good' },
-        { text: 'Plugins con Oxide', tone: 'neutral' },
-        { text: 'Mapa nuevo cada mes', tone: 'warn' },
-        // Medido: no hay ninguna variable para quedar fuera de la lista.
-        { text: 'Sale siempre en la lista pública', tone: 'warn' }
-      ],
+      get highlights() {
+        return [
+          { text: t('games.rust.highlight1'), tone: 'good' as const },
+          { text: t('games.rust.highlight2'), tone: 'neutral' as const },
+          { text: t('games.rust.highlight3'), tone: 'warn' as const },
+          // Medido: no hay ninguna variable para quedar fuera de la lista.
+          { text: t('games.alwaysPublic'), tone: 'warn' as const }
+        ]
+      },
       requirements: {
-        startup: 'de 2 a 5 minutos la primera vez (genera el mapa), unos 13 s después',
-        ports: 'dos UDP (28015 y 28017), y uno TCP más con Rust+',
-        extra: 'sale siempre en la lista pública; mapa nuevo cada mes'
+        get startup() {
+          return t('games.rust.startup')
+        },
+        get ports() {
+          return t('games.rust.ports')
+        },
+        get extra() {
+          return t('games.rust.extra')
+        }
       }
     },
-    // Como los demás juegos de Steam: el servidor se baja de forma anónima, así
-    // que lo que se acepta es el acuerdo de Steam.
-    agreements: [
-      {
-        id: 'steam-subscriber',
-        label: 'el Acuerdo de Suscriptor de Steam',
-        url: 'https://store.steampowered.com/subscriber_agreement/'
-      }
-    ],
-    disclaimer: 'Herramienta no oficial. No está asociada a Facepunch Studios ni a Rust.',
-    joinHint: 'En Rust: pulsa F1 y escribe «client.connect» seguido de esta dirección.',
-    joinSteps: [
-      'Abre Rust y espera a estar en el menú principal.',
-      'Pulsa F1 para abrir la consola del juego.',
-      'Escribe «client.connect» y la dirección con su puerto, por ejemplo: client.connect 192.168.1.20:28015',
-      'Pulsa Intro. Después sale en «Historial» dentro de la lista de servidores, para la próxima vez.'
-    ],
-    joinWarning:
-      'Si el servidor acaba de cambiar de mes y no se ha actualizado, Rust no te deja entrar: dice ' +
-      'que la versión no coincide. Pasa el primer jueves de cada mes; mira Configuración → Borrado.',
-    tunnelAddressExample: 'algo.gl.at.ply.gg',
-    save: { singular: 'mapa', plural: 'mapas', feminine: false },
-    backupScope:
-      'Se guardan el mapa con todo lo construido, los jugadores, los administradores y los vetados, ' +
-      'y los plugins con su configuración. El juego no hace falta: se vuelve a descargar de Steam.',
-    moderationHint:
-      'En Rust se modera por el identificador de Steam, aunque la lista enseña el nombre. Echar y ' +
-      'vetar surten efecto al momento; los administradores y los vetados están en Configuración → ' +
-      'Moderación.'
+    agreements: [STEAM_AGREEMENT],
+    get disclaimer() {
+      return t('games.rust.disclaimer')
+    },
+    get joinHint() {
+      return t('games.rust.joinHint')
+    },
+    get joinSteps() {
+      return [
+        t('games.rust.join1'),
+        t('games.rust.join2'),
+        t('games.rust.join3'),
+        t('games.rust.join4')
+      ]
+    },
+    get joinWarning() {
+      return t('games.rust.joinWarning')
+    },
+    get tunnelAddressExample() {
+      return tunnelExample('gl.at.ply.gg')
+    },
+    save: 'map',
+    get backupScope() {
+      return t('games.rust.backupScope')
+    },
+    get moderationHint() {
+      return t('games.rust.moderationHint')
+    }
   }
 }
 
 /** «Servidores de Minecraft» mientras sea el único juego; genérico después. */
 export function appSubtitle(): string {
   return GAME_IDS.length === 1
-    ? `Servidores de ${GAMES[GAME_IDS[0]].name}, sin complicaciones`
-    : 'Servidores de juegos, sin complicaciones'
+    ? t('games.subtitleOne', { game: GAMES[GAME_IDS[0]!].name })
+    : t('games.subtitle')
 }
 
 /**
@@ -571,10 +687,7 @@ export function appSubtitle(): string {
  */
 export function disclaimerLines(): string[] {
   if (GAME_IDS.length === 1) return [GAMES[GAME_IDS[0]!].disclaimer]
-  return [
-    GAMES.minecraft.disclaimer,
-    'QubiQ no es un producto oficial de ninguno de los juegos que gestiona ni está asociado a sus estudios.'
-  ]
+  return [GAMES.minecraft.disclaimer, t('games.disclaimerAll')]
 }
 
 /**
@@ -635,27 +748,34 @@ export interface ServerPort {
 export const PROTOCOL_LABELS: Record<PortProtocol, string> = {
   tcp: 'TCP',
   udp: 'UDP',
-  'tcp+udp': 'TCP y UDP'
+  get 'tcp+udp'() {
+    return t('games.port.tcpUdp')
+  }
 }
 
 /** Puertos que hay que abrir en el router (o tunelizar) para este servidor. */
 export function serverPorts(manifest: InstanceManifest): ServerPort[] {
   switch (manifest.game) {
     case 'minecraft':
-      return [{ port: manifest.port, protocol: 'tcp', label: 'Juego', tunnelType: 'Minecraft Java' }]
+      return [{ port: manifest.port, protocol: 'tcp', label: t('games.port.game'), tunnelType: 'Minecraft Java' }]
     case 'satisfactory':
       // El de juego lleva las dos cosas: por UDP se juega y por TCP va la API
       // con la que la propia app configura el servidor. El de mensajería no
       // sigue al del juego: es siempre el 8888 (comprobado en la fase 2).
       return [
-        { port: manifest.port, protocol: 'tcp+udp', label: 'Juego', tunnelType: 'UDP y TCP' },
-        { port: RELIABLE_PORT, protocol: 'tcp', label: 'Mensajería del juego', tunnelType: 'TCP' }
+        {
+          port: manifest.port,
+          protocol: 'tcp+udp',
+          label: t('games.port.game'),
+          tunnelType: t('games.port.udpTcp')
+        },
+        { port: RELIABLE_PORT, protocol: 'tcp', label: t('games.port.messaging'), tunnelType: 'TCP' }
       ]
     case 'factorio':
       // Uno solo, y por UDP. El de RCON no se lista a propósito: la app lo abre
       // solo en 127.0.0.1 para poder parar y moderar el servidor, y abrirlo
       // fuera del equipo sería dar la consola remota a quien pase por ahí.
-      return [{ port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' }]
+      return [{ port: manifest.port, protocol: 'udp', label: t('games.port.game'), tunnelType: 'UDP' }]
     case 'zomboid':
       // Medido con netstat: **sin Steam el servidor abre solo el de juego**. El
       // segundo (`UDPPort`) está en su configuración y en todas las guías, pero
@@ -663,30 +783,30 @@ export function serverPorts(manifest: InstanceManifest): ServerPort[] {
       // abrirlo. El de RCON no se lista nunca: es la consola de la app.
       return manifest.data.useSteam
         ? [
-            { port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' },
+            { port: manifest.port, protocol: 'udp', label: t('games.port.game'), tunnelType: 'UDP' },
             {
               port: udpPortFor(manifest.port),
               protocol: 'udp',
-              label: 'Datos de jugador',
+              label: t('games.port.playerData'),
               tunnelType: 'UDP'
             }
           ]
-        : [{ port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' }]
+        : [{ port: manifest.port, protocol: 'udp', label: t('games.port.game'), tunnelType: 'UDP' }]
     case 'enshrouded':
       // Uno solo, y por UDP. Desde el Content Update #2 no hay puerto de juego
       // aparte del de consulta, y el servidor no abre ningún otro: medido con
       // netstat en la fase 6.
-      return [{ port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' }]
+      return [{ port: manifest.port, protocol: 'udp', label: t('games.port.game'), tunnelType: 'UDP' }]
     case 'rust': {
       // Medido con netstat: juego y consulta por UDP. La consola remota (el de
       // en medio, TCP) no se lista nunca: la app la abre solo en 127.0.0.1.
       // Rust+ solo si está encendido, que es cuando abre su puerto TCP.
       const ports: ServerPort[] = [
-        { port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' },
+        { port: manifest.port, protocol: 'udp', label: t('games.port.game'), tunnelType: 'UDP' },
         {
           port: rustQueryPortFor(manifest.port),
           protocol: 'udp',
-          label: 'Consulta de Steam',
+          label: t('games.port.steamQuery'),
           tunnelType: 'UDP'
         }
       ]
@@ -694,7 +814,7 @@ export function serverPorts(manifest: InstanceManifest): ServerPort[] {
         ports.push({
           port: rustPlusPortFor(manifest.port),
           protocol: 'tcp',
-          label: 'Rust+ (app del móvil)',
+          label: t('games.port.rustPlus'),
           tunnelType: 'TCP'
         })
       }
@@ -705,11 +825,11 @@ export function serverPorts(manifest: InstanceManifest): ServerPort[] {
       // Con crossplay no hace falta abrir ninguno, pero se siguen listando:
       // son los que el servidor usa, y quien elija abrir el router los necesita.
       return [
-        { port: manifest.port, protocol: 'udp', label: 'Juego', tunnelType: 'UDP' },
+        { port: manifest.port, protocol: 'udp', label: t('games.port.game'), tunnelType: 'UDP' },
         {
           port: queryPortFor(manifest.port),
           protocol: 'udp',
-          label: 'Consulta de Steam',
+          label: t('games.port.steamQuery'),
           tunnelType: 'UDP'
         }
       ]
@@ -938,7 +1058,7 @@ export function summaryLabel(manifest: InstanceManifest): string {
     case 'minecraft': {
       const { data } = manifest
       const base = `${DISTRIBUTION_LABELS[data.distribution].name} · ${data.minecraftVersion}`
-      return data.custom ? `${base} · a medida` : base
+      return data.custom ? `${base} · ${t('games.summary.custom')}` : base
     }
     case 'satisfactory':
       return `Satisfactory · ${manifest.data.sessionName}`
@@ -949,7 +1069,7 @@ export function summaryLabel(manifest: InstanceManifest): string {
     case 'zomboid':
       return `Project Zomboid · ${zomboidPresetInfo(manifest.data.preset).name}`
     case 'rust':
-      return `Rust · mapa ${rustWorldSizeLabel(manifest.data.worldSize).toLowerCase()}`
+      return `Rust · ${t('games.summary.rustMap', { size: rustWorldSizeLabel(manifest.data.worldSize) })}`
     case 'factorio':
       return manifest.data.spaceAge
         ? `Factorio · ${manifest.data.saveName} · Space Age`

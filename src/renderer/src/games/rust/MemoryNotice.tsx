@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { MEMORY_RECOMMENDED_GB, worldSizeInfo } from '@shared/games/rust/types'
+import { formatNumber, t } from '../../i18n'
 
 /**
  * Aviso de memoria de Rust, según el tamaño del mapa.
@@ -30,14 +31,11 @@ export function MemoryNotice({ worldSize }: { worldSize: number }): React.JSX.El
     <div className={`alert ${short ? 'error' : 'warn'}`} style={{ textAlign: 'left' }}>
       <strong>
         {short
-          ? `Tu equipo tiene ${totalGb.toFixed(0)} GB de memoria y este mapa usa ${needed.toLocaleString('es-ES')} GB él solo`
-          : `Tu equipo tiene ${totalGb.toFixed(0)} GB de memoria: irá justo`}
+          ? t('rust.memory.short', { gb: Math.round(totalGb), needed: formatNumber(needed) })
+          : t('sf.memory.tight', { gb: Math.round(totalGb) })}
       </strong>
       <p>
-        {short
-          ? 'Puedes crearlo igualmente, pero es probable que vaya a tirones o que se cierre solo. Un mapa más pequeño pide bastante menos. '
-          : 'El servidor cabe, pero con jugadores dentro sube, y jugar en este mismo equipo también consume lo suyo. '}
-        Cierra otros programas —y otros servidores— mientras juguéis.
+        {short ? t('rust.memory.shortText') : t('rust.memory.tightText')} {t('rust.memory.closeApps')}
       </p>
     </div>
   )
