@@ -50,7 +50,8 @@ sus datos compartidos (nombre, condiciones, capacidades, puertos) en `src/shared
 general de la 0.10.0). Después, idiomas, Configuración de la app y carpeta de datos movible (§19.29,
 0.11.0): la interfaz está en diez idiomas, los mensajes del núcleo aún en español. **Control remoto por
 órdenes:** R1 (anfitrión y página web, 0.12.0) hecha; R2 (QubiQ como cliente, 0.13.0) por empezar.
-Hoja de ruta y ANALISIS.md §19.31; sin decisiones pendientes. Probarlo desde fuera de casa exige
+Hoja de ruta y ANALISIS.md §19.31; sin decisiones pendientes. Después, el **historial del servidor**
+(pestaña Historial, §19.32): si añades una forma de moderar, apúntala con `host.journal` (README). Probarlo desde fuera de casa exige
 abrir un puerto: preguntar antes. Lo demás que viene está en §19.30.
 
 **Textos de la interfaz:** nunca a pelo en el código. Van con `t('clave')` a

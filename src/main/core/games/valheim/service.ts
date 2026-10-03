@@ -14,6 +14,7 @@ import type {
   ModRef,
   ModsView
 } from '@shared/games/mods'
+import { listModeration } from '@shared/journal'
 import type { GameHost } from '../minecraft/service'
 import { dropStash, pathsSize, removePaths, stashPaths, unstashPaths } from '../modFiles'
 import { saveDirFor, worldsDirFor, worldSize } from './adapter'
@@ -264,7 +265,9 @@ export function createValheimService(host: GameHost) {
 
       const entries = await readList(id, kind)
       if (entries.some((e) => e.id === clean)) return entries
-      return writeList(id, kind, [...entries, { id: clean, ...(note ? { note } : {}) }])
+      const written = await writeList(id, kind, [...entries, { id: clean, ...(note ? { note } : {}) }])
+      host.journal(id, { kind: 'moderation', action: listModeration(kind, true), player: clean })
+      return written
     },
 
     async removeFromList(
@@ -274,11 +277,15 @@ export function createValheimService(host: GameHost) {
     ): Promise<ValheimListEntry[]> {
       await requireManifest(id)
       const entries = await readList(id, kind)
-      return writeList(
+      const written = await writeList(
         id,
         kind,
         entries.filter((e) => e.id !== playerId)
       )
+      if (entries.some((e) => e.id === playerId)) {
+        host.journal(id, { kind: 'moderation', action: listModeration(kind, false), player: playerId })
+      }
+      return written
     },
 
     // --- Mods de Thunderstore -----------------------------------------------

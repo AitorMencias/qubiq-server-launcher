@@ -7,6 +7,7 @@ import type {
   ManifestChanges
 } from '@shared/types'
 import type { InstallableVersion, UpdateCheck } from '@shared/games'
+import type { JournalModeration } from '@shared/journal'
 
 /**
  * Contrato de un juego (Hoja de ruta multijuego, fase 0).
@@ -109,6 +110,18 @@ export interface ParsedEvent {
   playerJoined?: string
   playerLeft?: string
   chat?: { player: string; message: string }
+  /**
+   * El juego ha terminado de guardar la partida. Va al historial del servidor;
+   * varias líneas seguidas del mismo guardado cuentan como uno.
+   */
+  saved?: boolean
+  /**
+   * Una moderación que cuenta el propio registro (Minecraft: «Kicked Steve»,
+   * «Made Steve a server operator»). Así se apunta la hecha desde la consola o
+   * desde dentro del juego, no solo la de los botones de la app. Los juegos
+   * que moderan escribiendo ficheros o por RCON la apuntan en su servicio.
+   */
+  moderation?: { action: JournalModeration; player: string; by?: string; reason?: string }
   /**
    * Código con el que se entra en los juegos que se conectan por relé (Valheim
    * con crossplay). Se genera en cada arranque y solo se sabe por el registro.

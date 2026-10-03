@@ -350,6 +350,7 @@ export function createEnshroudedService(host: GameHost) {
         `${JSON.stringify({ ...config, bannedAccounts: quedan.map(banToRaw) }, null, '\t')}\n`,
         'utf8'
       )
+      host.journal(id, { kind: 'moderation', action: 'unban', player: String(accountId) })
       return quedan
     },
 

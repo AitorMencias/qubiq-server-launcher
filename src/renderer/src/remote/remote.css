@@ -269,14 +269,9 @@ label {
   max-width: none;
 }
 
-.r-players-card h2,
-.r-section-title {
+.r-players-card h2 {
   font-size: 16px;
   margin: 0 0 8px;
-}
-
-.r-section-title {
-  margin: 4px 0 -4px;
 }
 
 .r-players-card p:last-child {
@@ -411,4 +406,163 @@ label {
   background: #2a1a1a;
   border-color: #5a2b2b;
   color: #ff9d97;
+}
+
+/* --- Consola / Historial ------------------------------------------------------ */
+
+/* `hidden` tiene que ganar a los `display` de las clases (la consola se esconde
+   sin desmontarla al mirar el historial). */
+[hidden] {
+  display: none !important;
+}
+
+.r-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.r-tabs button {
+  min-height: 40px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  padding: 8px 12px;
+}
+
+.r-tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* El historial lo pinta `JournalList`, el mismo componente que la app: aquí
+   van sus clases con el aspecto de la página. */
+.r-journal .journal-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.r-journal .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.r-journal .journal-filter {
+  min-height: 36px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.r-journal .journal-filter.active {
+  color: #fff;
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.r-journal .journal-search {
+  margin: 0;
+}
+
+.r-journal .hint {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.r-journal .alert {
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.r-journal .alert strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.r-journal .alert p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.r-journal .alert.error strong {
+  color: #ff9d97;
+}
+
+.r-journal .journal-day {
+  margin-bottom: 16px;
+}
+
+.r-journal .journal-day h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.r-journal .journal-entry {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  background: var(--panel-2);
+  border-left: 3px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  user-select: text;
+}
+
+.r-journal .journal-entry.players {
+  border-left-color: var(--ok);
+}
+.r-journal .journal-entry.saves {
+  border-left-color: var(--accent);
+}
+.r-journal .journal-entry.moderation {
+  border-left-color: var(--warn);
+}
+.r-journal .journal-entry.commands {
+  border-left-color: var(--chat);
+}
+.r-journal .journal-entry.server {
+  border-left-color: var(--muted);
+}
+.r-journal .journal-entry.bad {
+  border-left-color: var(--danger);
+}
+
+.r-journal .journal-time {
+  font-family: 'Cascadia Mono', Consolas, ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.r-journal .journal-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.r-journal .journal-text code {
+  background: #0c0e12;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-family: 'Cascadia Mono', Consolas, ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.r-journal .journal-extra {
+  color: var(--muted);
 }

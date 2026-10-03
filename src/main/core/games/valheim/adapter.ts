@@ -490,7 +490,7 @@ export function parseLine(raw: string): ParsedEvent {
   }
 
   if (/World save \(5\/5\) done/i.test(clean)) {
-    return { level: 'info', text: SAVED_TEXT }
+    return { level: 'info', text: SAVED_TEXT, saved: true }
   }
 
   // BepInEx escribe sus primeras líneas por la salida estándar, así que llegan

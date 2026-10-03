@@ -73,6 +73,7 @@ export const remote = {
   'remote.order.stop': 'Parar',
   'remote.order.restart': 'Reiniciar',
   'remote.order.console': 'Ver consola',
+  'remote.order.journal': 'Ver historial',
   'remote.order.send': 'Comando',
   'remote.result.ok': 'Hecho',
 

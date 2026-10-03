@@ -6,6 +6,7 @@ import { useShareAddress, BasicConnection } from './BasicConnection'
 import { ConnectionCard } from './ConnectionCard'
 import { PlayersPanel } from './PlayersPanel'
 import { ConsolePanel } from './ConsolePanel'
+import { JournalPanel } from './JournalPanel'
 import { BackupPanel } from './BackupPanel'
 import { ConfirmDelete } from './ConfirmDelete'
 import { VersionCard } from './VersionCard'
@@ -18,7 +19,7 @@ import { t } from './i18n'
  * Pantalla de un servidor, igual en los dos modos.
  *
  * El día a día se reduce a tres cosas: encenderlo o apagarlo, ver quién está y
- * mirar la consola. Todo lo demás vive aparte, detrás de "Configuración", en
+ * mirar la consola (y, para lo que ya pasó, el historial). Todo lo demás vive aparte, detrás de "Configuración", en
  * vez de competir por la atención cada vez que se abre la app.
  *
  * El modo no cambia la pantalla, cambia lo que se desbloquea dentro de
@@ -30,7 +31,7 @@ import { t } from './i18n'
  * ficha técnica las aporta el juego del servidor (`games/<juego>`).
  */
 
-type MainTab = 'jugadores' | 'consola'
+type MainTab = 'jugadores' | 'consola' | 'historial'
 /** Pestañas comunes; las del juego llegan con su propio id. */
 type CommonConfigTab = 'conexion' | 'copias' | 'servidor'
 
@@ -275,6 +276,12 @@ export function ServerPanel({
         >
           {t('panel.tab.console')}
         </button>
+        <button
+          className={`tab ${mainTab === 'historial' ? 'active' : ''}`}
+          onClick={() => setMainTab('historial')}
+        >
+          {t('panel.tab.journal')}
+        </button>
       </div>
 
       {mainTab === 'jugadores' && (
@@ -287,6 +294,7 @@ export function ServerPanel({
         />
       )}
       {mainTab === 'consola' && <ConsolePanel state={state} logs={logs} onRun={run} />}
+      {mainTab === 'historial' && <JournalPanel state={state} />}
     </>
   )
 }

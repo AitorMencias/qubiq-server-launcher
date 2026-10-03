@@ -20,6 +20,7 @@ import type {
   RemoteStatus
 } from '../shared/remote'
 import type { InstallableVersion, PortProtocol, UpdateCheck } from '../shared/games'
+import type { JournalEntry } from '../shared/journal'
 import type {
   BootInfo,
   DataFolderInfo,
@@ -729,8 +730,15 @@ const api = {
   server: {
     start: (id: string): Promise<void> => ipcRenderer.invoke(IPC.startServer, id),
     stop: (id: string): Promise<void> => ipcRenderer.invoke(IPC.stopServer, id),
-    command: (id: string, command: string): Promise<void> =>
-      ipcRenderer.invoke(IPC.sendCommand, id, command)
+    /**
+     * `journal: false` para las órdenes que manda un botón (moderar en
+     * Minecraft): no son algo escrito en la consola y no van al historial.
+     */
+    command: (id: string, command: string, options?: { journal?: boolean }): Promise<void> =>
+      ipcRenderer.invoke(IPC.sendCommand, id, command, options),
+    /** Historial del servidor, de lo más reciente a lo más viejo. */
+    journal: (id: string, limit?: number): Promise<JournalEntry[]> =>
+      ipcRenderer.invoke(IPC.listJournal, id, limit)
   },
 
   backups: {
@@ -799,6 +807,8 @@ const api = {
       subscribe<[ProgressUpdate]>(EVENTS.progress, handler),
     diagnosis: (handler: (id: string, diagnosis: Diagnosis) => void) =>
       subscribe<[string, Diagnosis]>(EVENTS.diagnosis, handler),
+    journal: (handler: (id: string, entry: JournalEntry) => void) =>
+      subscribe<[string, JournalEntry]>(EVENTS.journal, handler),
     relocation: (handler: (status: RelocationStatus) => void) =>
       subscribe<[RelocationStatus]>(EVENTS.relocation, handler)
   }

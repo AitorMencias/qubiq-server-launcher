@@ -7,10 +7,11 @@ export function serviceOrderHost(): OrderHost {
   return {
     hostName: () => hostname(),
     list: () => service.list(),
-    start: (id) => service.start(id),
-    stop: (id) => service.stop(id),
-    restart: (id) => service.restart(id),
-    sendCommand: (id, command) => service.sendCommand(id, command),
-    consoleSince: (id, after, max) => service.consoleSince(id, after, max)
+    start: (id, by) => service.start(id, { by }),
+    stop: (id, by) => service.stop(id, { by }),
+    restart: (id, by) => service.restart(id, { by }),
+    sendCommand: (id, command, by) => service.sendCommand(id, command, { by }),
+    consoleSince: (id, after, max) => service.consoleSince(id, after, max),
+    journal: (id, limit) => service.listJournal(id, limit)
   }
 }

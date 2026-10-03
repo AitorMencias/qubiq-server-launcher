@@ -1,13 +1,16 @@
 import type { InstanceState, LogLine } from '@shared/types'
+import type { JournalEntry } from '@shared/journal'
 import { capabilitiesFor } from '@shared/games'
 import {
   CONTROL_ORDERS,
   LEVEL2_COMMANDS,
+  REMOTE_JOURNAL_PAGE,
   commandAllowed,
   maskAddresses,
   type RemoteArgs,
   type RemoteConsoleResult,
   type RemoteError,
+  type RemoteJournalResult,
   type RemoteListResult,
   type RemoteOrder,
   type RemotePermissions
@@ -25,11 +28,14 @@ import {
 export interface OrderHost {
   hostName(): string
   list(): Promise<InstanceState[]>
-  start(id: string): Promise<void>
-  stop(id: string): Promise<void>
-  restart(id: string): Promise<void>
-  sendCommand(id: string, command: string): Promise<void>
+  /** `by` es el nombre del dispositivo, para el historial del servidor. */
+  start(id: string, by: string): Promise<void>
+  stop(id: string, by: string): Promise<void>
+  restart(id: string, by: string): Promise<void>
+  sendCommand(id: string, command: string, by: string): Promise<void>
   consoleSince(id: string, after?: number, max?: number): { lines: (LogLine & { seq: number })[]; next: number }
+  /** El historial del servidor, de lo más reciente a lo más viejo. */
+  journal(id: string, limit: number): Promise<JournalEntry[]>
 }
 
 export interface OrderDevice {
@@ -78,18 +84,18 @@ export async function runOrder(
         throw new OrderRefused('already-running')
       }
       if (server.status === 'installing' || server.status === 'stopping') throw new OrderRefused('busy')
-      await settle(host.start(server.manifest.id))
+      await settle(host.start(server.manifest.id, device.name))
       return null
 
     case 'stop':
       if (server.status === 'installing') throw new OrderRefused('busy')
       if (server.status === 'stopped' || server.status === 'crashed') return null
-      await settle(host.stop(server.manifest.id))
+      await settle(host.stop(server.manifest.id, device.name))
       return null
 
     case 'restart':
       if (server.status === 'installing' || server.status === 'stopping') throw new OrderRefused('busy')
-      await settle(host.restart(server.manifest.id))
+      await settle(host.restart(server.manifest.id, device.name))
       return null
 
     case 'console': {
@@ -118,10 +124,28 @@ export async function runOrder(
       if (server.status !== 'running' && server.status !== 'starting') {
         throw new OrderRefused('not-running')
       }
-      await settle(host.sendCommand(server.manifest.id, command))
+      await settle(host.sendCommand(server.manifest.id, command, device.name))
       return null
     }
+
+    case 'journal': {
+      // Solo lectura: lo puede ver cualquier dispositivo con este servidor,
+      // como la consola del nivel 1.
+      const entries = await host.journal(server.manifest.id, REMOTE_JOURNAL_PAGE)
+      const result: RemoteJournalResult = { entries: entries.map(maskJournal) }
+      return result
+    }
   }
+}
+
+/**
+ * El texto libre del historial sale como la consola: sin IP. Una orden puede
+ * llevarlas (`ban-ip`), y un motivo lo escribe quien modera.
+ */
+function maskJournal(entry: JournalEntry): JournalEntry {
+  if (entry.kind === 'command') return { ...entry, command: maskAddresses(entry.command) }
+  if (entry.kind === 'moderation' && entry.reason) return { ...entry, reason: maskAddresses(entry.reason) }
+  return entry
 }
 
 async function listResult(host: OrderHost, device: OrderDevice): Promise<RemoteListResult> {
@@ -145,7 +169,8 @@ async function listResult(host: OrderHost, device: OrderDevice): Promise<RemoteL
         playerCount: running ? state.playerCount : null,
         playerIds: capabilities.playerIds,
         playerNames: capabilities.playerNames,
-        commands: capabilities.commands
+        commands: capabilities.commands,
+        moderation: capabilities.moderation
       }
     })
   }

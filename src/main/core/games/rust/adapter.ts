@@ -629,8 +629,13 @@ export function parseLine(raw: string): ParsedEvent {
     return { level: 'info', text: 'Conectado con Steam: el servidor ya sale en la lista del juego.' }
   }
 
-  if (/^Saving complete/.test(clean)) return { level: 'info', text: SAVED_TEXT }
-  if (/^Saved [\d,.]+ ents/.test(clean)) return { level: 'info', text: 'Guardando el mapa…', hidden: true }
+  // El guardado automático solo deja «Saved N ents»; «Saving complete» sale
+  // cuando se pide por la consola remota. Los dos cuentan para el historial:
+  // el servicio junta en uno los que llegan seguidos.
+  if (/^Saving complete/.test(clean)) return { level: 'info', text: SAVED_TEXT, saved: true }
+  if (/^Saved [\d,.]+ ents/.test(clean)) {
+    return { level: 'info', text: 'Guardando el mapa…', hidden: true, saved: true }
+  }
 
   if (/Server Shutting Down/.test(clean)) {
     return { level: 'info', text: 'Cerrando el servidor…' }

@@ -774,7 +774,7 @@ export function parseLine(raw: string): ParsedEvent {
   if (/^mod "(.+?)" overrides /i.test(clean)) return { level: 'info', text: clean, hidden: true }
 
   if (/Saving took|Shutdown handling finished/i.test(clean)) {
-    return { level: 'info', text: SAVED_TEXT }
+    return { level: 'info', text: SAVED_TEXT, saved: true }
   }
   if (/^SaveAll took|^Saving (players|worldgen|GlobalModData|finish)/i.test(clean)) {
     return { level: 'info', text: 'Guardando la partida…', hidden: true }

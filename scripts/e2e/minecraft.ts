@@ -243,6 +243,9 @@ async function main(): Promise<void> {
   const pingAfter = await service.connectionInfo(manifest.id)
   check('y sigue aceptando conexiones', pingAfter.ping.state === 'ok')
 
+  // Una orden escrita en la consola, para el historial.
+  await service.sendCommand(manifest.id, 'list')
+
   console.log('\n== Parada limpia (stop por stdin, sin matar el proceso)')
   const stopStarted = Date.now()
   await service.stop(manifest.id)
@@ -250,6 +253,18 @@ async function main(): Promise<void> {
 
   const finalState = await service.get(manifest.id)
   check('el estado vuelve a "stopped"', finalState.status === 'stopped', `en ${stopSeconds} s`)
+
+  // El historial con un servidor de verdad: el guardado lo cuenta el registro
+  // («Saved the game» de la copia en caliente y «All dimensions are saved» al
+  // cerrar, juntos si llegan seguidos), no la app.
+  const historial = (await service.listJournal(manifest.id, 50)).reverse().map((e) => e.kind)
+  check(
+    'el historial recoge arranque, guardado, copia, orden y parada',
+    ['start', 'save', 'backup', 'command', 'stop'].every((kind) => historial.includes(kind)) &&
+      historial[0] === 'start' &&
+      historial[historial.length - 1] === 'stop',
+    historial.join(', ')
+  )
   check('no quedaron errores sin diagnosticar', errors.length === 0, errors.slice(0, 2).join(' | '))
 
   // Si el cierre fue limpio, el servidor habrá guardado la sesión.

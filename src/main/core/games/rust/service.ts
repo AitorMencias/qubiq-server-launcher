@@ -521,6 +521,11 @@ export function createRustService(host: RustHost) {
         admins.push({ steamId, name: name || steamId, level })
         await writeAdmins(id, admins)
       }
+      host.journal(id, {
+        kind: 'moderation',
+        ...(level === 'owner' ? { action: 'admin' } : { action: 'role', role: level }),
+        player: name || steamId
+      })
       return readAdmins(id)
     },
 
@@ -536,6 +541,7 @@ export function createRustService(host: RustHost) {
           (await readAdmins(id)).filter((a) => a.steamId !== steamId)
         )
       }
+      host.journal(id, { kind: 'moderation', action: 'unadmin', player: admin.name || steamId })
       return readAdmins(id)
     },
 
@@ -556,8 +562,10 @@ export function createRustService(host: RustHost) {
     async ban(id: string, player: string, reason: string): Promise<RustBan[]> {
       const manifest = await requireManifest(id)
       const motivo = reason.trim() || 'Vetado desde QubiQ'
+      let apuntado = player
       if (host.isRunning(id)) {
         const { steamId, name } = await steamIdOf(manifest, player)
+        apuntado = name || steamId
         await moderate(manifest, `banid ${steamId} ${consoleQuote(name)} ${consoleQuote(motivo)}`)
         // Y fuera, si está dentro. Si no está, contesta «Player not found».
         await rustRcon(manifest, `kick ${steamId} ${consoleQuote(motivo)}`).catch(() => undefined)
@@ -568,7 +576,9 @@ export function createRustService(host: RustHost) {
         const bans = (await readBansCfg(id)).filter((b) => b.steamId !== player)
         bans.push({ steamId: player, name: player, reason: motivo })
         await writeBansCfg(id, bans)
+        apuntado = player
       }
+      host.journal(id, { kind: 'moderation', action: 'ban', player: apuntado, reason: motivo })
       return this.listBans(id)
     },
 
@@ -582,15 +592,22 @@ export function createRustService(host: RustHost) {
           (await readBansCfg(id)).filter((b) => b.steamId !== steamId)
         )
       }
+      host.journal(id, { kind: 'moderation', action: 'unban', player: steamId })
       return this.listBans(id)
     },
 
     async kick(id: string, player: string, reason = ''): Promise<void> {
       const manifest = await requireManifest(id)
       if (!host.isRunning(id)) throw new Error('Para echar a alguien el servidor tiene que estar en marcha.')
-      const { steamId } = await steamIdOf(manifest, player)
+      const { steamId, name } = await steamIdOf(manifest, player)
       const answer = await rustRcon(manifest, `kick ${steamId} ${consoleQuote(reason.trim() || 'Expulsado')}`)
       if (/Player not found/i.test(answer)) throw new Error('Ya no está en el servidor.')
+      host.journal(id, {
+        kind: 'moderation',
+        action: 'kick',
+        player: name || steamId,
+        ...(reason.trim() ? { reason: reason.trim() } : {})
+      })
     },
 
     /** «Hacer administrador» desde la lista de quien está dentro. */

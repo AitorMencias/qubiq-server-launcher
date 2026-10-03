@@ -6,6 +6,7 @@ import {
   type FactorioListKind,
   type FactorioSave
 } from '@shared/games/factorio/types'
+import { listModeration } from '@shared/journal'
 import type { GameHost } from '../minecraft/service'
 import { rconCommand } from '../../net/rcon'
 import { dataDirFor, savePathFor } from './adapter'
@@ -235,6 +236,7 @@ export function createFactorioService(host: GameHost) {
       if (!current.some((n) => n.toLowerCase() === name.toLowerCase())) {
         await writeListFile(id, kind, [...current, name])
       }
+      host.journal(id, { kind: 'moderation', action: listModeration(kind, true), player: name })
       return this.getList(id, kind)
     },
 
@@ -251,6 +253,7 @@ export function createFactorioService(host: GameHost) {
         kind,
         current.filter((n) => n.toLowerCase() !== name.toLowerCase())
       )
+      host.journal(id, { kind: 'moderation', action: listModeration(kind, false), player: name })
       return this.getList(id, kind)
     },
 
@@ -265,6 +268,12 @@ export function createFactorioService(host: GameHost) {
       if (/no existe|does not exist/i.test(answer)) {
         throw new Error(`${player} no está conectado.`)
       }
+      host.journal(id, {
+        kind: 'moderation',
+        action: 'kick',
+        player,
+        ...(reason?.trim() ? { reason: reason.trim() } : {})
+      })
     },
 
     /** Quién está dentro ahora mismo, preguntándoselo al servidor. */

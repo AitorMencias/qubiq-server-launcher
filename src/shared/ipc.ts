@@ -37,6 +37,7 @@ export const IPC = {
   startServer: 'server:start',
   stopServer: 'server:stop',
   sendCommand: 'server:command',
+  listJournal: 'server:journal',
 
   // Copias de seguridad
   listBackups: 'backup:list',
@@ -321,6 +322,8 @@ export const EVENTS = {
   joinCode: 'event:joinCode',
   progress: 'event:progress',
   diagnosis: 'event:diagnosis',
+  /** Una entrada nueva en el historial de un servidor. */
+  journal: 'event:journal',
   /** Cómo va el traslado de la carpeta de datos, en el arranque que lo hace. */
   relocation: 'event:relocation',
   /** Ha cambiado algo del acceso remoto (estado, dispositivos, actividad). */

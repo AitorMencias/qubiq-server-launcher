@@ -10,6 +10,7 @@ import type {
   WorldInfo
 } from '@shared/games/minecraft/types'
 import type { ConfigChange } from '@shared/editableConfig'
+import type { JournalInput } from '@shared/journal'
 import { officialPluginById, serverPropertiesFor } from '@shared/games/minecraft/officialPlugins'
 import type { OfficialPluginStatus } from '@shared/games/minecraft/officialPlugins'
 import { serverDir } from '../../paths'
@@ -36,6 +37,8 @@ export interface GameHost {
   /** Lanza un error legible si el servidor está en marcha. */
   assertStopped(id: string, action: string): void
   createBackup(id: string, reason?: string, automatic?: boolean): Promise<BackupInfo>
+  /** Apunta algo en el historial del servidor (la moderación que hace cada juego). */
+  journal(id: string, input: JournalInput): void
 }
 
 function propertiesPath(id: string): string {

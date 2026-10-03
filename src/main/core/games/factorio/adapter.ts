@@ -241,7 +241,7 @@ export function parseLine(raw: string): ParsedEvent {
     return { level: 'info', text: 'Servidor listo: ya se puede entrar.', ready: true }
   }
 
-  if (/Saving finished/.test(line)) return { level: 'info', text: SAVED_TEXT }
+  if (/Saving finished/.test(line)) return { level: 'info', text: SAVED_TEXT, saved: true }
   if (/Saving to (\S+) \(blocking\)/.test(line)) {
     return { level: 'info', text: 'Guardando la partida…' }
   }

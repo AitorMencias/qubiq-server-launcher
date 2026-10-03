@@ -71,6 +71,7 @@ export const remote: Translation<typeof source> = {
   'remote.order.stop': 'Stoppen',
   'remote.order.restart': 'Neu starten',
   'remote.order.console': 'Konsole ansehen',
+  'remote.order.journal': 'Verlauf ansehen',
   'remote.order.send': 'Befehl',
   'remote.result.ok': 'Erledigt',
 

@@ -39,6 +39,10 @@ export interface SupervisorEvents {
   /** Código para entrar, en los juegos que se conectan por relé (Valheim). */
   joinCode: (code: string | null) => void
   diagnosis: (diagnosis: Diagnosis) => void
+  /** El juego ha terminado de guardar (para el historial). */
+  saved: () => void
+  /** El registro cuenta una moderación (para el historial). */
+  moderation: (moderation: NonNullable<ParsedEvent['moderation']>) => void
   /**
    * `requested` distingue quién decidió el cierre: true si lo pidió el usuario
    * (`stop()`), false si el servidor se apagó por su cuenta. Sin ese dato no se
@@ -387,6 +391,9 @@ export class ServerSupervisor extends EventEmitter implements SupervisorHandle {
     if (event.diagnosis) {
       this.emit('diagnosis', event.diagnosis)
     }
+
+    if (event.saved) this.emit('saved')
+    if (event.moderation) this.emit('moderation', event.moderation)
   }
 
   private clearStopRetry(): void {

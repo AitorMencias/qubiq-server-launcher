@@ -2985,6 +2985,7 @@ un dispositivo emparejado es molestar en el servidor de juego, y se le revoca.
 | `start` / `stop` / `restart` | servidor | lo mismo que los botones de la app, con su parada limpia |
 | `console` | servidor, «desde la línea N» | últimas líneas del historial, con las IP enmascaradas |
 | `send` | servidor, texto | `service.sendCommand`, según el nivel de consola del dispositivo |
+| `journal` | servidor | las últimas 200 entradas del historial del servidor (§19.32), con las IP enmascaradas |
 
 El id del servidor se comprueba contra la lista real: uno inventado es un error, nunca una ruta.
 
@@ -3139,3 +3140,109 @@ solo el suyo, marcar otro en la app y que aparezca en el móvil, quitarlos todos
 que no tiene acceso, y la sección de jugadores. **La lista con gente dentro se ha visto con datos
 retocados en el navegador** (ningún servidor de prueba está arrancado): falta verla con jugadores de
 verdad entrando.
+
+### 19.32 Historial del servidor
+
+Pedido por el usuario: una pestaña más en la pantalla del servidor, junto a Jugadores y Consola, con
+lo que ha pasado en él: **quién entra y sale, cuándo se guarda, qué moderación se hace y qué órdenes
+se escriben en la consola**, en los juegos donde cada cosa existe.
+
+**Por qué no es la consola.** La consola es el registro del juego tal cual: ruido del motor, en
+memoria y perdido al cerrar la app. El historial son hechos, uno por línea, en disco
+(`instances/<id>/journal.jsonl`): se mueve con la carpeta de datos y se borra con el servidor sin
+hacer nada más. Cada entrada lleva datos y no frases (`shared/journal.ts`), como pide §19.29.
+
+**Qué se apunta y de dónde sale.** Cada cosa desde el único sitio que la sabe de verdad:
+
+| Entrada | Quién la apunta |
+|---|---|
+| Entra / sale | El servicio, comparando la lista de jugadores con la anterior. En Satisfactory y Enshrouded, que solo dan el número, por el número (y con nombre si el registro lo ha dado) |
+| Guardado | `parseLine` de cada juego (`saved`), en la línea medida en su registro real |
+| Copia y restauración | El servicio, al terminar bien |
+| Moderación | Minecraft: su registro (`moderation`). Los demás: el servicio del juego (`host.journal`) |
+| Orden | `service.sendCommand`, salvo las de los botones (`journal: false`) |
+| Arranque, parada y caída | El servicio; lo pedido desde el control remoto, con el dispositivo |
+
+Además de lo pedido van arranques, paradas, caídas, copias y restauraciones: sin ellos, un «se ha
+ido todo el mundo» o un guardado no se entienden.
+
+**Decisiones:**
+- **Minecraft se lee del registro, no de los botones.** Así se apunta igual la moderación hecha
+  desde la consola, desde el control remoto o por un operador dentro del juego («[Steve: Banned
+  Alex: …]», que dice además quién). Los botones mandan su orden con `journal: false` para no
+  apuntarla dos veces. Los vetos por IP no se apuntan: el historial no guarda direcciones.
+- **Los guardados del arranque no cuentan.** Medido con Paper 26: al preparar el mundo escribe
+  «All dimensions are saved», antes del «Done». Saldría siempre pegado a «Servidor arrancado».
+- **Paper 26 no siempre cierra con la línea de Vanilla.** Lo vio la `e2e:remote`: en la segunda
+  parada solo salieron las líneas de `[ChunkHolderManager] Saved … block chunks`, una por dimensión.
+  Valen las dos; los guardados que llegan a menos de 15 s se juntan en uno, y la cuenta empieza de
+  cero en cada arranque (antes, una parada y un arranque seguidos se comían el guardado).
+- **Al parar no se apuntan salidas.** El supervisor vacía la lista al cerrarse; eso es la parada, no
+  cinco personas yéndose a la vez.
+- **Escritura síncrona**: la parada que más importa apuntar es la de cerrar la app, cuando una
+  escritura asíncrona puede no llegar. Son líneas cortas y pocas.
+- **Recorte por tamaño, no por líneas.** Pasado 1 MB se queda con el último medio mega. La primera
+  versión se quedaba con 5000 líneas y el smoke lo pilló: con órdenes largas, 5000 líneas pasaban
+  del mega y recortaba en cada escritura.
+- **No resucita servidores borrados**: apuntar algo de un servidor cuya carpeta ya no existe falla
+  en silencio en vez de volver a crearla.
+- **La pantalla** filtra por grupo (sin «Órdenes» en los juegos sin consola, sin «Moderación» en los
+  que no moderan), busca por jugador, orden, motivo o dispositivo, agrupa por días y enseña los
+  jugadores como los enseña cada juego («Steam 7656…» en Valheim). Lo que llega con la pestaña
+  abierta se añade arriba sin volver a leer el fichero.
+
+**Probado:**
+- `typecheck`; `smoke` con 1368 comprobaciones. El juego falso de `common.ts` arranca de verdad y
+  deja en el historial, en orden: arranque, dos entradas, un guardado (de dos líneas seguidas), la
+  orden escrita, la expulsión que cuenta su registro (la orden del botón no), la salida, la orden
+  del control remoto con su dispositivo y la parada, sin salidas al parar; y la copia. Aparte
+  (`scripts/smoke/journal.ts`): las diferencias de listas y de números, el fichero (líneas rotas,
+  entradas de una versión futura, recorte, carpeta borrada), siete órdenes de moderación de
+  Minecraft en los tres formatos de cabecera, lo que **no** es moderación (veto por IP, quien se va
+  expulsado, el chat) y la línea de guardado de los siete juegos.
+- `e2e paper` con el historial de un Paper real (arranque, guardado de la copia en caliente, copia,
+  orden y parada) y `e2e:restart`, en verde.
+- `e2e:remote`: lo pedido desde el móvil queda con su nombre (dos arranques, dos paradas y la orden),
+  un guardado por parada y ninguno del arranque, y nada de lo rechazado ni del dispositivo que solo
+  mira.
+- Recorrido `historial.mjs` (nuevo, en `qubiq-dev/ui`, capturas 390-396): siembra un historial en
+  los servidores de prueba de Minecraft, Valheim y Satisfactory, prueba filtros, buscador y una
+  ventana estrecha, sin errores ni texto que se salga de su caja. Borra lo sembrado al terminar.
+
+**Lo que no se ha podido probar:**
+- **Jugadores de verdad entrando y moderación real** en Valheim, Factorio, Zomboid, Rust y
+  Enshrouded: lo que apuntan sus servicios se ha comprobado por código y con el juego falso, pero no
+  arrancando esos servidores (Rust y Enshrouded se publican al arrancar).
+- La pestaña recibiendo entradas en vivo con un servidor arrancado desde la interfaz: el evento se
+  ha probado en el núcleo y la pantalla con datos sembrados, no las dos cosas a la vez.
+- Los textos en los otros nueve idiomas se han escrito, pero solo se han visto en pantalla en
+  español.
+
+#### En la página del control remoto
+
+Pedido por el usuario después de la primera entrega: el historial también desde el móvil.
+
+- **Una orden más, `journal`, de solo lectura.** Sin argumentos nuevos (solo el servidor), así que
+  el texto que se firma no cambia. La puede usar cualquier dispositivo que tenga ese servidor, con
+  cualquier nivel de consola: es lo mismo que ya ve en la consola de solo lectura, ordenado. Un
+  servidor que no es suyo da `unknown-server`, como todo lo demás. Como `list` y `console`, solo se
+  apunta en la actividad si se rechaza (la página la repite cada 5 s).
+- **Sin IP**: las órdenes y los motivos, que son texto libre (`ban-ip …`, un motivo escrito a
+  mano), pasan por `maskAddresses` igual que la consola. Lo demás son nombres y datos.
+- **Lo que sí ve un dispositivo y antes no**: los nombres de los otros dispositivos que han mandado
+  algo (`by`). Es el mismo dueño quien los empareja todos, así que no se ha escondido.
+- **La pantalla** es la misma de la app: `JournalList` se ha separado de `JournalPanel` y no sabe de
+  dónde salen las entradas. En la vista del servidor, debajo de los jugadores, hay dos pestañas,
+  Consola e Historial. La consola se esconde sin desmontarla, así que al volver conserva lo leído y
+  se sigue poniendo al día mientras se mira el historial. Los identificadores de Valheim salen tal
+  cual, como en la lista de jugadores de la página.
+
+**Probado:** `typecheck`; `smoke` (1375: lo ve el de solo lectura, sin IP en órdenes ni motivos,
+tope de 200, servidor inventado o ajeno, sin servidor, argumentos de más y que no ensucia la
+actividad); `e2e:remote` contra Paper (el que solo mira recibe las 7 entradas empezando por la
+parada, y el dispositivo sin ese servidor no); recorrido nuevo `historial-remoto.mjs` en Edge como
+móvil (397-399): pestañas, lo sembrado en orden, sin IP, filtros, buscador, que se pone al día solo
+con una entrada nueva, sin scroll horizontal y la consola de vuelta con su aviso de solo lectura.
+`remoto.mjs` e `historial.mjs` siguen en verde. **No probado** en un móvil de verdad, igual que el
+resto de la página.
+

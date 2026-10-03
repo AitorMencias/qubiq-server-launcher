@@ -3,15 +3,19 @@ import {
   CODE_LENGTH,
   formatCode,
   normalizeCode,
+  REMOTE_JOURNAL_PAGE,
   type RemoteConsoleLine,
   type RemoteConsoleResult,
+  type RemoteJournalResult,
   type RemoteListResult,
   type RemoteServerSummary
 } from '@shared/remote'
 import type { GameId, ServerStatus } from '@shared/types'
 import { gameInfo } from '@shared/games'
 import { formatList, formatTime, t, type MessageKey } from '@shared/i18n'
+import type { JournalEntry } from '@shared/journal'
 import { RemoteFailure, order, pair } from './api'
+import { JournalList } from '../JournalList'
 import { cryptoAvailable, forgetDevice, loadDevice, saveDevice, storageWorks, type DeviceRecord } from './keys'
 import minecraftIcon from '../games/minecraft/icon.svg'
 import satisfactoryIcon from '../games/satisfactory/icon.svg'
@@ -39,6 +43,8 @@ const ICONS: Record<GameId, string> = {
 const LIST_EVERY_MS = 3_000
 const CONSOLE_EVERY_MS = 1_500
 const CONSOLE_KEEP = 1_000
+/** El historial cambia poco: no hace falta pedirlo tan a menudo como la consola. */
+const JOURNAL_EVERY_MS = 5_000
 
 type Screen =
   | { kind: 'loading' }
@@ -434,6 +440,49 @@ function ServerCard({
   )
 }
 
+// --- Historial de un servidor ---------------------------------------------------------
+
+/**
+ * El historial del servidor (orden `journal`, solo lectura). Se pinta con el
+ * mismo `JournalList` que la pestaña de la app y se vuelve a pedir cada pocos
+ * segundos mientras está a la vista.
+ */
+function JournalSection({ device, server }: { device: DeviceRecord; server: RemoteServerSummary }): React.JSX.Element {
+  const [entries, setEntries] = useState<JournalEntry[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const loaded = useRef(false)
+
+  const fetchEntries = useCallback(async () => {
+    try {
+      const result = await order<RemoteJournalResult>(device, 'journal', { server: server.id })
+      loaded.current = true
+      setEntries(result.entries)
+      setError(null)
+    } catch (err) {
+      // Con algo ya en pantalla se deja como está: la lista ya enseña si el
+      // equipo no responde. Solo se dice si no se ha podido leer nunca.
+      if (!loaded.current) {
+        setEntries([])
+        setError(errorText(err))
+      }
+    }
+  }, [device, server.id])
+
+  usePolling(fetchEntries, JOURNAL_EVERY_MS)
+
+  return (
+    <div className="r-journal">
+      <JournalList
+        entries={entries}
+        error={error}
+        commands={server.commands}
+        moderation={server.moderation}
+        limit={REMOTE_JOURNAL_PAGE}
+      />
+    </div>
+  )
+}
+
 // --- Consola de un servidor -----------------------------------------------------------
 
 function ServerView({
@@ -458,6 +507,7 @@ function ServerView({
   const [lines, setLines] = useState<RemoteConsoleLine[]>([])
   const [command, setCommand] = useState('')
   const [sending, setSending] = useState(false)
+  const [view, setView] = useState<'console' | 'journal'>('console')
   const next = useRef(0)
   const box = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
@@ -477,12 +527,14 @@ function ServerView({
     }
   }, [device, server.id])
 
+  // La consola se sigue pidiendo mientras se mira el historial: al volver
+  // tiene que estar al día, y lo que se pide es solo lo nuevo.
   usePolling(fetchLines, CONSOLE_EVERY_MS)
 
   useEffect(() => {
     const element = box.current
     if (element && stick.current) element.scrollTop = element.scrollHeight
-  }, [lines])
+  }, [lines, view])
 
   const level = list.permissions.console
   const allowed = list.allowedCommands[server.game] ?? []
@@ -524,9 +576,31 @@ function ServerView({
 
       <PlayersSection server={server} />
 
-      <h2 className="r-section-title">{t('remote.web.console')}</h2>
+      <div className="r-tabs" role="tablist">
+        <button
+          role="tab"
+          aria-selected={view === 'console'}
+          className={view === 'console' ? 'active' : ''}
+          onClick={() => setView('console')}
+        >
+          {t('remote.web.console')}
+        </button>
+        <button
+          role="tab"
+          aria-selected={view === 'journal'}
+          className={view === 'journal' ? 'active' : ''}
+          onClick={() => setView('journal')}
+        >
+          {t('panel.tab.journal')}
+        </button>
+      </div>
+
+      {view === 'journal' && <JournalSection device={device} server={server} />}
+
+      {/* Escondida y no desmontada: al volver conserva lo leído y el scroll. */}
       <div
         className="r-console"
+        hidden={view !== 'console'}
         ref={box}
         onScroll={(e) => {
           const element = e.currentTarget
@@ -545,7 +619,7 @@ function ServerView({
         )}
       </div>
 
-      {!server.commands ? (
+      {view !== 'console' ? null : !server.commands ? (
         <p className="r-muted">{t('remote.web.noCommands')}</p>
       ) : !canType ? (
         <p className="r-muted">{t('remote.web.consoleReadOnly')}</p>

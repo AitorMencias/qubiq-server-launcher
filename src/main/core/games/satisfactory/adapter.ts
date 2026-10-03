@@ -571,6 +571,11 @@ export function parseLine(raw: string): ParsedEvent {
       : { level: 'info', text: `Mod cargado: ${mod[1]} ${mod[2]}` }
   }
 
+  // Lo que deja cada guardado, automático o pedido (medido en su registro:
+  // «LogGame: World Serialization (save): 0.264 seconds»). Al cargar dice
+  // «(load)», que no cuenta.
+  if (/World Serialization \(save\)/.test(clean)) return { level, text: clean, saved: true }
+
   const useful = ALWAYS_SHOW.test(clean) || (USEFUL_CATEGORIES.test(clean) && !NOISE.test(clean))
   return { level, text: clean, hidden: !useful }
 }

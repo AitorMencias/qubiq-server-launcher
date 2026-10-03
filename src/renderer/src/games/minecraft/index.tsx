@@ -58,7 +58,11 @@ export const minecraftUi: GameUi = {
    */
   playerActions({ state }) {
     const id = state.manifest.id
-    const command = (text: string): Promise<void> => window.qubiq.server.command(id, text)
+    // Fuera del historial como orden: lo que hagan ya lo apunta el registro
+    // del servidor («Kicked…», «Banned…»), que es donde se ve también lo que
+    // se hace desde la consola o desde dentro del juego.
+    const command = (text: string): Promise<void> =>
+      window.qubiq.server.command(id, text, { journal: false })
     return [
       {
         id: 'kick',

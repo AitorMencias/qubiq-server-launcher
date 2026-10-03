@@ -499,7 +499,7 @@ export class RemoteAccess extends EventEmitter {
   }
 
   /**
-   * Las órdenes que cambian algo, siempre. Las consultas (`list`, `console`),
+   * Las órdenes que cambian algo, siempre. Las consultas (`list`, `console`, `journal`),
    * solo si se rechazan: la página las repite cada pocos segundos.
    */
   private async logOrder(
@@ -508,7 +508,7 @@ export class RemoteAccess extends EventEmitter {
     order: SignedOrder,
     result: 'ok' | RemoteError
   ): Promise<void> {
-    const query = order.order === 'list' || order.order === 'console'
+    const query = order.order === 'list' || order.order === 'console' || order.order === 'journal'
     if (query && result === 'ok') return
     await this.log({
       device: device.name,

@@ -1,4 +1,5 @@
 import type { GameId, LogLevel, ServerStatus } from './types'
+import type { JournalEntry } from './journal'
 
 /**
  * Control remoto por órdenes (ANALISIS.md §19.31).
@@ -17,7 +18,7 @@ export const REMOTE_PROTOCOL = 'qubiq-remote/1'
 /** Puerto por defecto. Cualquiera libre vale; este no choca con ningún juego de la app. */
 export const DEFAULT_REMOTE_PORT = 8443
 
-export const REMOTE_ORDERS = ['list', 'start', 'stop', 'restart', 'console', 'send'] as const
+export const REMOTE_ORDERS = ['list', 'start', 'stop', 'restart', 'console', 'send', 'journal'] as const
 export type RemoteOrder = (typeof REMOTE_ORDERS)[number]
 
 export function isRemoteOrder(value: unknown): value is RemoteOrder {
@@ -182,6 +183,8 @@ export interface RemoteServerSummary {
   playerNames: boolean
   /** El juego tiene consola con entrada de comandos. */
   commands: boolean
+  /** El juego deja moderar (para los filtros del historial). */
+  moderation: boolean
 }
 
 export interface RemoteListResult {
@@ -207,6 +210,18 @@ export interface RemoteConsoleResult {
   /** Lo que hay que mandar en `after` la próxima vez. */
   next: number
 }
+
+/**
+ * `journal`: el historial del servidor (ANALISIS.md §19.32), lo más reciente
+ * primero. Es solo lectura, como la consola del nivel 1, y sale con las IP
+ * enmascaradas en lo que es texto libre (órdenes y motivos).
+ */
+export interface RemoteJournalResult {
+  entries: JournalEntry[]
+}
+
+/** Entradas del historial por petición. */
+export const REMOTE_JOURNAL_PAGE = 200
 
 export interface RemotePairResult {
   client: string

@@ -303,6 +303,7 @@ export function createZomboidService(host: GameHost) {
       if (role === 'banned') {
         const motivo = oneWord(reason)
         checkAnswer(await rcon(manifest, `banuser ${user}${motivo ? ` -r ${motivo}` : ''}`), 'vetar')
+        host.journal(id, { kind: 'moderation', action: 'ban', player: user, ...(motivo ? { reason: motivo } : {}) })
       } else {
         // Quien estuviera vetado tiene que dejar de estarlo antes de que un
         // nivel nuevo signifique algo. Si no lo estaba, el servidor contesta
@@ -312,6 +313,11 @@ export function createZomboidService(host: GameHost) {
           await rcon(manifest, `setaccesslevel ${user} ${role}`),
           'cambiar el nivel de acceso'
         )
+        host.journal(id, {
+          kind: 'moderation',
+          ...(role === 'admin' ? { action: 'admin' } : { action: 'role', role }),
+          player: user
+        })
       }
       return this.listAccounts(id)
     },
@@ -328,6 +334,7 @@ export function createZomboidService(host: GameHost) {
         throw new Error(`${username} no está conectado.`)
       }
       checkAnswer(answer, 'expulsar')
+      host.journal(id, { kind: 'moderation', action: 'kick', player: user, ...(motivo ? { reason: motivo } : {}) })
     },
 
     /**

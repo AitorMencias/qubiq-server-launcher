@@ -22,6 +22,7 @@ import type {
   RemoteArgs,
   RemoteConsoleLine,
   RemoteConsoleResult,
+  RemoteJournalResult,
   RemoteListResult,
   RemoteOrder,
   RemotePairResult,
@@ -190,6 +191,39 @@ async function main(): Promise<void> {
     const activity = await remote.activity(50)
     check('actividad: arrancar, reiniciar, parar y comandos', ['start', 'restart', 'stop', 'send'].every((order) => activity.some((e) => e.order === order && e.result === 'ok')))
     check('actividad: y lo rechazado', activity.some((e) => e.result === 'command-not-allowed') && activity.some((e) => e.result === 'forbidden'))
+
+    // En el historial del servidor, cada cosa con el dispositivo que la pidió.
+    // Lo rechazado no llega al servidor, así que tampoco al historial.
+    const historial = (await service.listJournal(id, 100)).reverse()
+    const desde = (kind: string): number =>
+      historial.filter((e) => e.kind === kind && 'by' in e && e.by === 'Administrador').length
+    check(
+      'historial: arrancar (2), parar (2) y la orden, desde «Administrador»',
+      desde('start') === 2 && desde('stop') === 2 && desde('command') === 1,
+      historial.map((e) => `${e.kind}${'by' in e && e.by ? `@${e.by}` : ''}`).join(', ')
+    )
+    // Paper guarda al preparar el mundo, antes de estar listo: eso no cuenta.
+    // Sí cada parada (la del reinicio y la final).
+    check(
+      'historial: un guardado por parada, ninguno del arranque',
+      historial.filter((e) => e.kind === 'save').length === 2 &&
+        historial.findIndex((e) => e.kind === 'save') > historial.findIndex((e) => e.kind === 'command')
+    )
+    // Y lo mismo por la orden `journal`, como lo ve la página: el que solo
+    // mira también puede, y llega lo más reciente primero.
+    const remoto = await ask<RemoteJournalResult>(viewer, 'journal', { server: id })
+    check(
+      'historial remoto: el que solo mira lo ve, empezando por la última parada',
+      remoto.ok && remoto.data.entries.length === historial.length && remoto.data.entries[0]?.kind === 'stop',
+      remoto.ok ? `${remoto.data.entries.length} entradas` : remoto.error
+    )
+    const ajeno = await ask(outsider, 'journal', { server: id })
+    check('historial remoto: el de otros servidores no', !ajeno.ok && ajeno.error === 'unknown-server')
+    check(
+      'historial: ni «op» ni lo de «Solo mira»',
+      !historial.some((e) => e.kind === 'command' && /Atacante/.test(e.command)) &&
+        !historial.some((e) => 'by' in e && e.by === 'Solo mira')
+    )
   } finally {
     await remote.shutdown()
     await service.stopAll()

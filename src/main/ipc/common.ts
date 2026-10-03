@@ -10,6 +10,7 @@ import type {
   ServerStatus
 } from '@shared/types'
 import type { PortProtocol } from '@shared/games'
+import { JOURNAL_PAGE, type JournalEntry } from '@shared/journal'
 import { IPC, EVENTS, type SystemMemory } from '@shared/ipc'
 import { service } from '../core/service'
 import { instanceDir } from '../core/paths'
@@ -48,8 +49,16 @@ export function registerCommonIpc(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle(IPC.startServer, async (_e, id: string) => service.start(id))
   ipcMain.handle(IPC.stopServer, async (_e, id: string) => service.stop(id))
-  ipcMain.handle(IPC.sendCommand, async (_e, id: string, command: string) =>
-    service.sendCommand(id, command)
+  ipcMain.handle(
+    IPC.sendCommand,
+    async (_e, id: string, command: string, options?: { journal?: boolean }) =>
+      service.sendCommand(id, command, { journal: options?.journal !== false })
+  )
+  ipcMain.handle(IPC.listJournal, async (_e, id: string, limit?: number) =>
+    service.listJournal(
+      id,
+      typeof limit === 'number' && limit > 0 ? Math.min(Math.floor(limit), JOURNAL_PAGE) : JOURNAL_PAGE
+    )
   )
 
   // --- Copias de seguridad --------------------------------------------------
@@ -127,4 +136,5 @@ export function registerCommonIpc(getWindow: () => BrowserWindow | null): void {
   service.on('diagnosis', (id: string, diagnosis: Diagnosis) =>
     send(EVENTS.diagnosis, id, diagnosis)
   )
+  service.on('journal', (id: string, entry: JournalEntry) => send(EVENTS.journal, id, entry))
 }

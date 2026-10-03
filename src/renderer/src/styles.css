@@ -1163,6 +1163,106 @@ button.link:hover:not(:disabled) {
   background: #2a1a1a;
 }
 
+/* --- Historial del servidor -------------------------------------------------- */
+
+.journal-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.journal-tools .chips {
+  flex: 1;
+}
+
+/* Los filtros son botones con forma de chip: sin esto heredan el relleno y el
+   radio de un botón normal. */
+.chip.journal-filter {
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: 999px;
+}
+
+.chip.journal-filter.active {
+  color: #fff;
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.journal-search {
+  width: 220px;
+}
+
+.journal-day {
+  margin-bottom: 18px;
+}
+
+.journal-day h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.journal-entry {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 7px 12px;
+  margin-bottom: 4px;
+  background: var(--panel-2);
+  border-left: 3px solid var(--border);
+  border-radius: 6px;
+  user-select: text;
+}
+
+.journal-entry.players {
+  border-left-color: var(--ok);
+}
+.journal-entry.saves {
+  border-left-color: var(--accent);
+}
+.journal-entry.moderation {
+  border-left-color: var(--warn);
+}
+.journal-entry.commands {
+  border-left-color: var(--chat);
+}
+.journal-entry.server {
+  border-left-color: var(--muted);
+}
+.journal-entry.bad {
+  border-left-color: var(--danger);
+}
+
+.journal-time {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.journal-text {
+  word-break: break-word;
+}
+
+.journal-text code {
+  background: #0f1219;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 12px;
+}
+
+.journal-extra {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .game-card {
     transition: none;

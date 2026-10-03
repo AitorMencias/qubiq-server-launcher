@@ -16,7 +16,9 @@ import type {
   ProgressUpdate,
   ServerStatus
 } from '@shared/types'
+import type { JournalEntry, JournalInput } from '@shared/journal'
 import {
+  capabilitiesFor,
   gameInfo,
   requiredAgreements,
   type InstallableVersion,
@@ -32,6 +34,9 @@ import * as settings from './settings/manager'
 import { serverDir, launcherLogPath, ensureBaseDirs } from './paths'
 import { evaluateRestart } from './runtime/restartPolicy'
 import { ConsoleHistory, type NumberedLine } from './runtime/consoleHistory'
+import { appendJournal, readJournal } from './journal/store'
+import { playerChanges, type PlayersSnapshot } from './journal/players'
+import type { ParsedEvent } from './games/types'
 import { gameFor, gameOf, isKnownGame } from './games/registry'
 import { createMinecraftService, type GameHost } from './games/minecraft/service'
 import { createSatisfactoryService } from './games/satisfactory/service'
@@ -61,7 +66,24 @@ export interface ServiceEvents {
   settings: (settings: AppSettings) => void
   /** Se ha borrado un servidor (el control remoto lo quita de cada dispositivo). */
   removed: (instanceId: string) => void
+  /** Una entrada nueva en el historial del servidor. */
+  journal: (instanceId: string, entry: JournalEntry) => void
 }
+
+/**
+ * Quién pide algo desde fuera de la ventana: el nombre del dispositivo del
+ * control remoto. Sin él, se ha pedido desde la propia app.
+ */
+export interface Origin {
+  by?: string
+}
+
+/**
+ * Un guardado que llega a menos de esto del anterior es el mismo: hay juegos
+ * que lo cuentan en dos líneas (Rust, al pedirlo por la consola remota) o que
+ * guardan varias cosas seguidas.
+ */
+const SAVE_MERGE_MS = 15_000
 
 /**
  * Fichero que deja un plugin en el directorio de trabajo del servidor para
@@ -85,6 +107,14 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
   private readonly restartHistory = new Map<string, number[]>()
   /** Últimas líneas de cada consola, para quien pregunta desde fuera (§19.31). */
   private readonly history = new ConsoleHistory()
+  /** La última lista de jugadores apuntada, para saber quién entra y quién sale. */
+  private readonly lastPlayers = new Map<string, PlayersSnapshot>()
+  /** Los juegos que solo dicen cuántos hay, no quiénes (Satisfactory). */
+  private readonly countOnly = new Map<string, boolean>()
+  /** Hora del último guardado apuntado, para no repetir el mismo. */
+  private readonly lastSave = new Map<string, number>()
+  /** Quién pidió la parada en curso, para apuntarlo cuando termine. */
+  private readonly stopOrigin = new Map<string, Origin>()
 
   constructor() {
     super()
@@ -308,13 +338,15 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
     }
     this.supervisors.delete(id)
     this.history.forget(id)
+    this.lastPlayers.delete(id)
+    this.lastSave.delete(id)
     await instances.deleteInstance(id)
     this.emit('removed', id)
   }
 
   // --- Ejecución ------------------------------------------------------------
 
-  async start(id: string): Promise<void> {
+  async start(id: string, origin: Origin = {}): Promise<void> {
     // Si el usuario arranca a mano durante la espera del reinicio, gana él.
     this.cancelPendingRestart(id)
 
@@ -334,6 +366,11 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
     const spec = await game.launch(manifest)
 
     const supervisor = this.supervisorFor(id)
+    // Un juego sin ficha de capacidades (el falso de las pruebas) se trata como
+    // uno que da nombres.
+    this.countOnly.set(id, capabilitiesFor(manifest)?.playerIds === false)
+    this.lastPlayers.delete(id)
+    this.lastSave.delete(id)
     supervisor.setAutoRestart(manifest.autoRestart)
     supervisor.start({
       ...spec,
@@ -346,15 +383,17 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
         ? { poll: () => game.poll!(manifest), pollIntervalMs: game.pollIntervalMs }
         : {})
     })
+    this.journal(id, { kind: 'start', ...origin })
   }
 
-  async stop(id: string): Promise<void> {
+  async stop(id: string, origin: Origin = {}): Promise<void> {
     // Va ANTES de comprobar si hay proceso: pulsar "Parar" durante los 3 s de
     // espera debe cancelar el reinicio aunque el servidor ya esté apagado.
     this.cancelPendingRestart(id)
 
     const supervisor = this.supervisors.get(id)
     if (!supervisor?.isRunning) return
+    this.stopOrigin.set(id, origin)
     await supervisor.stop()
   }
 
@@ -363,10 +402,10 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
    * el proceso ha terminado de verdad, así que el arranque no tropieza con
    * ficheros ni puertos que el anterior aún no ha soltado.
    */
-  async restart(id: string): Promise<void> {
+  async restart(id: string, origin: Origin = {}): Promise<void> {
     if (this.installing.has(id)) throw new Error('Hay una instalación en curso.')
-    await this.stop(id)
-    await this.start(id)
+    await this.stop(id, origin)
+    await this.start(id, origin)
   }
 
   isInstalling(id: string): boolean {
@@ -386,7 +425,18 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
    * lo declaran en su adaptador, y aquí se enseña en la consola lo enviado y lo
    * que contestaron, para que se vea igual en todos los juegos.
    */
-  async sendCommand(id: string, command: string): Promise<void> {
+  async sendCommand(
+    id: string,
+    command: string,
+    origin: Origin & {
+      /**
+       * false cuando la orden la manda un botón de la app (moderar en
+       * Minecraft) y no alguien escribiendo en la consola: lo que haga ya lo
+       * apunta el registro del juego.
+       */
+      journal?: boolean
+    } = {}
+  ): Promise<void> {
     const supervisor = this.supervisors.get(id)
     if (!supervisor?.isRunning) throw new Error('El servidor no está arrancado.')
 
@@ -398,9 +448,57 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
     if (manifest && adapter?.sendCommand) {
       const answer = await adapter.sendCommand(manifest, clean)
       supervisor.echoCommand(clean, answer)
+    } else {
+      supervisor.sendCommand(clean)
+    }
+    if (origin.journal !== false) {
+      this.journal(id, { kind: 'command', command: clean, ...(origin.by ? { by: origin.by } : {}) })
+    }
+  }
+
+  // --- Historial ------------------------------------------------------------
+
+  /** Lo último que ha pasado en el servidor, de lo más reciente a lo más viejo. */
+  async listJournal(id: string, limit: number): Promise<JournalEntry[]> {
+    return readJournal(id, limit)
+  }
+
+  /**
+   * Apunta algo en el historial. Público para los servicios de cada juego, que
+   * son los que saben cuándo se ha moderado escribiendo un fichero o por RCON.
+   */
+  journal(id: string, input: JournalInput): void {
+    const entry = { ts: Date.now(), ...input } as JournalEntry
+    appendJournal(id, entry)
+    this.emit('journal', id, entry)
+  }
+
+  private journalPlayers(id: string, running: boolean, names: string[], count: number | null): void {
+    // Al cerrarse, el supervisor vacía la lista: eso no es que todos se hayan
+    // ido uno a uno, es la parada, que ya se apunta aparte.
+    if (!running) {
+      this.lastPlayers.delete(id)
       return
     }
-    supervisor.sendCommand(clean)
+    const before = this.lastPlayers.get(id) ?? { names: [], count: null }
+    const after = { names, count }
+    this.lastPlayers.set(id, after)
+    for (const change of playerChanges(before, after, this.countOnly.get(id) ?? false)) {
+      this.journal(id, change)
+    }
+  }
+
+  private journalSave(id: string): void {
+    // Mientras arranca, el juego guarda lo que acaba de generar (Minecraft, al
+    // preparar el mundo): no es un guardado de la partida, es parte del
+    // arranque, y saldría siempre pegado a «Servidor arrancado».
+    const status = this.supervisors.get(id)?.status
+    if (status !== 'running' && status !== 'stopping') return
+    const now = Date.now()
+    const last = this.lastSave.get(id) ?? 0
+    this.lastSave.set(id, now)
+    if (now - last < SAVE_MERGE_MS) return
+    this.journal(id, { kind: 'save' })
   }
 
   /** Cierre limpio de todo lo arrancado. Se llama al salir de la app (§7). */
@@ -570,12 +668,21 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
       if (status === 'running') void this.startBackupSchedule(id)
       else this.stopBackupSchedule(id)
     })
-    supervisor.on('players', (players: string[], playerCount: number | null) =>
+    supervisor.on('players', (players: string[], playerCount: number | null) => {
       this.emit('players', id, players, playerCount)
+      this.journalPlayers(id, supervisor.isRunning, players, playerCount)
+    })
+    supervisor.on('saved', () => this.journalSave(id))
+    supervisor.on('moderation', (moderation: NonNullable<ParsedEvent['moderation']>) =>
+      this.journal(id, { kind: 'moderation', ...moderation })
     )
     supervisor.on('joinCode', (code: string | null) => this.emit('joinCode', id, code))
     supervisor.on('diagnosis', (diagnosis: Diagnosis) => this.emit('diagnosis', id, diagnosis))
     supervisor.on('exit', (code: number | null, requested: boolean) => {
+      const origin = this.stopOrigin.get(id) ?? {}
+      this.stopOrigin.delete(id)
+      if (requested || code === 0) this.journal(id, { kind: 'stop', ...(requested ? origin : {}) })
+      else this.journal(id, { kind: 'crash', code })
       void this.handleExit(id, code, requested)
     })
 
@@ -637,7 +744,7 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
     }
 
     try {
-      return await backups.createBackup({
+      const backup = await backups.createBackup({
         manifest,
         entries: await game.backupEntries(manifest),
         meta: game.backupMeta(manifest),
@@ -645,6 +752,8 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
         reason,
         onProgress: progress
       })
+      this.journal(id, { kind: 'backup', automatic })
+      return backup
     } finally {
       if (running && supervisor) game.resumeSaves?.(manifest, supervisor)
     }
@@ -666,6 +775,7 @@ class LauncherService extends EventEmitter implements GameHost, RustHost {
         this.emit('progress', { instanceId: id, phase: 'restore', progress: null, detail })
       }
     })
+    this.journal(id, { kind: 'restore', file: fileName })
 
     // Lo restaurado puede depender de algo del manifiesto (en Rust, la semilla
     // del mapa): el juego dice qué hay que poner al día.

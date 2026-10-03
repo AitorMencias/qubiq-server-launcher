@@ -24,6 +24,7 @@ import {
   type KeyAlgorithm,
   type RemoteArgs,
   type RemoteConsoleResult,
+  type RemoteJournalResult,
   type RemoteListResult,
   type RemoteOrder,
   type RemotePairResult,
@@ -31,6 +32,7 @@ import {
   type RemoteResponse
 } from '../../src/shared/remote'
 import type { InstanceManifest, InstanceState, LogLine, ServerStatus } from '../../src/shared/types'
+import type { JournalEntry } from '../../src/shared/journal'
 
 /**
  * Prueba de humo del control remoto (§19.31).
@@ -116,6 +118,14 @@ class FakeHost implements OrderHost {
 
   consoleSince(id: string, after?: number, max?: number): { lines: (LogLine & { seq: number })[]; next: number } {
     return this.history.since(id, after, max)
+  }
+
+  journals = new Map<string, JournalEntry[]>()
+  journalLimit = 0
+
+  async journal(id: string, limit: number): Promise<JournalEntry[]> {
+    this.journalLimit = limit
+    return (this.journals.get(id) ?? []).slice(0, limit)
   }
 }
 
@@ -322,6 +332,19 @@ export async function remoteSmoke(): Promise<void> {
     check('consola: sin IP', !JSON.stringify(consoleReply).includes('203.0.113'), consoleReply.lines[0]?.text)
     check('consola: desde la última', data<RemoteConsoleResult>(await ask(viewer, 'console', { server: 'mc', after: 2 })).lines.length === 0)
 
+    host.journals.set('mc', [
+      { ts: 3, kind: 'command', command: 'ban-ip 203.0.113.9', by: 'Móvil' },
+      { ts: 2, kind: 'moderation', action: 'ban', player: 'Steve', reason: 'desde 203.0.113.9' },
+      { ts: 1, kind: 'join', player: 'Steve', online: 1 }
+    ])
+    const journalReply = data<RemoteJournalResult>(await ask(viewer, 'journal', { server: 'mc' }))
+    check('historial: lo ve hasta el de solo lectura', journalReply.entries.length === 3 && journalReply.entries[2]?.kind === 'join')
+    check('historial: sin IP en órdenes ni motivos', !JSON.stringify(journalReply).includes('203.0.113'), JSON.stringify(journalReply.entries[0]))
+    check('historial: con tope por petición', host.journalLimit === 200)
+    check('historial: de un servidor inventado, no', errorOf(await ask(viewer, 'journal', { server: '../mc' })) === 'unknown-server')
+    check('historial: sin servidor, no', errorOf(await ask(viewer, 'journal')) === 'bad-request')
+    check('historial: sin argumentos de más', errorOf(await remote.handleOrder({ ...signedOrder(viewer, 'journal', { server: 'mc' }, clock.now), args: { server: 'mc', limit: 99999 } }, '10.0.0.2')) === 'bad-request')
+
     check('enviar: nivel 1, no', errorOf(await ask(viewer, 'send', { server: 'mc', command: 'list' })) === 'forbidden')
     check('enviar: nivel 2, de la lista', (await ask(admin, 'send', { server: 'mc', command: 'say hola' })).status === 200 && host.calls.includes('send:mc:say hola'))
     check('enviar: nivel 2, fuera de la lista', errorOf(await ask(admin, 'send', { server: 'mc', command: 'op Steve' })) === 'command-not-allowed')
@@ -366,7 +389,7 @@ export async function remoteSmoke(): Promise<void> {
     check('actividad: se apunta lo que cambia algo', activity.some((e) => e.order === 'restart' && e.result === 'ok'))
     check('actividad: y el comando enviado', activity.some((e) => e.order === 'send' && e.command === 'op Steve'))
     check('actividad: y los rechazos', activity.some((e) => e.result === 'bad-signature') && activity.some((e) => e.result === 'replayed'))
-    check('actividad: las consultas buenas no', !activity.some((e) => e.order === 'list' && e.result === 'ok'))
+    check('actividad: las consultas buenas no', !activity.some((e) => (e.order === 'list' || e.order === 'journal') && e.result === 'ok'))
 
     // Diez fallos desde una dirección: bloqueada aunque luego mande algo bueno.
     for (let i = 0; i < LIMITS.failures.max; i++) await remote.handleOrder('basura', '10.9.9.9')
@@ -388,6 +411,7 @@ export async function remoteSmoke(): Promise<void> {
     check('sin servidores marcados: no ve ninguno', empty.servers.length === 0)
     check('sin servidores marcados: no puede arrancar', errorOf(await ask(nothing, 'start', { server: 'sf' })) === 'unknown-server')
     check('sin servidores marcados: ni ver la consola', errorOf(await ask(nothing, 'console', { server: 'mc' })) === 'unknown-server')
+    check('sin servidores marcados: ni el historial', errorOf(await ask(nothing, 'journal', { server: 'mc' })) === 'unknown-server')
 
     const mine = data<RemoteListResult>(await ask(onlyMc, 'list'))
     check('solo ve los suyos', mine.servers.length === 1 && mine.servers[0]!.id === 'mc')

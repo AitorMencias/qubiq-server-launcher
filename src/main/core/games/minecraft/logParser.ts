@@ -86,6 +86,22 @@ export function parseLine(raw: string): ParsedEvent {
     return event
   }
 
+  // Lo que hace una orden lanzada por un operador desde dentro del juego sale
+  // entre corchetes y con su nombre delante: «[Steve: Kicked Alex: …]».
+  const byPlayer = /^\[([A-Za-z0-9_.]{1,32}): (.*)\]$/.exec(body)
+  const said = byPlayer ? byPlayer[2]! : body
+
+  if (SAVED_RE.test(said)) {
+    event.saved = true
+    return event
+  }
+
+  const moderation = parseModeration(said)
+  if (moderation) {
+    event.moderation = byPlayer ? { ...moderation, by: byPlayer[1]! } : moderation
+    return event
+  }
+
   const diagnosis = diagnose(line)
   if (diagnosis) {
     event.diagnosis = diagnosis
@@ -93,6 +109,42 @@ export function parseLine(raw: string): ParsedEvent {
   }
 
   return event
+}
+
+/**
+ * El servidor ha guardado: la respuesta a `save-all` (varía entre versiones y
+ * distribuciones: «Saved the game», «the world» o «the chunks») y el guardado
+ * del cierre, que Vanilla cuenta con «All dimensions are saved» y Paper 26
+ * con una línea de `ChunkHolderManager` por dimensión (medido: no siempre
+ * escribe la de Vanilla). El servicio junta las que llegan seguidas. El
+ * guardado automático de Vanilla y Paper no dice nada, así que ese no se ve.
+ */
+const SAVED_RE =
+  /^Saved the (game|world|chunks)|All dimensions are saved$|^\[ChunkHolderManager\] Saved \d+ block chunks/i
+
+/**
+ * Las respuestas de las órdenes de moderación de Vanilla (Paper usa las
+ * mismas). El registro va siempre en inglés, sea cual sea el idioma del juego.
+ * Los vetos por IP no se apuntan: el historial no guarda direcciones.
+ */
+const MODERATION_LINES: [RegExp, NonNullable<ParsedEvent['moderation']>['action']][] = [
+  [/^Kicked ([A-Za-z0-9_.]{1,32}): (.+)$/, 'kick'],
+  [/^Banned ([A-Za-z0-9_.]{1,32}): (.+)$/, 'ban'],
+  [/^Unbanned ([A-Za-z0-9_.]{1,32})$/, 'unban'],
+  [/^Made ([A-Za-z0-9_.]{1,32}) a server operator$/, 'admin'],
+  [/^Made ([A-Za-z0-9_.]{1,32}) no longer a server operator$/, 'unadmin'],
+  [/^Added ([A-Za-z0-9_.]{1,32}) to the whitelist$/, 'whitelist'],
+  [/^Removed ([A-Za-z0-9_.]{1,32}) from the whitelist$/, 'unwhitelist']
+]
+
+function parseModeration(text: string): ParsedEvent['moderation'] | null {
+  for (const [pattern, action] of MODERATION_LINES) {
+    const match = pattern.exec(text)
+    if (!match) continue
+    const reason = match[2]?.trim()
+    return { action, player: match[1]!, ...(reason ? { reason } : {}) }
+  }
+  return null
 }
 
 /**

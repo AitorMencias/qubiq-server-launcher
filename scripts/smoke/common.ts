@@ -242,7 +242,11 @@ export async function commonSmoke(): Promise<void> {
       "const fs = require('fs')",
       "process.stdout.write('LISTO\\n')",
       "process.stdout.write('ENTRA Ana\\n')",
+      "process.stdout.write('ENTRA Luis\\n')",
+      "process.stdout.write('GUARDADO\\n')",
+      "process.stdout.write('GUARDADO\\n')",
       "process.stdin.on('data', (d) => {",
+      "  if (String(d).includes('echar')) process.stdout.write('ECHADO Luis\\nSALE Luis\\n')",
       "  if (String(d).includes('salir')) { fs.writeFileSync('guardado.txt', 'ok'); process.exit(0) }",
       '})'
     ].join('\n')
@@ -267,7 +271,10 @@ export async function commonSmoke(): Promise<void> {
           level: 'info',
           text: raw,
           ready: raw === 'LISTO',
-          playerJoined: raw.startsWith('ENTRA ') ? raw.slice(6) : undefined
+          playerJoined: raw.startsWith('ENTRA ') ? raw.slice(6) : undefined,
+          playerLeft: raw.startsWith('SALE ') ? raw.slice(5) : undefined,
+          saved: raw === 'GUARDADO',
+          moderation: raw.startsWith('ECHADO ') ? { action: 'kick', player: raw.slice(7) } : undefined
         }
       },
       diagnoseExit(code) {
@@ -323,11 +330,61 @@ export async function commonSmoke(): Promise<void> {
       check('detecta "listo" con el registro del juego', await waitFor(() => statuses.includes('running'), 10_000))
       check('detecta jugadores con el registro del juego', await waitFor(() => players.includes('Ana'), 5_000))
 
+      await waitFor(() => players.includes('Luis'), 5_000)
+      // Una orden escrita en la consola, otra mandada por un botón (no va al
+      // historial) y una desde el control remoto, con su dispositivo.
+      await service.sendCommand(manifest.id, 'decir hola')
+      await service.sendCommand(manifest.id, 'echar Luis', { journal: false })
+      check('lo que cuenta el registro llega', await waitFor(() => !players.includes('Luis'), 5_000))
+      await service.sendCommand(manifest.id, 'decir adiós', { by: 'Móvil de prueba' })
+
       await service.stop(manifest.id)
       check('para con la orden propia del juego', await exists(join(serverDir(manifest.id), 'guardado.txt')))
       check('queda parado', (await service.get(manifest.id)).status === 'stopped')
 
+      // Desde el arranque: antes está la copia previa a instalar, que este
+      // juego sí hace porque crea su partida en `writeInitialFiles`.
+      const todo = (await service.listJournal(manifest.id, 100)).reverse()
+      const historial = todo.slice(todo.findIndex((e) => e.kind === 'start'))
+      const resumen = historial.map((e) => {
+        switch (e.kind) {
+          case 'join':
+          case 'leave':
+            return `${e.kind}:${e.player}:${e.online}`
+          case 'moderation':
+            return `moderation:${e.action}:${e.player}`
+          case 'command':
+            return `command:${e.command}${e.by ? `@${e.by}` : ''}`
+          default:
+            return e.kind
+        }
+      })
+      check(
+        'el historial apunta lo que ha pasado, en orden',
+        resumen.join(' | ') ===
+          [
+            'start',
+            'join:Ana:1',
+            'join:Luis:2',
+            'save',
+            'command:decir hola',
+            'moderation:kick:Luis',
+            'leave:Luis:1',
+            'command:decir adiós@Móvil de prueba',
+            'stop'
+          ].join(' | '),
+        resumen.join(' | ')
+      )
+      check(
+        'al parar no apunta que se va cada uno',
+        !historial.some((e) => e.kind === 'leave' && e.player === 'Ana')
+      )
+
       const backup = await service.createBackup(manifest.id, 'Prueba del juego falso')
+      check(
+        'y apunta las copias',
+        (await service.listJournal(manifest.id, 1))[0]?.kind === 'backup'
+      )
       check('la copia usa las rutas del juego', backup.sizeBytes > 0, `${backup.sizeBytes} bytes`)
       check('y anota su juego y versión', backup.game === ('falso' as InstanceManifest['game']) && backup.version === '1.0')
 

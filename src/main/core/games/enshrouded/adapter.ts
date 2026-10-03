@@ -416,7 +416,7 @@ export function parseLine(raw: string): ParsedEvent {
   }
 
   if (/\[server\] Saved/.test(clean)) {
-    return { level: 'info', text: SAVED_TEXT }
+    return { level: 'info', text: SAVED_TEXT, saved: true }
   }
 
   if (/Trigger gameflow shutdown, exit: Ctrl_Break/.test(clean)) {
