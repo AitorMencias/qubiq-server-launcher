@@ -9,15 +9,24 @@ import {
   ENSHROUDED_IPC,
   RUST_IPC,
   REMOTE_IPC,
+  REMOTE_LINKS_IPC,
   EVENTS,
   type MemoryInfo,
   type SystemMemory
 } from '../shared/ipc'
 import type {
   RemoteActivityEntry,
+  RemoteArgs,
+  RemoteClientResult,
   RemoteInvite,
+  RemoteLink,
+  RemoteLinkRequest,
+  RemoteLinksState,
+  RemoteOrder,
   RemotePermissions,
-  RemoteStatus
+  RemoteProbe,
+  RemoteStatus,
+  RemoteUnlinkResult
 } from '../shared/remote'
 import type { InstallableVersion, PortProtocol, UpdateCheck } from '../shared/games'
 import type { JournalEntry } from '../shared/journal'
@@ -785,6 +794,22 @@ const api = {
       ipcRenderer.invoke(REMOTE_IPC.revokeDevice, id)
   },
 
+  /** Servidores de otros QubiQ: este equipo como dispositivo suyo (0.13.0). */
+  remoteLinks: {
+    state: (): Promise<RemoteLinksState> => ipcRenderer.invoke(REMOTE_LINKS_IPC.state),
+    probe: (address: string): Promise<RemoteClientResult<RemoteProbe>> =>
+      ipcRenderer.invoke(REMOTE_LINKS_IPC.probe, address),
+    pair: (request: RemoteLinkRequest): Promise<RemoteClientResult<RemoteLink>> =>
+      ipcRenderer.invoke(REMOTE_LINKS_IPC.pair, request),
+    order: <T = null>(id: string, order: RemoteOrder, args?: RemoteArgs): Promise<RemoteClientResult<T>> =>
+      ipcRenderer.invoke(REMOTE_LINKS_IPC.order, id, order, args),
+    refresh: (id: string): Promise<void> => ipcRenderer.invoke(REMOTE_LINKS_IPC.refresh, id),
+    trust: (id: string, fingerprint: string): Promise<RemoteClientResult<RemoteLink>> =>
+      ipcRenderer.invoke(REMOTE_LINKS_IPC.trust, id, fingerprint),
+    remove: (id: string): Promise<RemoteClientResult<RemoteUnlinkResult>> =>
+      ipcRenderer.invoke(REMOTE_LINKS_IPC.remove, id)
+  },
+
   minecraft,
   satisfactory,
   valheim,
@@ -795,6 +820,8 @@ const api = {
 
   on: {
     remote: (handler: () => void) => subscribe<[]>(EVENTS.remote, handler),
+    remoteLinks: (handler: (state: RemoteLinksState) => void) =>
+      subscribe<[RemoteLinksState]>(EVENTS.remoteLinks, handler),
     log: (handler: (id: string, line: LogLine) => void) =>
       subscribe<[string, LogLine]>(EVENTS.log, handler),
     status: (handler: (id: string, status: ServerStatus) => void) =>

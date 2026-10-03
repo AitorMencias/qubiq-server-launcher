@@ -93,8 +93,11 @@ export function RemoteApp(): React.JSX.Element {
         <Dashboard
           device={screen.device}
           onRevoked={revoked}
-          onForget={() => {
-            void forgetDevice().catch(() => undefined)
+          onForget={async () => {
+            // Primero que el equipo lo borre de su lista (`forget`); si no
+            // contesta, se olvida aquí igual y allí se quita a mano.
+            await order(screen.device, 'forget').catch(() => undefined)
+            await forgetDevice().catch(() => undefined)
             setScreen({ kind: 'pair' })
           }}
         />
@@ -194,7 +197,7 @@ function Dashboard({
 }: {
   device: DeviceRecord
   onRevoked: () => void
-  onForget: () => void
+  onForget: () => Promise<void>
 }): React.JSX.Element {
   const [list, setList] = useState<RemoteListResult | null>(null)
   const [offline, setOffline] = useState(false)
@@ -273,7 +276,7 @@ function Dashboard({
                 <p>{t('remote.web.forgetConfirm')}</p>
                 <div className="r-row">
                   <button onClick={() => setForgetting(false)}>{t('common.cancel')}</button>
-                  <button className="r-danger" onClick={onForget}>
+                  <button className="r-danger" onClick={() => void onForget()}>
                     {t('remote.web.forget')}
                   </button>
                 </div>

@@ -9,6 +9,7 @@ import { zomboid } from './zomboid'
 import { enshrouded } from './enshrouded'
 import { rust } from './rust'
 import { remote } from './remote'
+import { links } from './links'
 
 /**
  * El español, idioma de referencia. Cada zona de la app tiene su fichero para
@@ -25,7 +26,8 @@ export const es = {
   ...zomboid,
   ...enshrouded,
   ...rust,
-  ...remote
+  ...remote,
+  ...links
 }
 
 export type MessageKey = keyof typeof es

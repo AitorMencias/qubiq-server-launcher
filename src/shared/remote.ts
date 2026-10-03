@@ -18,7 +18,11 @@ export const REMOTE_PROTOCOL = 'qubiq-remote/1'
 /** Puerto por defecto. Cualquiera libre vale; este no choca con ningún juego de la app. */
 export const DEFAULT_REMOTE_PORT = 8443
 
-export const REMOTE_ORDERS = ['list', 'start', 'stop', 'restart', 'console', 'send', 'journal'] as const
+/**
+ * `forget`: el dispositivo se borra a sí mismo de la lista del anfitrión. Solo
+ * quita acceso, y solo el suyo; sin argumentos.
+ */
+export const REMOTE_ORDERS = ['list', 'start', 'stop', 'restart', 'console', 'send', 'journal', 'forget'] as const
 export type RemoteOrder = (typeof REMOTE_ORDERS)[number]
 
 export function isRemoteOrder(value: unknown): value is RemoteOrder {
@@ -145,23 +149,29 @@ export function formatCode(code: string): string {
 
 // --- Respuestas -----------------------------------------------------------------
 
-export type RemoteError =
-  | 'bad-request'
-  | 'unknown-client'
-  | 'bad-signature'
-  | 'expired'
-  | 'replayed'
-  | 'forbidden'
-  | 'unknown-server'
-  | 'rate-limited'
-  | 'blocked'
-  | 'not-running'
-  | 'already-running'
-  | 'busy'
-  | 'no-console'
-  | 'command-not-allowed'
-  | 'bad-code'
-  | 'failed'
+export const REMOTE_ERRORS = [
+  'bad-request',
+  'unknown-client',
+  'bad-signature',
+  'expired',
+  'replayed',
+  'forbidden',
+  'unknown-server',
+  'rate-limited',
+  'blocked',
+  'not-running',
+  'already-running',
+  'busy',
+  'no-console',
+  'command-not-allowed',
+  'bad-code',
+  'failed'
+] as const
+export type RemoteError = (typeof REMOTE_ERRORS)[number]
+
+export function isRemoteError(value: unknown): value is RemoteError {
+  return typeof value === 'string' && (REMOTE_ERRORS as readonly string[]).includes(value)
+}
 
 export type RemoteResponse<T> =
   /** `time`: el reloj del anfitrión, para que el dispositivo corrija el suyo. */
@@ -278,6 +288,150 @@ export interface RemoteActivityEntry {
   /** `send`: lo que se mandó (o se intentó mandar) a la consola. */
   command?: string
   result: 'ok' | RemoteError
+}
+
+// --- QubiQ como cliente de otro QubiQ (0.13.0) ----------------------------------------
+
+/**
+ * Una conexión con otro QubiQ: este equipo es un dispositivo más de los
+ * suyos, con los mismos poderes que la página remota. `id` es local; el
+ * anfitrión no lo conoce.
+ */
+export interface RemoteLink {
+  id: string
+  /** «192.168.1.5:8443», como se escribió (normalizada). */
+  address: string
+  /** Nombre del equipo anfitrión. */
+  host: string
+  /** Nombre de este QubiQ en la lista de dispositivos del anfitrión. */
+  device: string
+  /** Huella fijada al emparejar. Si el anfitrión enseña otra, no se le habla. */
+  fingerprint: string
+  pairedAt: string
+  state: RemoteLinkState
+  /**
+   * Por qué falló lo último que se le pidió para la lista (`blocked`,
+   * `rate-limited`…); null si fue bien. Con `offline`, el motivo técnico va en
+   * `errorDetail`.
+   */
+  error: RemoteClientError | null
+  errorDetail: string | null
+  /** La última vez que respondió. */
+  lastContact: string | null
+  /**
+   * Lo último que dijo `list`. Se conserva sin conexión para seguir pintando
+   * sus servidores (con su estado de entonces, marcado como desconocido).
+   */
+  list: RemoteListResult | null
+  /** Con `cert-changed`: la huella que enseña ahora, para compararla. */
+  newFingerprint: string | null
+}
+
+/**
+ * - `connecting`: todavía no ha contestado desde que se abrió la app.
+ * - `online`: contesta (aunque la última orden se haya rechazado).
+ * - `offline`: no llega nada. Sus servidores pueden seguir en marcha.
+ * - `revoked`: el anfitrión ya no conoce este dispositivo.
+ * - `cert-changed`: la huella no es la fijada. No se manda nada hasta
+ *   confirmar la nueva.
+ * - `key-lost`: la clave no se puede descifrar (datos copiados a otro equipo
+ *   u otro usuario de Windows). Hay que volver a emparejar.
+ */
+export type RemoteLinkState = 'connecting' | 'online' | 'offline' | 'revoked' | 'cert-changed' | 'key-lost'
+
+export interface RemoteLinksState {
+  links: RemoteLink[]
+  /** El nombre que se propone para este equipo al emparejar. */
+  defaultName: string
+  /** Windows puede cifrar la clave (DPAPI). Sin eso no se empareja. */
+  secureStorage: boolean
+}
+
+/** Los «no» del lado cliente: los del anfitrión y los de llegar hasta él. */
+export type RemoteClientError =
+  | RemoteError
+  | 'offline'
+  | 'cert-changed'
+  | 'key-lost'
+  | 'bad-address'
+  | 'not-qubiq'
+  | 'no-secure-storage'
+  | 'unknown-link'
+
+export type RemoteClientResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: RemoteClientError; detail?: string }
+
+/** Lo que se sabe de un anfitrión antes de emparejar: su huella, para compararla. */
+export interface RemoteProbe {
+  address: string
+  fingerprint: string
+  expires: string
+}
+
+export interface RemoteLinkRequest {
+  address: string
+  /** La huella que el usuario ha comparado y dado por buena. */
+  fingerprint: string
+  code: string
+  name: string
+}
+
+/** Lo que devuelve quitar una conexión. */
+export interface RemoteUnlinkResult {
+  /** El anfitrión ha borrado el dispositivo. Si no, hay que quitarlo allí a mano. */
+  notified: boolean
+}
+
+export interface RemoteAddress {
+  host: string
+  port: number
+}
+
+/**
+ * «192.168.1.5», «192.168.1.5:8443», «https://casa.example.org:9000/»,
+ * «[fe80::1]:8443» o «fe80::1». Sin puerto, el de serie. Null si no es una
+ * dirección: ni rutas, ni usuarios, ni caracteres raros.
+ *
+ * El puerto puede ser cualquiera (no solo 1024-65535 como el del anfitrión):
+ * el router puede reenviar el 443 de fuera al 8443 de dentro.
+ */
+export function parseRemoteAddress(text: string): RemoteAddress | null {
+  const value = text
+    .trim()
+    .replace(/^https:\/\//i, '')
+    .replace(/\/+$/, '')
+  if (value.length === 0 || value.length > 300 || /[\s/@?#\\]/.test(value)) return null
+
+  let host: string
+  let port = DEFAULT_REMOTE_PORT
+  const bracketed = /^\[([0-9a-fA-F:.]+)\](?::(\d{1,5}))?$/.exec(value)
+  if (bracketed) {
+    host = bracketed[1]!
+    if (bracketed[2]) port = Number(bracketed[2])
+  } else if (/^[0-9a-fA-F:]+$/.test(value) && value.split(':').length > 2) {
+    // IPv6 sin corchetes: entera es la dirección, sin puerto.
+    host = value
+  } else {
+    const match = /^([A-Za-z0-9.-]+)(?::(\d{1,5}))?$/.exec(value)
+    if (!match) return null
+    host = match[1]!
+    if (match[2]) port = Number(match[2])
+    if (host.startsWith('.') || host.startsWith('-') || host.includes('..')) return null
+  }
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return null
+  return { host: host.toLowerCase(), port }
+}
+
+/** `{ host, port }` → «host:port», con corchetes si es IPv6. */
+export function formatRemoteAddress(address: RemoteAddress): string {
+  return `${address.host.includes(':') ? `[${address.host}]` : address.host}:${address.port}`
+}
+
+/** Dos huellas iguales, se escriban con «:» o sin ellos, en mayúsculas o no. */
+export function sameFingerprint(a: string, b: string): boolean {
+  const clean = (value: string): string => value.replace(/[^0-9a-f]/gi, '').toUpperCase()
+  return clean(a).length === 64 && clean(a) === clean(b)
 }
 
 // --- Consola -------------------------------------------------------------------

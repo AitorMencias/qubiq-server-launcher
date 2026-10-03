@@ -521,9 +521,9 @@ descargar sin cuenta de pago, así que el fichero lo trae el usuario.
 
 ## Control remoto (0.12.0 y 0.13.0)
 
-> **Estado: R1 hecha** (pendiente de publicar como 0.12.0); R2 sin empezar. Diseño, alternativas
+> **Estado: R1 y R2 hechas** (R2 pendiente de publicar como 0.13.0). Diseño, alternativas
 > descartadas, lo que salió al probar y lo que falta por comprobar (un móvil de verdad, entrar desde
-> fuera de casa) en [ANALISIS.md §19.31](ANALISIS.md).
+> fuera de casa) en [ANALISIS.md §19.31](ANALISIS.md) y, de R2, en §19.33.
 
 Administrar los servidores desde fuera del PC **sin dar acceso al PC**. No es un panel web
 completo: el QubiQ que tiene los servidores (el **anfitrión**) acepta una **lista cerrada de
@@ -572,14 +572,24 @@ cambiar el fichero de arranque, pasar rutas del disco); las órdenes lo dejan fu
 
 ### R2 — QubiQ como cliente (0.13.0)
 
-- [ ] «Añadir servidor remoto»: dirección, código de emparejamiento y huella del certificado fijada.
-- [ ] Clave privada cifrada con `safeStorage` (DPAPI).
-- [ ] Servidores remotos en la lista con la marca «en <equipo>» y un panel reducido a las órdenes.
-- [ ] «Sin conexión» cuando el anfitrión no responde, distinto de un servidor caído.
-- [ ] e2e con dos QubiQ en el mismo equipo y datos aislados.
+**Decidido por el usuario (2026-10-03):** la huella se enseña y se confirma a mano antes del código;
+los servidores remotos van en la lista lateral, agrupados por equipo; y quitar la conexión le pide
+al anfitrión que olvide el dispositivo con una orden nueva, `forget`, que solo puede borrarse a sí
+mismo (la usa también «Olvidar este dispositivo» de la página web).
+
+- [x] «Conectar con otro QubiQ»: dirección, huella del certificado comparada y fijada, y código.
+- [x] Clave privada (Ed25519) cifrada con `safeStorage` (DPAPI); sin cifrado no se empareja.
+- [x] Servidores remotos en la lista con la marca «en <equipo>» y un panel reducido a las órdenes
+      (arrancar, parar, reiniciar, jugadores, consola e historial), y una pantalla de la conexión.
+- [x] «Sin conexión» cuando el anfitrión no responde, distinto de un servidor caído. Además:
+      huella cambiada (confirmar la nueva), dispositivo quitado allí y clave inservible.
+- [x] e2e con dos QubiQ en el mismo equipo y datos aislados: `e2e:remote` con el núcleo del cliente
+      contra un Paper real, y el recorrido `dos-qubiq.mjs` con dos apps a la vez.
 
 **Para después:** editar la lista de comandos del nivel 2 desde la app, comprobar desde internet que
-el puerto del acceso remoto llega, y renovar el certificado avisando a los dispositivos.
+el puerto del acceso remoto llega, y renovar el certificado avisando a los dispositivos (el QubiQ
+cliente ya avisa y deja confirmar la huella nueva; la página web, no). Mantener abierta la conexión
+del cliente entre peticiones (ahora cada una hace su propio TLS).
 
 ---
 

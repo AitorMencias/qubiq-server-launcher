@@ -1977,3 +1977,194 @@ button.link:hover:not(:disabled) {
 :lang(ja) body {
   font-family: 'Segoe UI', 'Yu Gothic UI', 'Meiryo UI', system-ui, sans-serif;
 }
+
+/* --- Servidores de otros QubiQ (0.13.0) ------------------------------------ */
+
+/* Cada equipo, debajo de los servidores propios, con su encabezado. */
+.link-group {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.link-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: left;
+}
+
+.link-group-head:hover:not(:disabled),
+.link-group-head.active {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.link-group-head.active {
+  border-color: var(--accent-dim);
+}
+
+.link-group-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-group-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.link-group-empty {
+  margin: 0 10px 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Estado de la conexión. «Sin conexión» no es «caído»: gris, no rojo. */
+.dot.link-online {
+  background: var(--ok);
+}
+.dot.link-connecting {
+  background: var(--warn);
+}
+.dot.link-offline,
+.dot.unknown {
+  background: transparent;
+  border: 1px solid var(--muted);
+  box-sizing: border-box;
+}
+.dot.link-revoked,
+.dot.link-cert-changed,
+.dot.link-key-lost {
+  background: var(--danger);
+}
+
+.sidebar-footer button.link-add-button {
+  margin-top: 8px;
+}
+.sidebar-footer button.link-add-button.active {
+  border-color: var(--accent-dim);
+}
+
+.link-fingerprint {
+  display: block;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  user-select: text;
+  word-break: break-all;
+}
+
+.link-check {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 4px 0 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.link-check input {
+  width: auto;
+  flex: none;
+  margin: 0;
+}
+
+.link-code-input {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 18px;
+  letter-spacing: 2px;
+  max-width: 200px;
+}
+
+.link-host-icon {
+  font-size: 18px;
+  color: var(--muted);
+}
+
+.link-server-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.link-server-row .pname {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-permissions {
+  margin: 6px 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.link-server-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.link-server-head .alert:last-child,
+.link-server-head .row {
+  margin-bottom: 0;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.player .pname.mono {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-weight: 400;
+}
+
+.link-console-note {
+  padding: 0 16px 10px;
+  background: var(--panel);
+  font-size: 12px;
+}
+
+.link-console-note .error-text {
+  color: #ff8b83;
+}
+
+/* El aviso tras quitar una conexión, encima de la pantalla que quede. */
+.panel.link-notice {
+  flex: none;
+  padding-bottom: 0;
+}

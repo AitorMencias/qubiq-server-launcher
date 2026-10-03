@@ -1,9 +1,21 @@
-import { app, BrowserWindow, Menu, Tray, dialog, nativeImage, powerSaveBlocker, type NativeImage } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  Menu,
+  Tray,
+  dialog,
+  nativeImage,
+  powerSaveBlocker,
+  safeStorage,
+  type NativeImage
+} from 'electron'
 import { join } from 'node:path'
 import { registerIpc } from './ipc'
 import { registerRemoteIpc } from './ipc/remote'
+import { registerRemoteLinksIpc } from './ipc/remoteLinks'
 import { service } from './core/service'
 import { RemoteAccess } from './core/remote'
+import { RemoteLinks } from './core/remote/links'
 import { serviceOrderHost } from './core/remote/serviceHost'
 import { gameResourcePath, setDataRoot, setResourcesRoot } from './core/paths'
 import { readSettings } from './core/settings/manager'
@@ -83,6 +95,25 @@ const remote = new RemoteAccess({
   listenHost: process.env['QUBIQ_REMOTE_LISTEN'] || undefined
 })
 
+/**
+ * Servidores de otros QubiQ (0.13.0): este equipo como dispositivo suyo. La
+ * clave privada de cada conexión va cifrada con DPAPI (`safeStorage`): solo
+ * este usuario de Windows en este equipo puede usarla.
+ */
+const remoteLinks = new RemoteLinks({
+  secrets: {
+    available: () => safeStorage.isEncryptionAvailable(),
+    encrypt: (plain) => safeStorage.encryptString(plain).toString('base64'),
+    decrypt: (sealed) => safeStorage.decryptString(Buffer.from(sealed, 'base64'))
+  }
+})
+
+/** La lista de los otros QubiQ solo se pide con la ventana a la vista. */
+function updateLinksActivity(): void {
+  const visible = !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && !mainWindow.isMinimized()
+  remoteLinks.setActive(visible)
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1180,
@@ -107,6 +138,9 @@ function createWindow(): void {
   })
 
   mainWindow.once('ready-to-show', () => mainWindow?.show())
+  for (const event of ['show', 'hide', 'minimize', 'restore', 'closed'] as const) {
+    mainWindow.on(event as 'show', () => updateLinksActivity())
+  }
 
   // Con el acceso remoto encendido, cerrar la ventana no cierra la app: si no,
   // nadie recibiría las órdenes. Se queda en la bandeja.
@@ -274,6 +308,10 @@ void app.whenReady().then(async () => {
   await remote.init().catch(() => undefined)
   updateTray()
 
+  registerRemoteLinksIpc(remoteLinks, () => mainWindow)
+  await remoteLinks.init().catch(() => undefined)
+  updateLinksActivity()
+
   if (mainWindow) finishRelocation()
   else createWindow()
 
@@ -328,6 +366,7 @@ app.on('will-quit', () => {
   tray?.destroy()
   tray = null
   remote.shutdownNow()
+  remoteLinks.shutdown()
 })
 
 app.on('window-all-closed', () => {

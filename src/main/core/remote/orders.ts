@@ -71,6 +71,8 @@ export async function runOrder(
   args: RemoteArgs
 ): Promise<unknown> {
   if (order === 'list') return listResult(host, device)
+  // La atiende `RemoteAccess`: borra al dispositivo de su lista, no toca el servicio.
+  if (order === 'forget') throw new OrderRefused('bad-request')
 
   const server = await findServer(host, device, args.server)
 

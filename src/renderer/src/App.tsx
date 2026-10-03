@@ -7,6 +7,11 @@ import { GameChooser } from './GameChooser'
 import { GameIcon } from './GameIcon'
 import { ModeChooser } from './ModeChooser'
 import { ServerPanel } from './ServerPanel'
+import { LinkWizard } from './LinkWizard'
+import { RemoteLinkPanel } from './RemoteLinkPanel'
+import { RemoteServerPanel } from './RemoteServerPanel'
+import { RemoteLinkGroup } from './RemoteLinkParts'
+import type { RemoteLinksState } from '@shared/remote'
 import { SettingsScreen } from './SettingsScreen'
 import { applyDocumentLanguage, t } from './i18n'
 
@@ -50,6 +55,14 @@ export function App({ initialLanguage, systemLanguage }: Props): React.JSX.Eleme
   const [language, setLanguageState] = useState<Language>(initialLanguage)
   /** El elegido en la configuración; undefined si sigue al de Windows. */
   const [chosenLanguage, setChosenLanguage] = useState<Language | undefined>(undefined)
+  /** Los otros QubiQ con los que está emparejado este (0.13.0). */
+  const [links, setLinks] = useState<RemoteLinksState>({ links: [], defaultName: '', secureStorage: true })
+  /** Lo abierto de otro QubiQ: la conexión (`server` null) o uno de sus servidores. */
+  const [remoteView, setRemoteView] = useState<{ link: string; server: string | null } | null>(null)
+  /** El asistente de «Conectar con otro QubiQ». */
+  const [linking, setLinking] = useState(false)
+  /** Lo que queda que decir tras quitar una conexión (que allí sigue apuntado). */
+  const [linkNotice, setLinkNotice] = useState<{ text: string; warn: boolean } | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -159,6 +172,26 @@ export function App({ initialLanguage, systemLanguage }: Props): React.JSX.Eleme
     }
   }, [])
 
+  useEffect(() => {
+    void window.qubiq.remoteLinks
+      .state()
+      .then(setLinks)
+      .catch(() => undefined)
+    return window.qubiq.on.remoteLinks(setLinks)
+  }, [])
+
+  // Una conexión quitada (o que ya no está) no deja la pantalla en blanco.
+  useEffect(() => {
+    if (remoteView && !links.links.some((link) => link.id === remoteView.link)) setRemoteView(null)
+  }, [links, remoteView])
+
+  /** Sale de lo que hubiera abierto de otro QubiQ (al ir a lo local). */
+  function leaveRemote(): void {
+    setRemoteView(null)
+    setLinking(false)
+    setLinkNotice(null)
+  }
+
   // Refresco del contador de tiempo en marcha.
   useEffect(() => {
     const timer = setInterval(() => {
@@ -174,6 +207,11 @@ export function App({ initialLanguage, systemLanguage }: Props): React.JSX.Eleme
   }, [])
 
   const selected = instances.find((i) => i.manifest.id === selectedId) ?? null
+  const openLink = remoteView ? (links.links.find((link) => link.id === remoteView.link) ?? null) : null
+  const openRemoteServer =
+    openLink && remoteView?.server ? (openLink.list?.servers.find((s) => s.id === remoteView.server) ?? null) : null
+  /** Lo de este equipo se ve cuando no hay nada más encima. */
+  const localView = !showSettings && creating === null && remoteView === null && !linking
 
   return (
     <div className="app" data-language={language}>
@@ -192,15 +230,12 @@ export function App({ initialLanguage, systemLanguage }: Props): React.JSX.Eleme
           {instances.map((instance) => (
             <div
               key={instance.manifest.id}
-              className={`instance-item ${
-                instance.manifest.id === selectedId && creating === null && !showSettings
-                  ? 'active'
-                  : ''
-              }`}
+              className={`instance-item ${instance.manifest.id === selectedId && localView ? 'active' : ''}`}
               onClick={() => {
                 setSelectedId(instance.manifest.id)
                 setCreating(null)
                 setShowSettings(false)
+                leaveRemote()
               }}
             >
               <GameIcon game={instance.manifest.game} size={30} />
@@ -213,11 +248,38 @@ export function App({ initialLanguage, systemLanguage }: Props): React.JSX.Eleme
               </div>
             </div>
           ))}
+
+          {links.links.map((link) => (
+            <RemoteLinkGroup
+              key={link.id}
+              link={link}
+              open={remoteView?.link === link.id && !showSettings && creating === null ? remoteView : null}
+              onOpen={(server) => {
+                setCreating(null)
+                setShowSettings(false)
+                setLinking(false)
+                setLinkNotice(null)
+                setRemoteView({ link: link.id, server })
+              }}
+            />
+          ))}
         </div>
 
         <div className="sidebar-footer">
           <button className="primary" onClick={startCreate}>
             {t('app.createServer')}
+          </button>
+          <button
+            className={`link-add-button ${linking && !showSettings && creating === null ? 'active' : ''}`}
+            onClick={() => {
+              setCreating(null)
+              setShowSettings(false)
+              setRemoteView(null)
+              setLinkNotice(null)
+              setLinking(true)
+            }}
+          >
+            {t('link.add.button')}
           </button>
 
           <div className="mode-switch">
@@ -343,7 +405,61 @@ export function App({ initialLanguage, systemLanguage }: Props): React.JSX.Eleme
           </>
         )}
 
-        {!showSettings && creating === null && selected && (
+        {!showSettings && creating === null && linking && (
+          <LinkWizard
+            state={links}
+            onCancel={() => setLinking(false)}
+            onLinked={(id) => {
+              setLinking(false)
+              setRemoteView({ link: id, server: null })
+            }}
+          />
+        )}
+
+        {!showSettings && creating === null && !linking && linkNotice && (
+          <div className="panel link-notice">
+            <div className={`alert ${linkNotice.warn ? 'warn' : 'info'}`}>
+              <p>{linkNotice.text}</p>
+            </div>
+          </div>
+        )}
+
+        {!showSettings && creating === null && openLink && remoteView?.server === null && (
+          <RemoteLinkPanel
+            key={openLink.id}
+            link={openLink}
+            onOpenServer={(server) => setRemoteView({ link: openLink.id, server })}
+            onRemoved={(result) => {
+              setRemoteView(null)
+              setLinkNotice(
+                result.notified
+                  ? { text: t('link.remove.done', { host: openLink.host }), warn: false }
+                  : {
+                      text: t('link.remove.notNotified', { host: openLink.host, device: openLink.device }),
+                      warn: true
+                    }
+              )
+            }}
+          />
+        )}
+
+        {!showSettings && creating === null && openLink && remoteView?.server && (
+          openRemoteServer ? (
+            <RemoteServerPanel
+              key={`${openLink.id}/${openRemoteServer.id}`}
+              link={openLink}
+              server={openRemoteServer}
+            />
+          ) : (
+            <div className="panel">
+              <div className="alert warn">
+                <p>{t('link.server.gone', { host: openLink.host })}</p>
+              </div>
+            </div>
+          )
+        )}
+
+        {localView && selected && (
           <ServerPanel
             // Cambiar de servidor vuelve a su pantalla principal, en vez de
             // arrastrar la pestaña o la configuración que tenía abiertas el otro.
@@ -364,7 +480,7 @@ export function App({ initialLanguage, systemLanguage }: Props): React.JSX.Eleme
           />
         )}
 
-        {!showSettings && creating === null && !selected && !loadError && (
+        {localView && !linkNotice && !selected && !loadError && (
           <div className="empty">
             <div style={{ fontSize: 44 }}>🧊</div>
             <div>

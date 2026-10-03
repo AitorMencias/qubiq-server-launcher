@@ -24,6 +24,7 @@ import { rustSmoke } from './rust'
 import { i18nSmoke } from './i18n'
 import { steamSmoke } from './steam'
 import { remoteSmoke } from './remote'
+import { remoteLinksSmoke } from './remoteLinks'
 import { journalSmoke } from './journal'
 import { setDataRoot, setResourcesRoot, ensureBaseDirs } from '../../src/main/core/paths'
 
@@ -38,6 +39,7 @@ async function main(): Promise<void> {
   await journalSmoke()
   await i18nSmoke()
   await remoteSmoke()
+  await remoteLinksSmoke()
   await steamSmoke()
   await satisfactorySmoke()
   await valheimSmoke()

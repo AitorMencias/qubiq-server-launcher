@@ -17,6 +17,7 @@ import { service } from '../../src/main/core/service'
 import { findFreePort } from '../../src/main/core/net/network'
 import { RemoteAccess } from '../../src/main/core/remote'
 import { serviceOrderHost } from '../../src/main/core/remote/serviceHost'
+import { RemoteLinks } from '../../src/main/core/remote/links'
 import * as catalog from '../../src/main/core/games/minecraft/versions/catalog'
 import type {
   RemoteArgs,
@@ -224,6 +225,75 @@ async function main(): Promise<void> {
       !historial.some((e) => e.kind === 'command' && /Atacante/.test(e.command)) &&
         !historial.some((e) => 'by' in e && e.by === 'Solo mira')
     )
+
+    // --- Otro QubiQ como cliente (0.13.0) -------------------------------------
+    // El núcleo del cliente de verdad (`RemoteLinks`), con su propia carpeta y
+    // un cifrado de prueba en lugar de DPAPI, contra este mismo anfitrión.
+    console.log('\n== Otro QubiQ como cliente')
+    const links = new RemoteLinks({
+      secrets: {
+        available: () => true,
+        encrypt: (plain) => Buffer.from(plain).reverse().toString('base64'),
+        decrypt: (sealed) => Buffer.from(sealed, 'base64').reverse().toString()
+      },
+      dir: () => join(root, 'cliente'),
+      pollMs: 60_000
+    })
+    await links.init()
+    const probe = await links.probe(`127.0.0.1:${port}`)
+    check('cliente: ve la huella del anfitrión', probe.ok && probe.data.fingerprint === status.fingerprint)
+    const invite = await remote.createInvite({ control: true, console: 2, servers: [id] })
+    const paired = await links.pair({
+      address: `127.0.0.1:${port}`,
+      fingerprint: probe.ok ? probe.data.fingerprint : '',
+      code: invite.code,
+      name: 'QubiQ cliente'
+    })
+    check('cliente: emparejado', paired.ok, paired.ok ? undefined : paired.error)
+    const linkId = paired.ok ? paired.data.id : ''
+    const remoteStatus = async (): Promise<string> => {
+      await links.refresh(linkId)
+      return links.state().links[0]?.list?.servers.find((s) => s.id === id)?.status ?? '?'
+    }
+    const clientStart = await links.order(linkId, 'start', { server: id })
+    check('cliente: arrancar', clientStart.ok, clientStart.ok ? undefined : clientStart.error)
+    let running = false
+    for (let i = 0; i < 180 && !running; i++) {
+      running = (await remoteStatus()) === 'running'
+      if (!running) await sleep(1000)
+    }
+    check('cliente: lo ve en marcha', running)
+    const sentByClient = await links.order(linkId, 'send', { server: id, command: 'list' })
+    check('cliente: «list» por la consola', sentByClient.ok)
+    let answered = false
+    let after = 0
+    for (let i = 0; i < 15 && !answered; i++) {
+      const lines = await links.order(linkId, 'console', { server: id, after })
+      if (lines.ok) {
+        const data = lines.data as RemoteConsoleResult
+        after = data.next
+        answered = data.lines.some((line) => /There are \d+ of a max/.test(line.text))
+      }
+      if (!answered) await sleep(1000)
+    }
+    check('cliente: y lee la respuesta', answered)
+    const clientStop = await links.order(linkId, 'stop', { server: id })
+    check('cliente: parar', clientStop.ok)
+    let stopped = false
+    for (let i = 0; i < 120 && !stopped; i++) {
+      stopped = (await remoteStatus()) === 'stopped'
+      if (!stopped) await sleep(1000)
+    }
+    check('cliente: lo ve parado', stopped)
+    const clientJournal = await links.order(linkId, 'journal', { server: id })
+    const clientEntries = clientJournal.ok ? (clientJournal.data as RemoteJournalResult).entries : []
+    check(
+      'cliente: en el historial con su nombre',
+      ['start', 'command', 'stop'].every((kind) => clientEntries.some((e) => e.kind === kind && 'by' in e && e.by === 'QubiQ cliente'))
+    )
+    const removed = await links.remove(linkId)
+    check('cliente: quitar avisa y el anfitrión lo olvida', removed.ok && removed.data.notified && !(await remote.status()).devices.some((d) => d.name === 'QubiQ cliente'))
+    links.shutdown()
   } finally {
     await remote.shutdown()
     await service.stopAll()

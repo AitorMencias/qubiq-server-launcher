@@ -47,7 +47,7 @@ import type { JournalEntry } from '../../src/shared/journal'
 // --- Un anfitrión falso -----------------------------------------------------------
 
 /** Los tres servidores del anfitrión falso. */
-const ALL = ['mc', 'sf', 'rust']
+export const ALL = ['mc', 'sf', 'rust']
 
 function manifest(id: string, game: InstanceManifest['game'], data: Record<string, unknown>): InstanceManifest {
   return {
@@ -65,7 +65,7 @@ function manifest(id: string, game: InstanceManifest['game'], data: Record<strin
   } as unknown as InstanceManifest
 }
 
-class FakeHost implements OrderHost {
+export class FakeHost implements OrderHost {
   calls: string[] = []
   statuses = new Map<string, ServerStatus>([
     ['mc', 'running'],
@@ -138,7 +138,7 @@ function errorOf(reply: { status: number; body: unknown }): string | null {
   return body.ok ? null : body.error
 }
 
-async function freshRemote(host: OrderHost, clock: { now: number }, staticRoot: string | null = null): Promise<RemoteAccess> {
+export async function freshRemote(host: OrderHost, clock: { now: number }, staticRoot: string | null = null): Promise<RemoteAccess> {
   await rm(join(dataRoot(), 'remote'), { recursive: true, force: true })
   const remote = new RemoteAccess({ host, staticRoot, listenHost: '127.0.0.1', now: () => clock.now })
   await remote.init()

@@ -2945,7 +2945,7 @@ traducirlos, el núcleo tiene que devolver códigos con datos en vez de frases, 
 
 **Ahora (uso privado):**
 
-0. **Control remoto por órdenes** (0.12.0 y 0.13.0): en curso, ver §19.31.
+0. **Control remoto por órdenes** (0.12.0 y 0.13.0): hecho, ver §19.31 y §19.33.
 1. Instalación de plugins y mods desde Modrinth, filtrando por loader y versión (§4.8).
 2. Moderación con el servidor parado: editar whitelist y operadores antes del primer arranque,
    resolviendo UUID contra la API de Mojang (§9).
@@ -2962,7 +2962,8 @@ actualizaciones automáticas y las tareas de marca de §18.2. El instalador ya e
 ### 19.31 Control remoto por órdenes (0.12.0 y 0.13.0)
 
 Pedido por el usuario: administrar los servidores desde cualquier sitio, **sin escritorio remoto**,
-que daría acceso a todo el PC. Plan de tareas y estado en la hoja de ruta (fases R1 y R2).
+que daría acceso a todo el PC. Plan de tareas y estado en la hoja de ruta (fases R1 y R2). La fase R2,
+QubiQ como cliente de otro QubiQ, está en §19.33.
 
 #### Por qué órdenes y no un panel web completo
 
@@ -3246,3 +3247,101 @@ con una entrada nueva, sin scroll horizontal y la consola de vuelta con su aviso
 `remoto.mjs` e `historial.mjs` siguen en verde. **No probado** en un móvil de verdad, igual que el
 resto de la página.
 
+
+### 19.33 QubiQ como cliente de otro QubiQ (0.13.0)
+
+Fase R2 del control remoto (§19.31): un QubiQ añade los servidores de otro a su lista. Este equipo
+se empareja con el otro **como un dispositivo más**, igual que la página del móvil, y tiene
+exactamente sus mismos poderes: la lista cerrada de órdenes. Nada del cliente da más acceso que la
+página; el anfitrión no distingue uno de otro (los dos firman igual).
+
+**Decidido por el usuario:**
+- **La huella se enseña y se confirma a mano**, antes del código. Es lo único que para a alguien en
+  medio durante el emparejamiento: si el intermediario ve el código, puede emparejarse él y hacer
+  de puente, y ni la firma del código ni atar la huella al mensaje lo evitan (lo tiene todo).
+- **En la lista lateral**, debajo de los servidores propios, agrupados por equipo («En SALON-PC»).
+  Pinchar el encabezado abre la pantalla de la conexión.
+- **Quitar avisa al anfitrión** con una orden nueva, `forget`: el dispositivo que firma se borra a sí
+  mismo de la lista. Solo quita acceso y solo el suyo, sin argumentos. La usa también «Olvidar este
+  dispositivo» de la página web, que antes dejaba el dispositivo apuntado en el anfitrión.
+
+#### Cómo está hecho
+
+| Pieza | Qué hace |
+|---|---|
+| `core/remote/client.ts` | Conexión HTTPS con la huella fijada |
+| `core/remote/links.ts` | Las conexiones (`links.json`), emparejar, sondeo de la lista, órdenes, quitar |
+| `core/remote/sanitize.ts` | Lo que contesta el otro equipo, comprobado campo a campo |
+| `LinkWizard`, `RemoteLinkPanel`, `RemoteServerPanel` | Conectar, la conexión y un servidor remoto |
+
+- **La huella se mira antes de escribir nada.** Con `https.request` y `rejectUnauthorized: false`,
+  la petición (con la orden firmada o el código) puede salir antes de que nadie mire el certificado.
+  Por eso la conexión se abre a mano con `tls.connect`, se compara la huella en `secureConnect` y
+  solo entonces se le da a `http.request` por `createConnection`. El smoke lo comprueba: con una
+  huella que no es, el código de emparejamiento **no llega** (sigue vivo y sin fallos en el
+  anfitrión).
+- **Antes de enseñar la huella, que sea un QubiQ**: una orden vacía tiene que contestar
+  `bad-request` con su hora. Un router o cualquier otra web por HTTPS da «no es el acceso remoto de
+  QubiQ». Cuenta como un fallo para el bloqueo de direcciones del anfitrión (aguanta 10).
+- **La clave** es Ed25519 de `node:crypto`, guardada en PKCS#8 y cifrada con `safeStorage` (DPAPI)
+  a través de `SecretBox`, porque el núcleo no conoce Electron. Sin cifrado disponible no se
+  empareja: la alternativa era guardarla en claro. Copiar la carpeta de datos a otro equipo u otro
+  usuario de Windows deja la conexión en «clave inservible»: hay que volver a emparejar.
+- **Estados de la conexión:** conectando, conectado, **sin conexión** (sus servidores salen con
+  «estado desconocido» y un círculo hueco, no en rojo: pueden seguir en marcha perfectamente), ya no
+  tiene acceso (el anfitrión dice `unknown-client`), la huella ha cambiado y clave inservible. En los
+  tres últimos no se le habla al anfitrión hasta que el usuario haga algo.
+- **Huella cambiada** (certificado renovado a los 770 días o vuelto a crear): la conexión enseña la
+  fijada y la nueva y deja confirmar la nueva, que se comprueba otra vez contra lo que enseña el
+  anfitrión en ese momento.
+- **Sondeo:** la lista de cada equipo cada 5 s, **solo con la ventana a la vista** (escondida en la
+  bandeja o minimizada, nada). La consola (1,5 s) y el historial (5 s) solo desde la pantalla del
+  servidor abierto. Una petición de lista en marcha no se repite: quien pide otra espera a esa.
+- **Reloj:** igual que la página, cada respuesta trae la hora del anfitrión; con `expired` se corrige
+  y se reintenta una vez.
+- **Reemparejar con el mismo equipo** (misma huella) sustituye la conexión y conserva su id, y antes
+  le pide al anfitrión que olvide la vieja.
+- **Respuestas raras:** un servidor de un juego que esta versión no conoce no sale (no habría icono
+  ni nombre); entradas de historial de una clase nueva se saltan; textos recortados; permisos raros,
+  a lo más restrictivo.
+
+#### Lo que salió al probar
+
+- **«Reintentar» no esperaba a nada.** Si ya había una petición de lista en marcha (la del
+  arranque), `refresh` volvía en el acto y la pantalla seguía en «conectando». Lo pilló el smoke; ahora
+  la petición en curso se guarda y quien llega después la espera.
+- **La huella nueva ya llega con el aviso**: al detectar el cambio, el cliente guarda la que enseña
+  el anfitrión, así que el botón «Ver la huella nueva» solo sale si no la tiene.
+
+#### Cómo se ha comprobado
+
+- `typecheck`; `smoke` con **1445** comprobaciones (70 nuevas, `scripts/smoke/remoteLinks.ts`):
+  direcciones válidas y no válidas, huellas, respuestas raras, y contra un anfitrión de verdad por
+  HTTPS con el certificado de Windows: puerto cerrado, algo que no es QubiQ con el mismo certificado,
+  huella que no es (sin que el código llegue), sin cifrado, código malo, emparejar, clave nunca en
+  claro, órdenes, servidor ajeno, nivel 2, `forget` rechazado desde la interfaz, reloj desfasado 5
+  minutos, reabrir, clave de otro usuario, huella cambiada y confirmada, quitado en el anfitrión,
+  reemparejar, quitar con y sin conexión, y `forget` con argumentos rechazado.
+- `e2e:remote` contra Paper con el núcleo del cliente: emparejar, arrancar, `list` y su respuesta en
+  la consola, parar, el historial con su nombre y quitar con `forget`. `e2e paper` y `e2e:restart`
+  siguen en verde.
+- Recorrido nuevo `dos-qubiq.mjs` (capturas 400-409), **dos apps a la vez** con datos aislados y el
+  anfitrión solo en 127.0.0.1: dirección mala y equipo que no contesta, la huella del asistente igual
+  que la del anfitrión, el código bloqueado hasta marcar «coinciden», la clave cifrada por DPAPI de
+  verdad en `links.json`, la lista lateral con solo el servidor marcado, la pantalla del servidor
+  (sin Configuración ni copias), cerrar el anfitrión y ver «sin conexión» y «estado desconocido»,
+  volver a abrirlo y que se reconecte solo, **regenerar el certificado del anfitrión** y confirmar la
+  huella nueva, quitar (el anfitrión lo olvida y lo apunta como «Quitarse»), y quitarlo desde el
+  anfitrión (el cliente dice «ya no tiene acceso»). `remoto.mjs`, `historial-remoto.mjs` y
+  `modos.mjs` siguen en verde.
+
+#### Lo que no se ha podido comprobar
+
+- **Dos equipos distintos** y por internet: todo ha sido en el mismo PC por 127.0.0.1. Entrar desde
+  fuera exige abrir un puerto: hay que pedirlo antes.
+- **Arrancar desde el cliente en la interfaz**: el recorrido no arranca ningún servidor (el botón y
+  la orden sí se han probado, la orden de punta a punta en `e2e:remote`).
+- Los textos en los otros nueve idiomas se han escrito, pero solo se han visto en pantalla en
+  español.
+- Cada petición abre su propia conexión TLS. En casa no se nota; por internet, con la consola
+  abierta, es un apretón de manos cada 1,5 s. Mantener la conexión abierta queda para después.

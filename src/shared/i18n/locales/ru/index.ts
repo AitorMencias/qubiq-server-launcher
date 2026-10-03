@@ -9,6 +9,7 @@ import { zomboid } from './zomboid'
 import { enshrouded } from './enshrouded'
 import { rust } from './rust'
 import { remote } from './remote'
+import { links } from './links'
 import type { Dictionary } from '../../types'
 
 /** Ruso. */
@@ -23,5 +24,6 @@ export const ru: Dictionary = {
   ...zomboid,
   ...enshrouded,
   ...rust,
-  ...remote
+  ...remote,
+  ...links
 }

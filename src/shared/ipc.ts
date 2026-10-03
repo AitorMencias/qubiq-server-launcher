@@ -314,6 +314,17 @@ export const REMOTE_IPC = {
   revokeDevice: 'remote:device:revoke'
 } as const
 
+/** Este QubiQ como cliente de otros (0.13.0). */
+export const REMOTE_LINKS_IPC = {
+  state: 'remoteLinks:state',
+  probe: 'remoteLinks:probe',
+  pair: 'remoteLinks:pair',
+  order: 'remoteLinks:order',
+  refresh: 'remoteLinks:refresh',
+  trust: 'remoteLinks:trust',
+  remove: 'remoteLinks:remove'
+} as const
+
 /** Eventos que el núcleo empuja hacia la interfaz. */
 export const EVENTS = {
   log: 'event:log',
@@ -327,7 +338,9 @@ export const EVENTS = {
   /** Cómo va el traslado de la carpeta de datos, en el arranque que lo hace. */
   relocation: 'event:relocation',
   /** Ha cambiado algo del acceso remoto (estado, dispositivos, actividad). */
-  remote: 'event:remote'
+  remote: 'event:remote',
+  /** Ha cambiado algo de las conexiones con otros QubiQ (estado, sus servidores). */
+  remoteLinks: 'event:remoteLinks'
 } as const
 
 export interface MemoryInfo {

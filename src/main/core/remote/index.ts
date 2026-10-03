@@ -366,6 +366,18 @@ export class RemoteAccess extends EventEmitter {
 
     this.markSeen(device, address)
 
+    // Olvidarse a sí mismo no es cosa del servicio sino de esta lista. Solo
+    // puede borrar al dispositivo que firma: no lleva argumentos.
+    if (order.order === 'forget') {
+      if (Object.keys(order.args).length > 0) {
+        await this.logOrder(device, address, order, 'bad-request')
+        return this.reply('bad-request')
+      }
+      await this.revokeDevice(device.id)
+      await this.logOrder(device, address, order, 'ok')
+      return this.reply(null, null)
+    }
+
     try {
       const data = await runOrder(this.options.host, device, order.order, order.args)
       await this.logOrder(device, address, order, 'ok')
