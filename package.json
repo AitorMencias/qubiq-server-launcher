@@ -1,6 +1,6 @@
 {
   "name": "qubiq-server-launcher",
-  "version": "0.7.2",
+  "version": "1.0.0",
   "description": "Crea y gestiona tu servidor de juegos en tres clics",
   "main": "./out/main/index.js",
   "private": true,

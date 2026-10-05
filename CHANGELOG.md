@@ -8,16 +8,25 @@ El detalle de cada cambio, con lo que se probó, está en el diario de desarroll
 ([ANALISIS.md §19](ANALISIS.md)). Hasta la 0.13.1 el proyecto no era público, y no todas esas
 versiones se publicaron como release.
 
-## [1.0.0] — sin publicar
+## [1.0.0] — 2026-10-05
 
 Primera versión pública, con el código abierto bajo GPL-3.0-or-later.
 
+**Si vienes de la 0.13.x:** se instala encima y tus servidores, mundos y copias se conservan, sin
+migrar nada. Los servidores de Minecraft con HardcoreUtility 0.1.0 verán que hay versión nueva del
+plugin: al pulsar *Actualizar* se instala la 1.0.0, con el mismo papel y la configuración intacta
+(si era de una versión antigua, solo se le añaden las opciones nuevas).
+
 ### Añadido
-- **Acerca de**, en *Configuración de la app*: versión, copyright, licencia, enlace al código y
-  avisos de terceros, en los diez idiomas.
+- **Acerca de**, en *Configuración de la app*: versión, copyright, licencia, enlace al código, los
+  plugins oficiales que incluye con su licencia y su código, y los avisos de terceros, en los diez
+  idiomas.
 - Los avisos de terceros (`THIRD-PARTY-NOTICES.txt`) y la licencia viajan con el ejecutable.
 - Cada release publica el SHA-256 de sus ejecutables (`SHA256SUMS.txt`).
-- [PRIVACIDAD.md](PRIVACIDAD.md): qué sale del equipo, cuándo y a quién.
+- Documentación pública: [README](README.md) con capturas y en inglés ([README.en.md](README.en.md)),
+  [PRIVACIDAD.md](PRIVACIDAD.md) (qué sale del equipo, cuándo y a quién),
+  [SECURITY.md](SECURITY.md) (cómo avisar en privado de un problema de seguridad),
+  [CONTRIBUTING.md](CONTRIBUTING.md) y plantillas para avisar de fallos y proponer cosas.
 
 ### Cambiado
 - El plugin oficial **HardcoreUtility** pasa a la 1.0.0 y vive en su propio repositorio
@@ -42,6 +51,14 @@ Primera versión pública, con el código abierto bajo GPL-3.0-or-later.
 - Abrir un fichero de configuración de un plugin ya no puede ejecutar un programa.
 - Los errores que el control remoto manda a un dispositivo ya no llevan rutas con tu usuario de
   Windows.
+
+### Conocido
+- Algunos mensajes de error (de instalación o de arranque) siguen saliendo solo en español, aunque
+  la interfaz esté en otro idioma. Se traducirán en la 1.1.
+- El ejecutable no está firmado: la primera vez Windows SmartScreen avisa (*Más información →
+  Ejecutar de todas formas*). El SHA-256 de cada fichero está en la release.
+- El control remoto usa un certificado propio: la primera vez que abres su página, el navegador
+  avisa y hay que aceptarlo.
 
 ## [0.13.1] — 2026-10-04
 

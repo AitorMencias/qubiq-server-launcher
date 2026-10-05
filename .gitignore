@@ -31,6 +31,9 @@ npm-debug.log*
 # Ajustes locales de Claude Code (los compartidos sí van al repo)
 .claude/settings.local.json
 
+# Listas de trabajo internas: el seguimiento público va en CHANGELOG.md y en los issues
+CHECKLIST-*.md
+
 # Basura del sistema de ficheros
 .DS_Store
 Thumbs.db

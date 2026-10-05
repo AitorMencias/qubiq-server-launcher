@@ -3452,8 +3452,10 @@ cancelar; `before-quit` queda para las otras salidas («Salir» de la bandeja).
 
 ### 19.35 Preparar la 1.0: avisos de la GPLv3 y plugins oficiales fuera del repositorio
 
-Antes de publicar la 1.0.0 y abrir el repositorio, la lista de lo que hay que revisar está en
-[CHECKLIST-1.0.md](CHECKLIST-1.0.md). Este apartado es su punto 1, cumplir la GPLv3.
+Antes de publicar la 1.0.0 y abrir el repositorio se repasó, por partes: cumplir la GPLv3, datos
+personales e historial, versión y metadatos, documentación pública, calidad y seguridad. Este
+apartado recoge la GPLv3, los datos personales y la documentación; la seguridad está en §19.36, y el
+fallo al actualizar servidores de Steam que salió al pasar todas las pruebas, en §19.37.
 
 #### Avisos legales dentro de la app
 La GPLv3 (§0 y §5d) pide que una interfaz interactiva enseñe el copyright, que no hay garantía, la
@@ -3534,7 +3536,7 @@ Con esto el plugin pasa de la 0.1.0 a la **1.0.0**. Su `config.yml` es idéntico
 - La versión que enseña «Acerca de» en el arnés es la de Electron (arranca sin `package.json`); con
   `npm run dev` y empaquetada es la de `package.json`.
 
-### 19.36 Revisión de seguridad antes de abrir el código (punto 6 de la checklist)
+### 19.36 Revisión de seguridad antes de abrir el código
 
 Con el código público, cualquiera puede leer cómo funciona todo. Se revisó Electron, el control
 remoto, lo que llega de la interfaz al núcleo, las extracciones, las contraseñas y las dependencias.
