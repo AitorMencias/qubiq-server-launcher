@@ -212,6 +212,28 @@ export function interpretRun(stdout: string, exitCode: number | null): SteamCmdO
 }
 
 /** Build instalado, según el `appmanifest_<appId>.acf` que deja SteamCMD. */
+/**
+ * ¿Steam le ha negado a SteamCMD el manifiesto de lo que YA está instalado?
+ *
+ * Para actualizar, SteamCMD pide el manifiesto de la versión instalada y lo
+ * compara con el de la nueva. Steam ya no da los antiguos a la cuenta anónima
+ * (2026-10, Project Zomboid y Rust): `content_log.txt` dice «Failed to get
+ * manifest request code, 'Access Denied'» y la actualización acaba en
+ * «state is 0x6» y «No connection», que **no** es un problema de red. Una
+ * instalación de cero sí funciona (§19.37).
+ */
+export function deniedInstalledManifest(contentLog: string, appId: number): boolean {
+  return new RegExp(`BYldRequestDepotManifest\\(App: ${appId}\\b[^\\n]*Access Denied`, 'i').test(contentLog)
+}
+
+/** ¿No llegó a los servidores de descarga? Solo cuando no es lo de arriba. */
+export function cannotReachSteam(contentLog: string, appId: number): boolean {
+  return (
+    !deniedInstalledManifest(contentLog, appId) &&
+    new RegExp(`AppID ${appId} [^\\n]*result No connection`, 'i').test(contentLog)
+  )
+}
+
 export function buildIdFromManifest(acfText: string): string | null {
   const value = vdfGet(parseVdf(acfText), 'AppState', 'buildid')
   return typeof value === 'string' ? value : null

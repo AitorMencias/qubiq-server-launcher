@@ -233,8 +233,20 @@ function normalizeSidecar(raw: LegacyBackupInfo): BackupInfo {
   }
 }
 
+/**
+ * El nombre de una copia llega de la interfaz: solo se acepta un nombre de
+ * fichero `.zip` suelto, sin carpetas. Sin esto, borrar «la copia»
+ * `..\..\algo` borraba fuera de la carpeta de copias (§19.36).
+ */
+function backupPath(id: string, fileName: string): string {
+  if (typeof fileName !== 'string' || !/^[A-Za-z0-9_][A-Za-z0-9_.-]*\.zip$/.test(fileName) || fileName.includes('..')) {
+    throw new Error(`Nombre de copia no válido: ${JSON.stringify(fileName).slice(0, 80)}`)
+  }
+  return join(backupsDir(id), fileName)
+}
+
 export async function deleteBackup(id: string, fileName: string): Promise<void> {
-  const zipPath = join(backupsDir(id), fileName)
+  const zipPath = backupPath(id, fileName)
   await rm(zipPath, { force: true })
   await rm(sidecarFor(zipPath), { force: true })
 }
@@ -260,7 +272,7 @@ export async function restoreBackup(
 ): Promise<void> {
   const { targets, saveCurrent, onProgress } = options
   const id = manifest.id
-  const zipPath = join(backupsDir(id), fileName)
+  const zipPath = backupPath(id, fileName)
   if (!(await exists(zipPath))) {
     throw new Error(`No existe la copia ${fileName}.`)
   }

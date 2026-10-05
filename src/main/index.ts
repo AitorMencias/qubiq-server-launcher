@@ -11,6 +11,7 @@ import {
 } from 'electron'
 import { join } from 'node:path'
 import { registerIpc } from './ipc'
+import { hardenApp } from './security'
 import { registerRemoteIpc } from './ipc/remote'
 import { registerRemoteLinksIpc } from './ipc/remoteLinks'
 import { service } from './core/service'
@@ -66,6 +67,9 @@ app.setPath('userData', join(app.getPath('appData'), 'qubiq-server-launcher'))
  * que así parecía tener datos de QubiQ (recorrido del traslado, 0.11.0).
  */
 app.setPath('sessionData', join(app.getPath('userData'), 'electron'))
+
+// Antes de crear ninguna ventana: navegación, ventanas nuevas y permisos (§19.36).
+hardenApp()
 
 /**
  * Una sola copia de la app. Con el acceso remoto encendido, cerrar la ventana
@@ -133,7 +137,9 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      // El preload solo usa `electron` (contextBridge e ipcRenderer), que es lo
+      // que un preload con sandbox puede cargar. Ver también `security.ts`.
+      sandbox: true
     }
   })
 

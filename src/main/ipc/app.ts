@@ -1,10 +1,14 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { app, dialog, ipcMain, shell, type BrowserWindow, type OpenDialogOptions } from 'electron'
+import { LICENSE_FILE, NOTICES_FILE, type AboutInfo } from '@shared/about'
 import type { BootInfo, DataFolderInfo, RelocationPlan, RelocationStatus } from '@shared/dataFolder'
 import { detectLanguage, getLanguage, t } from '@shared/i18n'
 import { IPC, EVENTS } from '@shared/ipc'
 import { service } from '../core/service'
 import { dataRoot } from '../core/paths'
 import { listInstances } from '../core/instances/manager'
+import { bundledOfficialPlugins } from '../core/games/minecraft/content/official'
 import { planRelocation, samePath } from '../core/dataFolder/plan'
 import {
   configDir,
@@ -15,8 +19,8 @@ import {
 } from '../dataFolder'
 
 /**
- * Lo que es de la app y no de un servidor: el arranque de la interfaz y la
- * carpeta de datos. Los ajustes (modo e idioma) van por `common.ts`.
+ * Lo que es de la app y no de un servidor: el arranque de la interfaz, la
+ * carpeta de datos y «Acerca de». Los ajustes (modo e idioma) van por `common.ts`.
  */
 export function registerAppIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle(
@@ -79,6 +83,41 @@ export function registerAppIpc(getWindow: () => BrowserWindow | null): void {
     app.quit()
     return checked
   })
+
+  ipcMain.handle(
+    IPC.aboutInfo,
+    async (): Promise<AboutInfo> => ({
+      version: app.getVersion(),
+      electron: process.versions.electron,
+      chrome: process.versions.chrome,
+      node: process.versions.node,
+      plugins: (await bundledOfficialPlugins()).map(({ name, version, license, repository }) => ({
+        name,
+        version,
+        license,
+        repository
+      }))
+    })
+  )
+
+  /**
+   * Empaquetados, los dos ficheros están en la carpeta de recursos (ver
+   * `extraResources` en electron-builder.yml). En desarrollo, la licencia está
+   * en el repositorio y los avisos los deja `npm run build` en `out/`.
+   */
+  const openBundled = async (file: string, devPath: string): Promise<void> => {
+    const path = app.isPackaged ? join(process.resourcesPath, file) : devPath
+    if (!existsSync(path)) throw new Error(t('settings.about.missingFile', { file: path }))
+    const error = await shell.openPath(path)
+    if (error) throw new Error(error)
+  }
+
+  ipcMain.handle(IPC.aboutOpenLicense, () =>
+    openBundled(LICENSE_FILE, join(app.getAppPath(), 'LICENSE'))
+  )
+  ipcMain.handle(IPC.aboutOpenNotices, () =>
+    openBundled(NOTICES_FILE, join(app.getAppPath(), 'out', NOTICES_FILE))
+  )
 
   onRelocation((status: RelocationStatus) => {
     const window = getWindow()

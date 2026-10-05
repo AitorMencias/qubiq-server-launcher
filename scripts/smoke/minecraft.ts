@@ -37,8 +37,10 @@ import { minecraftCustomSmoke } from './minecraftCustom'
 import {
   OFFICIAL_PLUGINS,
   officialPluginsFor,
-  serverPropertiesFor
+  serverPropertiesFor,
+  type BundledOfficialPlugin
 } from '../../src/shared/games/minecraft/officialPlugins'
+import { OFFICIAL_PLUGIN_SOURCES } from '../official-plugins.mjs'
 
 export async function minecraftSmoke(): Promise<void> {
   // --- Lógica pura (sin red) ------------------------------------------------
@@ -313,10 +315,27 @@ export async function minecraftSmoke(): Promise<void> {
     )
 
     // El catálogo tiene que apuntar a ficheros que existen de verdad.
+    // Los trae `npm run plugins` (presmoke) de la release de su repositorio.
     for (const plugin of OFFICIAL_PLUGINS) {
-      const jar = join(process.cwd(), 'resources/minecraft/plugins', plugin.id, plugin.jarFileName)
-      const cfg = join(process.cwd(), 'resources/minecraft/plugins', plugin.id, plugin.configFileName)
-      check(`${plugin.name}: el jar viaja con la app`, await fileExists(jar), plugin.jarFileName)
+      const dir = join(process.cwd(), 'resources/minecraft/plugins', plugin.id)
+      const info = JSON.parse(await readFile(join(dir, 'plugin.json'), 'utf8')) as BundledOfficialPlugin
+      const jar = join(dir, info.jarFileName)
+      const cfg = join(dir, plugin.configFileName)
+      check(`${plugin.name}: el jar viaja con la app`, await fileExists(jar), info.jarFileName)
+      check(
+        `${plugin.name}: su nombre encaja con el del catálogo`,
+        info.jarFileName.toLowerCase().startsWith(plugin.jarPrefix.toLowerCase()),
+        `${info.jarFileName} / ${plugin.jarPrefix}`
+      )
+      const fuente = OFFICIAL_PLUGIN_SOURCES.find((s) => s.id === plugin.id)
+      check(
+        `${plugin.name}: el catálogo y npm run plugins apuntan al mismo repositorio`,
+        fuente !== undefined &&
+          `https://github.com/${fuente.repo}` === plugin.repository &&
+          info.repository === plugin.repository,
+        `${plugin.repository} / ${fuente?.repo} / ${info.repository}`
+      )
+      check(`${plugin.name}: con su licencia`, info.license !== null, info.license ?? '')
       check(`${plugin.name}: la plantilla de configuración también`, await fileExists(cfg))
 
       // Cada campo del formulario tiene que existir en la plantilla, o el

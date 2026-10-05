@@ -30,6 +30,7 @@ import type {
 } from '../shared/remote'
 import type { InstallableVersion, PortProtocol, UpdateCheck } from '../shared/games'
 import type { JournalEntry } from '../shared/journal'
+import type { AboutInfo } from '../shared/about'
 import type {
   BootInfo,
   DataFolderInfo,
@@ -701,6 +702,13 @@ const api = {
     boot: (): Promise<BootInfo> => ipcRenderer.invoke(IPC.bootInfo),
     /** Ya se ha enseñado el resultado del traslado. */
     dismissRelocation: (): Promise<void> => ipcRenderer.invoke(IPC.relocationDismiss)
+  },
+
+  about: {
+    info: (): Promise<AboutInfo> => ipcRenderer.invoke(IPC.aboutInfo),
+    /** Abren con el programa de Windows para .txt la licencia y los avisos de terceros. */
+    openLicense: (): Promise<void> => ipcRenderer.invoke(IPC.aboutOpenLicense),
+    openNotices: (): Promise<void> => ipcRenderer.invoke(IPC.aboutOpenNotices)
   },
 
   dataFolder: {

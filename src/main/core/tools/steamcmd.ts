@@ -12,7 +12,9 @@ import {
   branchFromManifest,
   buildIdFromAppInfo,
   buildIdFromManifest,
+  cannotReachSteam,
   DEFAULT_BRANCH,
+  deniedInstalledManifest,
   interpretRun,
   interpretWorkshop,
   loginProblem,
@@ -61,6 +63,30 @@ export function steamCmdPath(): string {
 
 function consoleLogPath(): string {
   return join(steamCmdDir(), 'logs', 'console_log.txt')
+}
+
+/** Donde SteamCMD cuenta lo que pasa con las descargas: la consola no lo dice. */
+function contentLogPath(): string {
+  return join(steamCmdDir(), 'logs', 'content_log.txt')
+}
+
+async function fileSize(path: string): Promise<number> {
+  return (await stat(path).catch(() => null))?.size ?? 0
+}
+
+/** Lo que se ha añadido a un fichero desde `offset`. */
+async function readSince(path: string, offset: number): Promise<string> {
+  const handle = await open(path, 'r').catch(() => null)
+  if (!handle) return ''
+  try {
+    const size = (await handle.stat()).size
+    if (size <= offset) return ''
+    const buffer = Buffer.alloc(size - offset)
+    await handle.read(buffer, 0, buffer.length, offset)
+    return buffer.toString('utf8')
+  } finally {
+    await handle.close()
+  }
 }
 
 export type SteamProgressFn = (progress: SteamCmdProgress, label: string) => void
@@ -315,7 +341,25 @@ export function appUpdate(options: AppUpdateOptions): Promise<AppUpdateResult> {
       ...(options.validate || changingBranch ? ['validate'] : []),
       '+quit'
     ]
-    const outcome = await runWithRetries(args, options.onProgress, loginAnswers(options.account))
+    const desde = await fileSize(contentLogPath())
+    let outcome = await runWithRetries(args, options.onProgress, loginAnswers(options.account))
+    if (!outcome.ok) {
+      const log = await readSince(contentLogPath(), desde)
+      if (deniedInstalledManifest(log, options.appId)) {
+        // Steam no da el manifiesto de la versión instalada (ver la función).
+        // Sin el appmanifest, SteamCMD trata la carpeta como una instalación
+        // nueva: compara los ficheros que ya hay con la versión nueva y solo
+        // baja lo que cambia (comprobado con Zomboid: 6,5 GB reaprovechados).
+        // El mundo y la configuración no están en el appmanifest: no se tocan.
+        await rm(join(options.installDir, 'steamapps', `appmanifest_${options.appId}.acf`), { force: true })
+        outcome = await runWithRetries(args, options.onProgress, loginAnswers(options.account))
+      } else if (cannotReachSteam(log, options.appId)) {
+        throw new Error(
+          'No se puede llegar a los servidores de descarga de Steam. Comprueba la conexión a internet ' +
+            'o inténtalo más tarde; lo que ya estaba instalado sigue igual.'
+        )
+      }
+    }
     if (!outcome.ok) {
       throw new Error(outcome.error?.message ?? 'SteamCMD no pudo instalar el servidor.')
     }

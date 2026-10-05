@@ -43,9 +43,18 @@ export interface OfficialPlugin {
   name: string
   summary: string
   description: string
-  version: string
-  /** Jar que viaja con la aplicación, en `resources/minecraft/plugins/`. */
-  jarFileName: string
+  /**
+   * Inicio del nombre del jar (`HardcoreUtility-1.0.0.jar`), para reconocer
+   * cualquier versión instalada. La versión y el nombre exacto no están aquí:
+   * los deja `npm run plugins` en `resources/minecraft/plugins/<id>/plugin.json`
+   * al traer la última release del plugin.
+   */
+  jarPrefix: string
+  /**
+   * Repositorio del plugin, con su código y sus releases. Tiene que coincidir
+   * con `scripts/official-plugins.mjs` (lo comprueba el smoke).
+   */
+  repository: string
   /** Tipos de servidor compatibles. */
   distributions: Distribution[]
   /** Carpeta que el plugin crea dentro de `plugins/`. */
@@ -102,8 +111,8 @@ export const OFFICIAL_PLUGINS: OfficialPlugin[] = [
     get description() {
       return t('mc.official.hu.description')
     },
-    version: '0.1.0',
-    jarFileName: 'HardcoreUtility-0.1.0.jar',
+    jarPrefix: 'HardcoreUtility',
+    repository: 'https://github.com/AitorMencias/hardcore-utility-tool',
     distributions: ['paper'],
     configFolder: 'HardcoreUtility',
     configFileName: 'config.yml',
@@ -175,6 +184,8 @@ export interface OfficialPluginStatus {
   installedFileName: string | null
   /** Versión que trae la aplicación, por si la instalada fuera más antigua. */
   bundledVersion: string
+  /** Licencia del plugin, como la declara su repositorio (`GPL-3.0`). */
+  license: string | null
   /**
    * false si el jar instalado no es el que trae la aplicación.
    *
@@ -188,6 +199,20 @@ export interface OfficialPluginStatus {
   role: string | null
   /** Valores actuales de los campos que expone el catálogo. */
   config: Record<string, string>
+}
+
+/**
+ * `plugin.json` de un plugin oficial: lo que `npm run plugins` sabe de la
+ * release que ha traído. Lo lee el núcleo; la interfaz recibe lo que necesita
+ * dentro de `OfficialPluginStatus`.
+ */
+export interface BundledOfficialPlugin {
+  version: string
+  jarFileName: string
+  sha256: string
+  license: string | null
+  repository: string
+  release: string
 }
 
 export function officialPluginsFor(distribution: Distribution): OfficialPlugin[] {

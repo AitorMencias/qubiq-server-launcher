@@ -1,0 +1,64 @@
+name: Fallo
+description: Algo no funciona como debería.
+labels: [fallo]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por avisar. Si es un problema de **seguridad**, no lo cuentes aquí: sigue SECURITY.md.
+        Antes de pegar registros, **quita tu IP pública, contraseñas y nombres de usuario**.
+  - type: input
+    id: version
+    attributes:
+      label: Versión de la app
+      description: Está en Configuración de la app → Acerca de.
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: juego
+    attributes:
+      label: Juego
+      options:
+        - Minecraft
+        - Satisfactory
+        - Valheim
+        - Factorio
+        - Project Zomboid
+        - Enshrouded
+        - Rust
+        - Ninguno (la app en general)
+    validations:
+      required: true
+  - type: input
+    id: tipo
+    attributes:
+      label: Tipo de servidor y versión del juego
+      placeholder: Paper 26.2, Fabric 26.1.2, servidor a medida…
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Qué hiciste
+      description: Los pasos para que vuelva a pasar.
+      placeholder: |
+        1. Creé un servidor de…
+        2. Pulsé…
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué esperabas y qué pasó
+    validations:
+      required: true
+  - type: textarea
+    id: registro
+    attributes:
+      label: Consola o mensaje de error
+      description: Lo que salga en la consola del servidor o el mensaje que enseña la app.
+      render: text
+  - type: input
+    id: windows
+    attributes:
+      label: Windows
+      placeholder: Windows 11 24H2

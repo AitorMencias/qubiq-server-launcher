@@ -8,16 +8,16 @@
  *
  * Pasos, en este orden y parando en el primer fallo:
  *   1. Pide la versión y la valida (x.y.z, opcionalmente -beta.1).
- *   2. Sincroniza la plantilla `config.yml` de cada plugin oficial con la que
- *      lleva DENTRO su jar. Actualizar el jar y olvidar la plantilla ya pasó
- *      una vez: la app habría instalado configuraciones sin las opciones
- *      nuevas del plugin, sin ningún error que lo delatara.
+ *   2. Trae la última release de cada plugin oficial desde su repositorio,
+ *      verificada, con la plantilla `config.yml` sacada de dentro del jar
+ *      (`scripts/official-plugins.mjs`). La release sale con lo último publicado.
  *   3. Cambia la versión con `npm version`, que toca package.json y
  *      package-lock.json a la vez (a mano se desincronizan).
  *   4. typecheck + smoke, y e2e contra un servidor real si se pide. Si la
  *      prueba de humo solo falla por no llegar a un servicio externo (sale con
  *      2), se pregunta si seguir; `--allow-offline` lo acepta sin preguntar.
- *   5. `npm run dist` en release-nueva/ y, si sale bien, sustituye release/
+ *   5. `npm run dist` en release-nueva/, con `SHA256SUMS.txt` de los .exe (no van
+ *      firmados: es lo que permite comprobarlos), y si sale bien sustituye release/
  *      entera: la carpeta queda solo con la versión nueva.
  *
  * Si algo falla después de cambiar la versión, se restaura la anterior: una
@@ -25,6 +25,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
   cpSync,
   existsSync,
@@ -38,6 +39,7 @@ import {
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline/promises'
+import { syncOfficialPlugins } from './official-plugins.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 process.chdir(root)
@@ -152,56 +154,6 @@ function readVersion() {
   return JSON.parse(readFileSync('package.json', 'utf8')).version
 }
 
-/** Lee un fichero de dentro de un jar con el bsdtar de Windows, sin dependencias. */
-function readFromJar(jarPath, entry) {
-  const windowsDir = process.env.SystemRoot || process.env.windir
-  // Por ruta absoluta: el tar de GNU que instala Git no entiende "C:\..." (§19.3).
-  const tar = windowsDir ? join(windowsDir, 'System32', 'tar.exe') : 'tar.exe'
-  const result = spawnSync(tar, ['-xOf', jarPath, entry], { maxBuffer: 16 * 1024 * 1024 })
-  return result.status === 0 && result.stdout.length > 0 ? result.stdout : null
-}
-
-/** Carpetas de plugins oficiales de cada juego: `resources/<juego>/plugins/<plugin>`. */
-function pluginDirs() {
-  const base = 'resources'
-  if (!existsSync(base)) return []
-  return readdirSync(base)
-    .map((game) => join(base, game, 'plugins'))
-    .filter((dir) => existsSync(dir) && statSync(dir).isDirectory())
-    .flatMap((dir) => readdirSync(dir).map((plugin) => ({ plugin, dir: join(dir, plugin) })))
-    .filter(({ dir }) => statSync(dir).isDirectory())
-}
-
-function syncPluginTemplates() {
-  let ok = true
-  for (const { plugin, dir } of pluginDirs()) {
-
-    const jars = readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.jar'))
-    if (jars.length !== 1) {
-      // Dos jars del mismo plugin impiden arrancar el servidor; mejor pararlo aquí.
-      fail(`${dir} tiene ${jars.length} jars y debería tener exactamente uno.`)
-      ok = false
-      continue
-    }
-
-    const embedded = readFromJar(join(dir, jars[0]), 'config.yml')
-    if (!embedded) {
-      console.log(`  ${plugin}: el jar no trae config.yml, nada que sincronizar`)
-      continue
-    }
-
-    const templatePath = join(dir, 'config.yml')
-    const current = existsSync(templatePath) ? readFileSync(templatePath) : null
-    if (current && current.equals(embedded)) {
-      console.log(`  ${plugin}: la plantilla ya coincide con ${jars[0]}`)
-    } else {
-      writeFileSync(templatePath, embedded)
-      console.log(`  ${plugin}: plantilla ACTUALIZADA desde ${jars[0]}`)
-    }
-  }
-  return ok
-}
-
 async function main() {
   const current = readVersion()
   const rl = createInterface({ input: process.stdin, output: process.stdout })
@@ -257,8 +209,10 @@ async function main() {
     rl.close()
 
     // --- 2. Plantillas de los plugins ----------------------------------------
-    title('Plugins oficiales')
-    if (!syncPluginTemplates()) return
+    title('Plugins oficiales: última release de cada uno')
+    if (!(await syncOfficialPlugins({ update: true }))) {
+      return fail('No se han podido traer los plugins oficiales; sin ellos la release no los llevaría.')
+    }
 
     // --- 3. Cambiar la versión -----------------------------------------------
     title(`Versión ${current} -> ${version}`)
@@ -330,6 +284,14 @@ async function main() {
       return
     }
 
+    // El ejecutable no va firmado (§13.3): el SHA-256 publicado junto a cada
+    // release es lo que permite comprobar que lo descargado es lo que se subió.
+    // Formato de sha256sum, para que `sha256sum -c` y Get-FileHash lo lean igual.
+    const sums = artifacts
+      .map((file) => `${createHash('sha256').update(readFileSync(join(STAGING, file))).digest('hex')}  ${file}`)
+      .join('\n')
+    writeFileSync(join(STAGING, 'SHA256SUMS.txt'), sums + '\n')
+
     title('Sustituyendo la release anterior')
     if (!replaceRelease()) return
 
@@ -338,6 +300,7 @@ async function main() {
       const mb = (statSync(join('release', file)).size / 1024 / 1024).toFixed(0)
       console.log(`  release\\${file}  (${mb} MB)`)
     }
+    console.log('  release\\SHA256SUMS.txt  (súbelo con los .exe)')
     if (!withE2e) console.log('\n  Aviso: se ha generado SIN la prueba con servidor real.')
     if (skippedServices) {
       console.log('  Aviso: la prueba de humo no pudo comprobar algún servicio externo (SIN CONEXIÓN).')

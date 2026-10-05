@@ -15,8 +15,10 @@ servidores de juegos. Gratuita y GPLv3. Empezó con Minecraft y está creciendo 
 - **Preguntar antes de exponer al usuario hacia fuera:** publicar un servidor de prueba en la lista de
   Steam (Rust siempre se anuncia; Valheim con `-public 1`), abrir puertos, enviar su IP a servicios.
 - **No descartar cambios sin commit** (`git checkout`, `reset`, `stash`): se trabaja encima.
-- **Versiones por debajo de 1.0.0.** Las fases multijuego van de 0.5.0 a 0.10.0. La versión de
-  `package.json` la cambia `release.bat` al publicar; puede ir por detrás del último commit.
+- **Versiones:** la 1.0.0 es la primera pública (antes, las fases multijuego fueron de 0.5.0 a
+  0.10.0). Desde ahí, versionado semántico: 1.0.x arreglos, 1.x.0 funciones nuevas, 2.0.0 si se
+  rompe algo de lo guardado (manifiesto, ajustes) sin migración. La versión de `package.json` la
+  cambia `release.bat` al publicar; puede ir por detrás del último commit.
 - **Iconos de juegos propios, nunca logos oficiales** (ANALISIS.md §13.1).
 - Al terminar algo: decir qué se ha probado y cómo, y lo que no se ha podido probar.
 
@@ -27,7 +29,8 @@ servidores de juegos. Gratuita y GPLv3. Empezó con Minecraft y está creciendo 
 | [HOJA-DE-RUTA-MULTIJUEGO.md](HOJA-DE-RUTA-MULTIJUEGO.md) | **Qué hacer en cada fase**, estado, plantilla por juego y decisiones pendientes |
 | [ANALISIS.md](ANALISIS.md) | Por qué está hecho así. §19 es el diario de desarrollo (§19.13 fase 0, §19.14 fase 1) |
 | [INVESTIGACION-JUEGOS.md](INVESTIGACION-JUEGOS.md) | Datos de cada juego: instalación, puertos, requisitos, control |
-| [README.md](README.md) | Comandos, arquitectura y **«Cosas que conviene saber antes de tocar el código»** (léelo) |
+| [docs/DESARROLLO.md](docs/DESARROLLO.md) | Comandos, arquitectura y **«Cosas que conviene saber antes de tocar el código»** (léelo) |
+| [README.md](README.md) (y [README.en.md](README.en.md), que va a la par), [PRIVACIDAD.md](PRIVACIDAD.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CHANGELOG.md](CHANGELOG.md) | Lo público: para usuarios y para quien colabora. **CHANGELOG** se actualiza con cada versión, y **PRIVACIDAD** con cada conexión nueva a un servicio de fuera |
 
 Arquitectura en una línea: el núcleo (`src/main/core`) no conoce Electron; cada juego implementa
 `GameAdapter` (`core/games/types.ts`) y se registra en `core/games/registry.ts`; su interfaz vive en
@@ -44,21 +47,22 @@ sus datos compartidos (nombre, condiciones, capacidades, puertos) en `src/shared
 4. Reutilizar los servidores ya instalados en `%LOCALAPPDATA%\qubiq-dev\steam` para prototipar sin
    volver a descargar (ver abajo).
 5. Al cerrar: marcar el estado en la hoja de ruta, añadir el apartado §19.x en ANALISIS.md y
-   actualizar README (comandos, número de comprobaciones del smoke, reglas nuevas).
+   actualizar docs/DESARROLLO.md (comandos, número de comprobaciones del smoke, reglas nuevas) y
+   CHANGELOG.md.
 
 **Estado:** las fases 0 a 7 de la hoja de ruta están hechas (la 7, Rust, cierra con la revisión
 general de la 0.10.0). Después, idiomas, Configuración de la app y carpeta de datos movible (§19.29,
 0.11.0): la interfaz está en diez idiomas, los mensajes del núcleo aún en español. **Control remoto por
 órdenes:** R1 (anfitrión y página web, 0.12.0) y R2 (QubiQ como cliente de otro, 0.13.0) hechas.
 Hoja de ruta, ANALISIS.md §19.31 y §19.33; sin decisiones pendientes. Después, el **historial del servidor**
-(pestaña Historial, §19.32): si añades una forma de moderar, apúntala con `host.journal` (README). Probarlo desde fuera de casa exige
+(pestaña Historial, §19.32): si añades una forma de moderar, apúntala con `host.journal` (docs/DESARROLLO.md). Probarlo desde fuera de casa exige
 abrir un puerto: preguntar antes. Los servidores se lanzan a través del **guardián** (§19.34): si
 la app se cierra de golpe, al volver los recupera; no lances el proceso de un servidor por otro
 camino. Lo demás que viene está en §19.30.
 
 **Textos de la interfaz:** nunca a pelo en el código. Van con `t('clave')` a
 `src/shared/i18n/locales/es/<área>.ts` y a los otros nueve idiomas (el typecheck avisa si falta
-alguno; el smoke, si cambian las variables). Ver «Idiomas» en README.
+alguno; el smoke, si cambian las variables). Ver «Idiomas» en docs/DESARROLLO.md.
 Rust, Enshrouded y Valheim publicado se anuncian solos en la lista de Steam: arrancarlos para probar
 sigue exigiendo preguntar antes, salvo lo ya autorizado para su fase.
 
@@ -74,12 +78,22 @@ sigue exigiendo preguntar antes, salvo lo ya autorizado para su fase.
 | `npm run e2e:remote` | Al tocar el control remoto (`core/remote/`, `shared/remote.ts`) o `service.restart`. Escucha solo en 127.0.0.1 |
 | `npm run e2e:rust` | Al tocar Rust o la sesión WebRCON. **Publica el servidor** (Rust se anuncia siempre) |
 | Recorrido de interfaz | Al tocar la interfaz: ver `%LOCALAPPDATA%\qubiq-dev\LEEME.md` (Playwright, capturas y comparación píxel a píxel) |
+| `ui/seguridad.mjs` (qubiq-dev) | Al tocar la ventana, el preload o `src/main/security.ts`: sandbox, navegación, ventanas nuevas y permisos |
 
 Las grabaciones reales de protocolos (SteamCMD, RCON y A2S de Zomboid) están en
 `scripts/smoke/fixtures/steam/`. Si un juego cambia su protocolo, se vuelve a grabar y se sustituye.
-Antes de llevar una grabación al repo hay que quitar las rutas con el nombre de usuario.
+Antes de llevar una grabación al repo hay que quitar las rutas con el nombre de usuario, el nombre
+del equipo, las IPs públicas (a `203.0.113.x`) y los tokens de verdad. El smoke se para si queda el
+usuario, el equipo o una IP pública en `scripts/smoke/fixtures/`.
 
 ## Material fuera del repositorio
+
+> **Si no eres el autor:** `%LOCALAPPDATA%\qubiq-dev\` es material local del autor y no está en el
+> repo. Sin él funcionan typecheck, smoke y las e2e de Minecraft, reinicio, servidores a medida,
+> SteamCMD y control remoto (crean su caché la primera vez). Las e2e de los juegos de Steam
+> reutilizan servidores de ahí si existen; si no, `-- --descargar` los instala de cero (son GB).
+> La de Factorio necesita el juego instalado en el equipo, porque es de pago.
+> El recorrido de interfaz y los prototipos no están: para la interfaz, `npm run dev`.
 
 `%LOCALAPPDATA%\qubiq-dev\` (índice en su `LEEME.md`):
 - `steam/`: SteamCMD y los servidores de **Valheim, Satisfactory, Enshrouded, Project Zomboid y Rust

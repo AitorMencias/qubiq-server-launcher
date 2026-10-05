@@ -11,6 +11,10 @@ release-nueva/
 *.tsbuildinfo
 .vite/
 
+# Plugins oficiales: se bajan de la release de su repositorio, con su código y
+# su licencia (scripts/official-plugins.mjs, `npm run plugins`)
+resources/minecraft/plugins/
+
 # Registros y temporales
 *.log
 npm-debug.log*

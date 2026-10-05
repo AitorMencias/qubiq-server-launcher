@@ -72,8 +72,42 @@ export function instancesDir(): string {
   return join(dataRoot(), 'instances')
 }
 
+/**
+ * Forma de un identificador de servidor: la que da `slugify` (minúsculas,
+ * números y guiones). Sin puntos ni barras no hay `..` ni rutas absolutas.
+ */
+const INSTANCE_ID = /^[a-z0-9][a-z0-9-]{0,63}$/
+
+/**
+ * ⚠ Todo lo que toca la carpeta de un servidor pasa por aquí, y el `id` llega
+ * de la interfaz. Sin esta comprobación, `instances.remove('..')` borraba la
+ * carpeta de datos entera (§19.36): si algo se colara en la ventana, este es el
+ * límite de lo que puede tocar.
+ */
 export function instanceDir(id: string): string {
+  if (typeof id !== 'string' || !INSTANCE_ID.test(id)) {
+    throw new Error(`Identificador de servidor no válido: ${JSON.stringify(id).slice(0, 80)}`)
+  }
   return join(instancesDir(), id)
+}
+
+/**
+ * `parent/name`, comprobando que `name` es UN nombre de fichero o carpeta, sin
+ * barras, unidad ni `.`/`..`. Para los nombres que llegan de la interfaz
+ * (mundos, partidas): sin esto, borrar el mundo `..` borraba la carpeta de
+ * arriba (§19.36).
+ */
+export function childPath(parent: string, name: string): string {
+  if (
+    typeof name !== 'string' ||
+    name.trim().length === 0 ||
+    /[\\/:\x00-\x1f]/.test(name) ||
+    name === '.' ||
+    name === '..'
+  ) {
+    throw new Error(`Nombre no válido: ${JSON.stringify(name).slice(0, 80)}`)
+  }
+  return join(parent, name)
 }
 
 /** Directorio de trabajo real del servidor, separado del manifiesto (§5.1). */

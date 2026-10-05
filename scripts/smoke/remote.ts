@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { homedir } from 'node:os'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { generateKeyPairSync } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
@@ -10,7 +11,7 @@ import { findFreePort } from '../../src/main/core/net/network'
 import { ConsoleHistory } from '../../src/main/core/runtime/consoleHistory'
 import { AddressGuard, LIMITS, NonceCache, RateLimiter } from '../../src/main/core/remote/guard'
 import { importPublicKey, randomCode, verifySignature } from '../../src/main/core/remote/crypto'
-import { RemoteAccess, INVITE_ATTEMPTS } from '../../src/main/core/remote'
+import { RemoteAccess, INVITE_ATTEMPTS, cleanDetail } from '../../src/main/core/remote'
 import type { OrderHost } from '../../src/main/core/remote/orders'
 import {
   CODE_ALPHABET,
@@ -193,6 +194,15 @@ export async function remoteSmoke(): Promise<void> {
     check('IP: IPv4 dentro de IPv6', !/\d+\.\d+\.\d+/.test(maskAddresses('::ffff:203.0.113.9')), maskAddresses('::ffff:203.0.113.9'))
     check('IP: las horas no se tocan', maskAddresses('12:34:56 y 2026-10-02 12:34:56:789') === '12:34:56 y 2026-10-02 12:34:56:789')
     check('IP: las versiones no se tocan', maskAddresses('Paper 1.21.8 build 42') === 'Paper 1.21.8 build 42')
+
+    // El error de una orden que falla sale hacia el dispositivo sin la carpeta
+    // del usuario (lleva su nombre) ni IPs (§19.36).
+    const fallo = cleanDetail(`No se pudo leer ${join(homedir(), 'AppData', 'x.json')} desde 203.0.113.9`)
+    check(
+      'error de una orden: sin la carpeta del usuario ni IPs',
+      !fallo.toLowerCase().includes(homedir().toLowerCase()) && fallo.includes('%USERPROFILE%') && !fallo.includes('203.0'),
+      fallo
+    )
   })
 
   await section('Remoto: historial de consola', async () => {

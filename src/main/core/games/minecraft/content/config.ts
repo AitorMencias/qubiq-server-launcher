@@ -38,7 +38,7 @@ const MAX_EDITABLE = 1024 * 1024
 const MAX_FILES = 80
 
 /** Extensiones que se enseñan. Las que no sabemos editar se ofrecen para abrirlas fuera. */
-const CONFIG_EXTENSIONS = /\.(ya?ml|toml|json5?|properties|conf|hocon|cfg|snbt)$/i
+export const CONFIG_EXTENSIONS = /\.(ya?ml|toml|json5?|properties|conf|hocon|cfg|snbt)$/i
 
 /**
  * Carpetas que no son configuración sino datos: la de Essentials con un

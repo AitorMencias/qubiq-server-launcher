@@ -11,7 +11,7 @@ import {
   type EnshroudedData
 } from '@shared/games/enshrouded/types'
 import type { GameAdapter, LaunchSpec, LiveStatus, ParsedEvent } from '../types'
-import { serverDir } from '../../paths'
+import { childPath, serverDir } from '../../paths'
 import {
   appUpdate,
   checkAppUpdate,
@@ -83,8 +83,9 @@ export function worldsDirFor(id: string): string {
   return join(serverDir(id), WORLDS_DIR)
 }
 
+/** El nombre llega de la interfaz: `childPath` impide salir de la carpeta de mundos. */
 export function worldDirFor(id: string, name: string): string {
-  return join(worldsDirFor(id), name)
+  return childPath(worldsDirFor(id), name)
 }
 
 export function executablePath(id: string): string {

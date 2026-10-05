@@ -118,6 +118,17 @@ export const shell: Translation<typeof source> = {
   'settings.dataFolder.apply': '移动并重启',
   'settings.dataFolder.applying': '正在重启…',
 
+  'settings.about.title': '关于',
+  'settings.about.version': '版本 {version}',
+  'settings.about.free':
+    '本程序是自由软件：你可以依据 GNU 通用公共许可证第 3 版或（由你选择）任何更新版本的条款再发布和/或修改它。发布本程序是希望它有用，但不提供任何担保，甚至不包括对适销性或特定用途适用性的默示担保。',
+  'settings.about.unofficial': '非官方工具：与其所管理游戏的开发工作室无关，也未经其认可。',
+  'settings.about.source': '源代码',
+  'settings.about.license': '许可证',
+  'settings.about.notices': '第三方声明',
+  'settings.about.plugins': '本应用会安装以下自有插件，每个都有各自的源代码和许可证：',
+  'settings.about.missingFile': '在应用旁边找不到 {file}。如果是安装版，请重新安装；开发时由“npm run build”生成。',
+
   'relocation.movingTitle': '正在移动 QubiQ 数据',
   'relocation.movingHint': '请不要关闭应用或关机。即使中断也不会丢失任何数据：下次打开时会继续。',
   'relocation.from': '从',

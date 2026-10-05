@@ -177,7 +177,7 @@ function OfficialPluginRow({
         <div className="grow" style={{ minWidth: 0 }}>
           <div className="row" style={{ gap: 8 }}>
             <strong>{plugin.name}</strong>
-            <span className="official-version">v{plugin.version}</span>
+            {status && <span className="official-version">v{status.bundledVersion}</span>}
             {installed && status?.enabled && <span className="badge">{t('catalog.installed')}</span>}
             {installed && !status?.enabled && (
               <span className="badge muted">{t('mc.official.installedDisabled')}</span>
@@ -272,7 +272,7 @@ function OfficialPluginRow({
       {installed && configuring && (
         <FloatingWindow
           title={t('mc.official.configureTitle', { name: plugin.name })}
-          subtitle={t('mc.official.subtitle', { version: plugin.version })}
+          subtitle={t('mc.official.subtitle', { version: status?.bundledVersion ?? '' })}
           onClose={() => setConfiguring(false)}
         >
           <PluginConfigForm

@@ -10,6 +10,7 @@ import { listModeration } from '@shared/journal'
 import type { GameHost } from '../minecraft/service'
 import { rconCommand } from '../../net/rcon'
 import { dataDirFor, savePathFor } from './adapter'
+import { childPath } from '../../paths'
 
 /**
  * Operaciones exclusivas de Factorio: partidas y moderación.
@@ -161,7 +162,7 @@ export function createFactorioService(host: GameHost) {
     async restoreAutosave(id: string, name: string): Promise<void> {
       const manifest = await requireManifest(id)
       host.assertStopped(id, 'recuperar un autoguardado')
-      const from = join(dataDirFor(id), 'saves', `${name}.zip`)
+      const from = childPath(join(dataDirFor(id), 'saves'), `${name}.zip`)
       await stat(from).catch(() => {
         throw new Error(`No existe el autoguardado «${name}».`)
       })
@@ -175,7 +176,7 @@ export function createFactorioService(host: GameHost) {
         throw new Error('Esa es la partida que juega el servidor: no se puede borrar.')
       }
       host.assertStopped(id, 'borrar una partida')
-      await rm(join(dataDirFor(id), 'saves', `${name}.zip`), { force: true })
+      await rm(childPath(join(dataDirFor(id), 'saves'), `${name}.zip`), { force: true })
     },
 
     /** Guarda ahora mismo, sin parar el servidor. */

@@ -6,6 +6,11 @@ directories:
   output: release
   buildResources: build
 
+# Sin publicación automática: con `repository` en package.json electron-builder
+# deduciría GitHub y podría intentar subir la release. Se publica a mano, y la
+# app no se autoactualiza (no hay app-update.yml que leer).
+publish: null
+
 # Solo se empaqueta lo compilado. El código fuente, los scripts de prueba y
 # node_modules quedan fuera: React y el resto los inlinea Vite en el bundle.
 files:
@@ -25,6 +30,13 @@ extraResources:
     to: .
     filter:
       - '**/*'
+  # Licencia y avisos de terceros, que «Acerca de» abre con el Bloc de notas
+  # (GPLv3 §0 y §5d). Los avisos los genera la compilación a partir de lo que
+  # entra de verdad en el bundle (scripts/third-party-notices.ts).
+  - from: LICENSE
+    to: LICENSE.txt
+  - from: out/THIRD-PARTY-NOTICES.txt
+    to: THIRD-PARTY-NOTICES.txt
 
 win:
   icon: build/icon.ico

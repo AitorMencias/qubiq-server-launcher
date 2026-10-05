@@ -21,6 +21,11 @@ export const IPC = {
   dataFolderOpen: 'app:dataFolder:open',
   relocationDismiss: 'app:relocation:dismiss',
 
+  // Acerca de: versión, licencia y avisos de terceros
+  aboutInfo: 'app:about:info',
+  aboutOpenLicense: 'app:about:license',
+  aboutOpenNotices: 'app:about:notices',
+
   // Instancias
   listInstances: 'instances:list',
   getInstance: 'instances:get',

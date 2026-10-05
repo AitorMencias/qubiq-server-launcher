@@ -303,13 +303,16 @@ export async function minecraftConfigSmoke(): Promise<void> {
     // El jar real del plugin oficial: su plugin.yml dice cómo se llama.
     const hardcore = OFFICIAL_PLUGINS.find((p) => p.id === 'hardcore-utility')!
     const bundled = join(process.cwd(), 'resources/minecraft/plugins/hardcore-utility')
-    await copyFile(join(bundled, hardcore.jarFileName), join(root, 'plugins', hardcore.jarFileName))
-    const identity = await identifyJar(join(root, 'plugins', hardcore.jarFileName), hardcore.jarFileName)
+    const { jarFileName } = JSON.parse(await readFile(join(bundled, 'plugin.json'), 'utf8')) as {
+      jarFileName: string
+    }
+    await copyFile(join(bundled, jarFileName), join(root, 'plugins', jarFileName))
+    const identity = await identifyJar(join(root, 'plugins', jarFileName), jarFileName)
     check('lee el nombre del plugin dentro del jar', identity.ids[0] === hardcore.configFolder, `${identity.name} -> ${identity.ids.join(',')}`)
 
     await copyFile(join(bundled, 'config.yml'), join(root, 'plugins', 'HardcoreUtility', 'config.yml'))
     await writeFile(join(root, 'plugins', 'HardcoreUtility', 'userdata', 'jugador.yml'), 'x: 1\n')
-    const info = await listConfigFiles(id, 'paper', hardcore.jarFileName)
+    const info = await listConfigFiles(id, 'paper', jarFileName)
     check('encuentra su config.yml', info.files[0]?.path === 'plugins/HardcoreUtility/config.yml', info.files.map((f) => f.path).join(', '))
     check('no enseña los datos de jugadores', !info.files.some((f) => f.path.includes('userdata')))
 

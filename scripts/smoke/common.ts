@@ -1,13 +1,14 @@
 import { join } from 'node:path'
+import { hostname, userInfo } from 'node:os'
 import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 
 import { check, execFileAsync, fileExists, section } from './harness'
-import { backupsDir, instanceDir, serverDir, slugify, systemTarPath } from '../../src/main/core/paths'
+import { backupsDir, childPath, instanceDir, serverDir, slugify, systemTarPath } from '../../src/main/core/paths'
 import * as network from '../../src/main/core/net/network'
 import { evaluateRestart, RESTART_LIMIT, RESTART_WINDOW_MS } from '../../src/main/core/runtime/restartPolicy'
 import { migrateManifest } from '../../src/main/core/instances/migrations'
 import { listInstances, readManifest } from '../../src/main/core/instances/manager'
-import { listBackups } from '../../src/main/core/backup/manager'
+import { deleteBackup, listBackups } from '../../src/main/core/backup/manager'
 import { registerGame } from '../../src/main/core/games/registry'
 import type { GameAdapter } from '../../src/main/core/games/types'
 import { service } from '../../src/main/core/service'
@@ -82,6 +83,31 @@ async function sourceFiles(dir: string, out: string[] = []): Promise<string[]> {
   return out
 }
 
+/** Ficheros de texto de una carpeta (las grabaciones), sin los binarios. */
+async function textFiles(dir: string, out: string[] = []): Promise<string[]> {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) await textFiles(path, out)
+    else if (/\.(txt|json|md|yml|yaml|log|ini|lua|cfg|acf|vdf|uplugin)$/i.test(entry.name)) out.push(path)
+  }
+  return out
+}
+
+/** Bucle, red privada, CGNAT, enlace local o los rangos de documentación (RFC 5737). */
+function privateOrDocumentation(ip: string): boolean {
+  const [a, b, c] = ip.split('.').map(Number) as [number, number, number]
+  return (
+    a === 0 || a === 10 || a === 127 || a === 255 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 192 && b === 0 && c === 2) ||
+    (a === 198 && b === 51 && c === 100) ||
+    (a === 203 && b === 0 && c === 113)
+  )
+}
+
 export async function commonSmoke(): Promise<void> {
   /**
    * Caracteres de control invisibles en el código.
@@ -89,7 +115,7 @@ export async function commonSmoke(): Promise<void> {
    * Parece una manía, pero costó una tarde: editando desde Git Bash se coló un
    * **retroceso de verdad** (0x08) dentro de una expresión regular, donde tenía
    * que haber un `\b`. El fichero se veía perfecto, TypeScript compilaba y la
-   * regla no casaba nunca. Es justo la trampa que avisa el README, y esto es lo
+   * regla no casaba nunca. Es justo la trampa que avisa docs/DESARROLLO.md, y esto es lo
    * único que la caza.
    */
   await section('Código sin caracteres invisibles', async () => {
@@ -112,6 +138,74 @@ export async function commonSmoke(): Promise<void> {
       sospechosos.length === 0,
       sospechosos.join(', ')
     )
+  })
+
+  /**
+   * Las grabaciones reales van al repositorio, que es público: no pueden
+   * llevar el usuario ni el nombre del equipo de quien las grabó, ni una IP
+   * pública. Ya se coló una vez: el volcado de hardware de Rust escribe el
+   * nombre del equipo, y no pasó por el script que quita las rutas.
+   */
+  await section('Grabaciones sin datos personales', async () => {
+    const dir = join(process.cwd(), 'scripts', 'smoke', 'fixtures')
+    const ficheros = await textFiles(dir)
+    // Los de serie (o de la máquina virtual de alguien) no dicen nada de nadie.
+    const genericos = new Set(['usuario', 'user', 'admin', 'administrador', 'runner', 'localhost'])
+    const propios = [userInfo().username, hostname(), process.env.COMPUTERNAME ?? '']
+      .map((nombre) => nombre.trim().toLowerCase())
+      .filter((nombre) => nombre.length >= 3 && !genericos.has(nombre))
+
+    const hallazgos: string[] = []
+    for (const fichero of ficheros) {
+      const texto = await readFile(fichero, 'utf8')
+      const corto = fichero.replace(dir, '')
+      const bajo = texto.toLowerCase()
+      for (const nombre of new Set(propios)) {
+        if (bajo.includes(nombre)) hallazgos.push(`${corto}: «${nombre}»`)
+      }
+      // Solo lo que se presenta como dirección (ip=, /IP:puerto, "IP x"): los
+      // números de versión de cuatro partes son legítimos y abundan.
+      for (const m of texto.matchAll(/(?:ip[=: ]+|\/|address[=: ]+)((?:\d{1,3}\.){3}\d{1,3})|((?:\d{1,3}\.){3}\d{1,3}):\d{2,5}\b/gi)) {
+        const ip = m[1] ?? m[2]!
+        if (!privateOrDocumentation(ip)) hallazgos.push(`${corto}: IP ${ip}`)
+      }
+    }
+    check(
+      `${ficheros.length} grabaciones sin el usuario, el equipo ni IPs públicas`,
+      hallazgos.length === 0,
+      hallazgos.slice(0, 10).join(', ')
+    )
+  })
+
+  /**
+   * Lo que llega de la interfaz no puede salirse de la carpeta de datos (§19.36).
+   * Antes, `instances.remove('..')` borraba la carpeta de datos entera y borrar
+   * el mundo `..` borraba la carpeta del servidor.
+   */
+  await section('Rutas que llegan de la interfaz', async () => {
+    const lanza = (fn: () => unknown): boolean => {
+      try {
+        fn()
+        return false
+      } catch {
+        return true
+      }
+    }
+    const malos = ['..', '../otro', '..\\otro', 'C:\\Windows', '/etc', 'a/b', 'a\\b', '', 'Mayúsculas', '.oculto', 'con espacio']
+    const pasan = malos.filter((id) => !lanza(() => instanceDir(id)))
+    check('instanceDir rechaza identificadores que no son de slugify', pasan.length === 0, pasan.join(' | '))
+    const buenos = ['hc-lobby', 'mi-servidor-2', 'demo', slugify('Añoranza Ñoña'), `${slugify('x'.repeat(60))}-1a2b3c4d`]
+    const rechazados = buenos.filter((id) => lanza(() => instanceDir(id)))
+    check('y acepta los de verdad', rechazados.length === 0, rechazados.join(' | '))
+
+    const nombresMalos = ['..', '.', '../fuera', 'a\\b', 'a/b', 'C:x', '', '   ', 'nul\u0000']
+    const cuelan = nombresMalos.filter((n) => !lanza(() => childPath('C:\\datos', n)))
+    check('childPath rechaza todo lo que no es un nombre suelto', cuelan.length === 0, cuelan.map((n) => JSON.stringify(n)).join(' '))
+    check('y deja los nombres normales', !lanza(() => childPath('C:\\datos', 'Mundo de prueba')) && !lanza(() => childPath('C:\\datos', 'world_nether')))
+
+    let copiaRara = false
+    await deleteBackup('demo', '..\\..\\instance.json').catch(() => (copiaRara = true))
+    check('borrar una copia con ruta se rechaza', copiaRara)
   })
 
   await section('Lógica común', async () => {

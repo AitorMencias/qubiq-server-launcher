@@ -17,6 +17,7 @@ import type {
 import { listModeration } from '@shared/journal'
 import type { GameHost } from '../minecraft/service'
 import { dropStash, pathsSize, removePaths, stashPaths, unstashPaths } from '../modFiles'
+import { childPath } from '../../paths'
 import { saveDirFor, worldsDirFor, worldSize } from './adapter'
 import * as mods from './mods'
 
@@ -33,8 +34,9 @@ import * as mods from './mods'
  */
 
 /** Los ficheros de un mundo (`Nombre/_main.4.db2`...) cuelgan de esta carpeta. */
+/** El nombre llega de la interfaz: `childPath` impide salir de la carpeta de mundos. */
 function worldDir(id: string, name: string): string {
-  return join(worldsDirFor(id), name)
+  return childPath(worldsDirFor(id), name)
 }
 
 /**

@@ -1819,6 +1819,54 @@ button.link:hover:not(:disabled) {
   margin: 0 0 16px;
 }
 
+/* --- Acerca de (avisos de la GPLv3) ---------------------------------------- */
+
+.about-card p {
+  margin: 0 0 10px;
+  user-select: text;
+}
+
+.about-name {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.about-name span {
+  color: var(--muted);
+}
+
+.about-plugins {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+
+.about-plugins li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  user-select: text;
+}
+
+.about-plugins li + li {
+  margin-top: 6px;
+}
+
+.about-license {
+  color: var(--muted);
+}
+
+.about-runtime {
+  margin-top: 14px;
+  color: var(--muted);
+  user-select: text;
+}
+
 /* --- Acceso remoto (§19.31) ------------------------------------------------ */
 
 .remote-card .alert p + p {

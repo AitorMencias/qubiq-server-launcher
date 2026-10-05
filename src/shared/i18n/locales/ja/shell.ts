@@ -125,6 +125,18 @@ export const shell: Translation<typeof source> = {
   'settings.dataFolder.apply': '移動して再起動',
   'settings.dataFolder.applying': '再起動中…',
 
+  'settings.about.title': 'このアプリについて',
+  'settings.about.version': 'バージョン {version}',
+  'settings.about.free':
+    'このプログラムはフリーソフトウェアです。GNU 一般公衆利用許諾書のバージョン 3、または（任意で）それ以降のバージョンの条件に従って、再配布や改変ができます。有用であることを願って配布されていますが、商品性や特定目的への適合性の黙示的な保証も含め、一切の保証はありません。',
+  'settings.about.unofficial': '非公式ツールです。管理するゲームの開発元とは関係がなく、承認も受けていません。',
+  'settings.about.source': 'ソースコード',
+  'settings.about.license': 'ライセンス',
+  'settings.about.notices': 'サードパーティの通知',
+  'settings.about.plugins': 'このアプリは次の独自プラグインをインストールします。それぞれソースコードとライセンスがあります：',
+  'settings.about.missingFile':
+    'アプリと同じ場所に {file} が見つかりません。インストール版なら再インストールしてください。開発中なら「npm run build」で生成されます。',
+
   'relocation.movingTitle': 'QubiQ のデータを移動しています',
   'relocation.movingHint':
     'アプリを閉じたりパソコンの電源を切ったりしないでください。中断されてもデータは失われず、次に開いたときに再開します。',

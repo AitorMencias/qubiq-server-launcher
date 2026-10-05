@@ -1,8 +1,16 @@
 import { join } from 'node:path'
 import { readdir, copyFile, rm, access, readFile } from 'node:fs/promises'
 import type { Distribution } from '@shared/games/minecraft/types'
-import type { OfficialPlugin, OfficialPluginStatus } from '@shared/games/minecraft/officialPlugins'
-import { officialPluginsFor, officialPluginById } from '@shared/games/minecraft/officialPlugins'
+import type {
+  BundledOfficialPlugin,
+  OfficialPlugin,
+  OfficialPluginStatus
+} from '@shared/games/minecraft/officialPlugins'
+import {
+  OFFICIAL_PLUGINS,
+  officialPluginsFor,
+  officialPluginById
+} from '@shared/games/minecraft/officialPlugins'
 import { serverDir, ensureDir, gameResourcePath } from '../../../paths'
 
 /** Jar o plantilla de un plugin oficial, dentro de `resources/minecraft/plugins/<id>/`. */
@@ -27,9 +35,22 @@ import { PluginConfigFile, type ConfigValue } from './pluginConfig'
 
 export type { OfficialPluginStatus }
 
-/** `HardcoreUtility-0.1.0.jar` -> `HardcoreUtility`, para reconocer otras versiones. */
-function jarPrefix(plugin: OfficialPlugin): string {
-  return plugin.jarFileName.replace(/-[\d][\d.]*\.jar$/i, '').replace(/\.jar$/i, '')
+/**
+ * Lo que trae la app de un plugin: versión y nombre del jar. Lo escribe
+ * `npm run plugins` al bajar la última release del plugin; en una instalación
+ * va siempre, porque la release no sale sin él.
+ */
+async function bundled(plugin: OfficialPlugin): Promise<BundledOfficialPlugin> {
+  try {
+    return JSON.parse(
+      await readFile(bundledPluginPath(plugin.id, 'plugin.json'), 'utf8')
+    ) as BundledOfficialPlugin
+  } catch {
+    throw new Error(
+      `La app no trae ${plugin.name}. Si es una instalación, vuelve a instalarla; ` +
+        'en desarrollo, lo baja «npm run plugins».'
+    )
+  }
 }
 
 /** ¿Son el mismo fichero, byte a byte? */
@@ -65,7 +86,7 @@ async function findInstalledJar(dir: string, plugin: OfficialPlugin): Promise<st
     return null
   }
 
-  const prefix = jarPrefix(plugin).toLowerCase()
+  const prefix = plugin.jarPrefix.toLowerCase()
   return (
     entries.find((entry) => {
       const lower = entry.toLowerCase()
@@ -87,19 +108,21 @@ async function statusFor(
 ): Promise<OfficialPluginStatus> {
   const dir = pluginsDir(id, distribution)
   const installedFileName = dir ? await findInstalledJar(dir, plugin) : null
+  const own = await bundled(plugin)
 
   const status: OfficialPluginStatus = {
     id: plugin.id,
     installed: installedFileName !== null,
     enabled: installedFileName !== null && installedFileName.toLowerCase().endsWith('.jar'),
     installedFileName,
-    bundledVersion: plugin.version,
+    bundledVersion: own.version,
+    license: own.license,
     upToDate:
       installedFileName !== null &&
       dir !== null &&
       (await sameContent(
         join(dir, installedFileName),
-        bundledPluginPath(plugin.id, plugin.jarFileName)
+        bundledPluginPath(plugin.id, own.jarFileName)
       )),
     hasConfig: false,
     role: null,
@@ -129,6 +152,21 @@ export async function listOfficial(
   return Promise.all(plugins.map((plugin) => statusFor(id, distribution, plugin)))
 }
 
+/** Los que trae la app, con versión, licencia y repositorio, para «Acerca de». */
+export async function bundledOfficialPlugins(): Promise<
+  (BundledOfficialPlugin & { name: string })[]
+> {
+  const found = await Promise.all(
+    OFFICIAL_PLUGINS.map((plugin) =>
+      bundled(plugin).then(
+        (own) => ({ ...own, name: plugin.name }),
+        () => null
+      )
+    )
+  )
+  return found.filter((p) => p !== null)
+}
+
 function requirePlugin(pluginId: string, distribution: Distribution): OfficialPlugin {
   const plugin = officialPluginById(pluginId)
   if (!plugin) throw new Error(`No existe el plugin oficial "${pluginId}".`)
@@ -154,13 +192,14 @@ export async function install(
   if (!dir) throw new Error('Este tipo de servidor no admite plugins.')
 
   await ensureDir(dir)
+  const own = await bundled(plugin)
 
   const previous = await findInstalledJar(dir, plugin)
-  if (previous && previous !== plugin.jarFileName) {
+  if (previous && previous !== own.jarFileName) {
     await rm(join(dir, previous), { force: true })
   }
 
-  await copyFile(bundledPluginPath(plugin.id, plugin.jarFileName), join(dir, plugin.jarFileName))
+  await copyFile(bundledPluginPath(plugin.id, own.jarFileName), join(dir, own.jarFileName))
 
   // Configuración por adelantado, para no tener que arrancar el servidor solo
   // para que se genere.

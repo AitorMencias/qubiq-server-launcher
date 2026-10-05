@@ -131,6 +131,20 @@ export const shell: Translation<typeof source> = {
   'settings.dataFolder.apply': 'Déplacer et redémarrer',
   'settings.dataFolder.applying': 'Redémarrage…',
 
+  'settings.about.title': 'À propos',
+  'settings.about.version': 'version {version}',
+  'settings.about.free':
+    'Ce programme est un logiciel libre : vous pouvez le redistribuer et/ou le modifier selon les termes de la Licence publique générale GNU, version 3 ou (à votre choix) toute version ultérieure. Il est distribué dans l’espoir d’être utile, mais SANS AUCUNE GARANTIE, sans même la garantie implicite de QUALITÉ MARCHANDE ou d’ADÉQUATION À UN USAGE PARTICULIER.',
+  'settings.about.unofficial':
+    'Outil non officiel : il n’est ni associé aux studios des jeux qu’il gère, ni approuvé par eux.',
+  'settings.about.source': 'Code source',
+  'settings.about.license': 'Licence',
+  'settings.about.notices': 'Mentions des tiers',
+  'settings.about.plugins':
+    'L’application installe ces plugins maison, chacun avec son code source et sa licence :',
+  'settings.about.missingFile':
+    '{file} est introuvable à côté de l’application. S’il s’agit d’une installation, réinstallez-la ; en développement, « npm run build » le génère.',
+
   'relocation.movingTitle': 'Déplacement des données de QubiQ',
   'relocation.movingHint':
     'Ne fermez pas l’application et n’éteignez pas l’ordinateur. En cas d’interruption, rien n’est perdu : l’opération reprend à la prochaine ouverture.',

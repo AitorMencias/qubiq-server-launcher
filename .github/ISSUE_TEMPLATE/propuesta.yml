@@ -1,0 +1,29 @@
+name: Propuesta
+description: Una función nueva, un juego nuevo o una mejora.
+labels: [propuesta]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qué quieres conseguir
+      description: El problema o la necesidad, antes que la solución.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Cómo te lo imaginas
+  - type: dropdown
+    id: juego
+    attributes:
+      label: Juego
+      options:
+        - Minecraft
+        - Satisfactory
+        - Valheim
+        - Factorio
+        - Project Zomboid
+        - Enshrouded
+        - Rust
+        - Uno nuevo (dilo arriba)
+        - Ninguno (la app en general)

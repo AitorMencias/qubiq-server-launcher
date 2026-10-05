@@ -12,6 +12,8 @@ import {
   branchFromManifest,
   buildIdFromAppInfo,
   buildIdFromManifest,
+  cannotReachSteam,
+  deniedInstalledManifest,
   interpretRun,
   parseProgressLine
 } from '../../src/main/core/tools/steamcmdOutput'
@@ -78,6 +80,23 @@ export async function steamSmoke(): Promise<void> {
 
     const self = interpretRun(await fixture('steamcmd-autoactualizacion.txt'), 7)
     check('autoactualización (código 7) no es un fallo', self.selfUpdated && !self.error)
+
+    // Actualizar Zomboid (y Rust) con la instalación de antes: Steam niega el
+    // manifiesto instalado y el registro lo resume como «No connection» (§19.37).
+    const denegado = await fixture('content_log-manifiesto-denegado.txt')
+    check('content_log: manifiesto instalado denegado', deniedInstalledManifest(denegado, 380870))
+    check('y no se confunde con no tener red', !cannotReachSteam(denegado, 380870))
+    check('ni con otra app', !deniedInstalledManifest(denegado, 258550))
+    const sinManifiesto = await fixture('content_log-sin-appmanifest.txt')
+    check(
+      'sin el appmanifest se reaprovecha lo instalado y termina bien',
+      /pre-existing matching files/.test(sinManifiesto) && /result No Error/.test(sinManifiesto) && !deniedInstalledManifest(sinManifiesto, 380870)
+    )
+    // Sintética: la línea que deja SteamCMD cuando de verdad no hay red.
+    check(
+      'sin red de verdad sí se dice así',
+      cannotReachSteam('[2026-10-04 12:00:00] AppID 380870 scheduler finished : removed from schedule (result No connection, state 0xe)', 380870)
+    )
 
     check(
       'las líneas traducidas no confunden: sin "Success" ni "ERROR" y código 5 es fallo',

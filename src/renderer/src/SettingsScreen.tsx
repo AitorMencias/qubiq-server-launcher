@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { UiMode } from '@shared/types'
+import { PROJECT, type AboutInfo } from '@shared/about'
 import type {
   DataFolderInfo,
   RelocationPlan,
@@ -43,8 +44,99 @@ export function SettingsScreen(props: Props): React.JSX.Element {
         <ModeCard mode={props.mode} onChange={props.onModeChange} />
         <DataFolderCard />
         <RemoteAccessCard />
+        <AboutCard />
       </div>
     </>
+  )
+}
+
+/**
+ * Los avisos legales que la GPLv3 (§0 y §5d) pide a una interfaz interactiva:
+ * copyright, que no hay garantía, la licencia y dónde está el código.
+ */
+function AboutCard(): React.JSX.Element {
+  const [info, setInfo] = useState<AboutInfo | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void window.qubiq.about
+      .info()
+      .then(setInfo)
+      .catch(() => undefined)
+  }, [])
+
+  async function open(action: () => Promise<void>): Promise<void> {
+    setError(null)
+    try {
+      await action()
+    } catch (err) {
+      // Electron antepone "Error invoking remote method '...': Error: ".
+      setError(
+        err instanceof Error
+          ? err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+          : String(err)
+      )
+    }
+  }
+
+  return (
+    <div className="card about-card">
+      <h3>{t('settings.about.title')}</h3>
+      <p className="about-name">
+        <b>{PROJECT.name}</b>
+        {info && <span>{t('settings.about.version', { version: info.version })}</span>}
+      </p>
+      <p>{PROJECT.copyright}</p>
+      <p className="hint">{t('settings.about.free')}</p>
+      <p className="hint">
+        {t('settings.about.unofficial')} {PROJECT.minecraftDisclaimer}
+      </p>
+
+      {info && info.plugins.length > 0 && (
+        <>
+          <p className="hint">{t('settings.about.plugins')}</p>
+          <ul className="about-plugins">
+            {info.plugins.map((plugin) => (
+              <li key={plugin.name}>
+                <span>
+                  <b>{plugin.name}</b> {plugin.version}
+                  {plugin.license && <span className="about-license"> · {plugin.license}</span>}
+                </span>
+                <button
+                  onClick={() => void open(() => window.qubiq.system.openExternal(plugin.repository))}
+                >
+                  {t('settings.about.source')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <div className="row" style={{ flexWrap: 'wrap' }}>
+        <button onClick={() => void open(() => window.qubiq.system.openExternal(PROJECT.repository))}>
+          {t('settings.about.source')}
+        </button>
+        <button onClick={() => void open(window.qubiq.about.openLicense)}>
+          {t('settings.about.license')}
+        </button>
+        <button onClick={() => void open(window.qubiq.about.openNotices)}>
+          {t('settings.about.notices')}
+        </button>
+      </div>
+
+      {error && (
+        <div className="alert error" style={{ marginTop: 16, marginBottom: 0 }}>
+          <p>{error}</p>
+        </div>
+      )}
+
+      {info && (
+        <div className="help about-runtime">
+          Electron {info.electron} · Chromium {info.chrome} · Node.js {info.node}
+        </div>
+      )}
+    </div>
   )
 }
 

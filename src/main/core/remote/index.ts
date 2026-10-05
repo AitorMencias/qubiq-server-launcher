@@ -1,12 +1,14 @@
 import { EventEmitter } from 'node:events'
 import { timingSafeEqual, type KeyObject } from 'node:crypto'
 import type { Server } from 'node:https'
+import { homedir } from 'node:os'
 import {
   CONTROL_ORDERS,
   cleanServerList,
   isConsoleLevel,
   isKeyAlgorithm,
   isRemoteOrder,
+  maskAddresses,
   normalizeCode,
   orderMessage,
   pairMessage,
@@ -385,7 +387,7 @@ export class RemoteAccess extends EventEmitter {
     } catch (err) {
       const refused = err instanceof OrderRefused ? err : new OrderRefused('failed', String(err))
       await this.logOrder(device, address, order, refused.code)
-      return this.reply(refused.code, undefined, refused.code === 'failed' ? refused.message : undefined)
+      return this.reply(refused.code, undefined, refused.code === 'failed' ? cleanDetail(refused.message) : undefined)
     }
   }
 
@@ -546,6 +548,19 @@ export class RemoteAccess extends EventEmitter {
     const body: RemoteResponse<unknown> = { ok: true, data: data ?? null, time }
     return { status: 200, body }
   }
+}
+
+/**
+ * El error de una orden que ha fallado, tal como sale hacia el dispositivo: sin
+ * la carpeta del usuario de Windows (lleva su nombre) ni IPs, igual que la
+ * consola (§19.36).
+ */
+export function cleanDetail(message: string): string {
+  const home = homedir()
+  const sinCasa = home
+    ? message.replace(new RegExp(home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '%USERPROFILE%')
+    : message
+  return maskAddresses(sinCasa).slice(0, 500)
 }
 
 function cleanPermissions(permissions: RemotePermissions): RemotePermissions {

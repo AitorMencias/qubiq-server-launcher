@@ -139,6 +139,20 @@ export const shell = {
   'settings.dataFolder.apply': 'Mover y reiniciar',
   'settings.dataFolder.applying': 'Reiniciando…',
 
+  'settings.about.title': 'Acerca de',
+  'settings.about.version': 'versión {version}',
+  'settings.about.free':
+    'Este programa es software libre: puedes redistribuirlo y modificarlo según los términos de la Licencia Pública General de GNU, versión 3 o (a tu elección) cualquier versión posterior. Se distribuye con la esperanza de que sea útil, pero SIN NINGUNA GARANTÍA, ni siquiera la implícita de COMERCIABILIDAD o IDONEIDAD PARA UN FIN DETERMINADO.',
+  'settings.about.unofficial':
+    'Herramienta no oficial: no está asociada a los estudios de los juegos que gestiona ni aprobada por ellos.',
+  'settings.about.source': 'Código fuente',
+  'settings.about.license': 'Licencia',
+  'settings.about.notices': 'Avisos de terceros',
+  'settings.about.plugins':
+    'La app instala estos plugins propios, cada uno con su código y su licencia:',
+  'settings.about.missingFile':
+    'No se encuentra {file} junto a la app. Si es una instalación, vuelve a instalarla; en desarrollo, lo genera «npm run build».',
+
   'relocation.movingTitle': 'Moviendo los datos de QubiQ',
   'relocation.movingHint':
     'No cierres la app ni apagues el equipo. Si se corta, no se pierde nada: se retoma al volver a abrirla.',

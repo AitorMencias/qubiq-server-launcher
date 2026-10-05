@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { readdir, stat, rm, access } from 'node:fs/promises'
 import type { CreateWorldRequest, WorldInfo } from '@shared/games/minecraft/types'
-import { serverDir } from '../../../paths'
+import { childPath, serverDir } from '../../../paths'
 import { PropertiesFile } from '../config/properties'
 
 /**
@@ -202,7 +202,7 @@ export async function createWorld(id: string, request: CreateWorldRequest): Prom
 
 /** Cambia el mundo activo. El servidor debe estar parado. */
 export async function activateWorld(id: string, name: string): Promise<void> {
-  if (!(await exists(join(serverDir(id), name, 'level.dat')))) {
+  if (!(await exists(join(childPath(serverDir(id), name), 'level.dat')))) {
     throw new Error(`El mundo "${name}" no existe o está incompleto.`)
   }
 
@@ -225,11 +225,14 @@ export async function deleteWorld(id: string, name: string): Promise<void> {
   }
 
   const dir = serverDir(id)
-  if (!(await exists(join(dir, name)))) {
+  // Los mundos viven sueltos en la carpeta del servidor, junto a `plugins` o
+  // `libraries`: solo se borra lo que es un mundo de verdad (§19.36).
+  const world = childPath(dir, name)
+  if (!(await exists(join(world, 'level.dat')))) {
     throw new Error(`El mundo "${name}" ya no existe.`)
   }
 
-  await rm(join(dir, name), { recursive: true, force: true })
+  await rm(world, { recursive: true, force: true })
   for (const folder of await legacyFoldersFor(id, name)) {
     await rm(join(dir, folder), { recursive: true, force: true })
   }

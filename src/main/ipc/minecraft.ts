@@ -1,3 +1,4 @@
+import { stat } from 'node:fs/promises'
 import { relative } from 'node:path'
 import { BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions } from 'electron'
 import type {
@@ -10,6 +11,7 @@ import type { ConfigChange } from '@shared/editableConfig'
 import { service } from '../core/service'
 import { serverDir } from '../core/paths'
 import { describeStartFile, inspectFolder } from '../core/games/minecraft/custom/inspect'
+import { CONFIG_EXTENSIONS } from '../core/games/minecraft/content/config'
 import * as catalog from '../core/games/minecraft/versions/catalog'
 import { localizedCatalog } from '../core/games/minecraft/config/properties'
 import {
@@ -83,6 +85,14 @@ export function registerMinecraftIpc(): void {
   )
   ipcMain.handle(MINECRAFT_IPC.openContentConfig, async (_e, id: string, path: string) => {
     const target = await mc.contentConfigLocation(id, path)
+    // `openPath` abre con el programa de Windows: un .exe o un .bat que hubiera
+    // en `plugins/` se EJECUTARÍA. Solo se abren carpetas y ficheros de
+    // configuración; lo demás se señala en el Explorador (§19.36).
+    const isFolder = (await stat(target).catch(() => null))?.isDirectory() ?? false
+    if (!isFolder && !CONFIG_EXTENSIONS.test(target)) {
+      shell.showItemInFolder(target)
+      return
+    }
     // Un .yml o un .toml puede no tener programa asociado en Windows: entonces
     // se enseña en el Explorador, que siempre funciona.
     const problem = await shell.openPath(target)

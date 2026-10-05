@@ -438,7 +438,8 @@ async function main(): Promise<void> {
     check('con su configuración ya creada', hu?.hasConfig === true)
     check('y con el papel elegido', hu?.role === 'game', hu?.role ?? '')
 
-    const jarPath = join(dir, 'plugins', 'HardcoreUtility-0.1.0.jar')
+    // El nombre lleva la versión de la última release del plugin (npm run plugins).
+    const jarPath = join(dir, 'plugins', hu?.installedFileName ?? 'HardcoreUtility.jar')
     check('el jar está en plugins/', await exists(jarPath))
 
     const props = await service.minecraft.getProperties(manifest.id)

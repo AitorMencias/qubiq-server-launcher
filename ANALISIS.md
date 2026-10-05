@@ -682,8 +682,13 @@ pero conviene una búsqueda de marcas en la categoría de software antes de inve
 | No parecer oficial ni sugerir asociación | Ni en el nombre, ni en el dominio, ni en las capturas. |
 | No redistribuir el juego ni sus ficheros | Ya cubierto por el diseño: la app **descarga** de las fuentes oficiales, no empaqueta nada (§4, §6). |
 
-El nombre interno del repositorio y de la carpeta (`minecraft-server-launcher`) es descriptivo y de bajo
-riesgo; lo que hay que resolver es el **nombre de producto visible**.
+El nombre interno del repositorio y de la carpeta (`minecraft-server-launcher`) era descriptivo y de
+bajo riesgo; lo que había que resolver era el **nombre de producto visible**. Para la 1.0 el
+repositorio pasa a llamarse `qubiq-server-launcher`, como el producto y sin «Minecraft» (§19.35).
+La carpeta local puede seguir con el nombre de siempre. **No se cambian** el `appId`
+(`gg.qubiq.launcher`), con el que Windows reconoce la app instalada (cambiarlo dejaría dos
+instalaciones), ni la carpeta de datos `%APPDATA%\qubiq-server-launcher`, que está fijada en
+`main/index.ts` y no sale de ningún nombre.
 
 #### Iconos de los juegos
 
@@ -3444,3 +3449,199 @@ cancelar; `before-quit` queda para las otras salidas («Salir» de la bandeja).
 - Los servidores que se quedaron sueltos con versiones anteriores (sin guardián) no se recuperan.
 - El reinicio automático tras un fallo no actúa si el servidor se cae con la app cerrada: se apunta
   y se cuenta al abrir, pero no se vuelve a arrancar solo.
+
+### 19.35 Preparar la 1.0: avisos de la GPLv3 y plugins oficiales fuera del repositorio
+
+Antes de publicar la 1.0.0 y abrir el repositorio, la lista de lo que hay que revisar está en
+[CHECKLIST-1.0.md](CHECKLIST-1.0.md). Este apartado es su punto 1, cumplir la GPLv3.
+
+#### Avisos legales dentro de la app
+La GPLv3 (§0 y §5d) pide que una interfaz interactiva enseñe el copyright, que no hay garantía, la
+licencia y cómo conseguir el código. No había nada de eso: ahora Configuración → **«Acerca de»** lo
+tiene, en los diez idiomas, con el aviso de herramienta no oficial (la frase de Mojang va en inglés y
+tal cual, fuera de los diccionarios), los plugins oficiales con su versión, licencia y enlace a su
+código, y botones a la licencia y a los avisos de terceros. Los datos fijos están en
+`shared/about.ts`.
+
+**Los avisos de terceros se generan, no se escriben.** Un plugin de la compilación
+(`scripts/third-party-notices.ts`) recoge los paquetes de npm que Rollup mete **de verdad** en cada
+bundle y escribe `out/THIRD-PARTY-NOTICES.txt` con sus licencias. Hoy son react, react-dom y
+scheduler (MIT). Electron y Chromium traen las suyas junto al ejecutable. electron-builder copia
+`LICENSE.txt` y los avisos a `resources/`, y «Acerca de» los abre con el programa de Windows para
+`.txt`. Con `repository` en `package.json`, electron-builder deduciría que se publica en GitHub:
+`publish: null` lo evita.
+
+#### HardcoreUtility, a su propio repositorio
+El jar estaba en `resources/` como binario versionado. Con el código abierto, la GPLv3 pide su
+código, y además cada actualización exigía copiar el jar a mano y acordarse de la plantilla. Ahora
+el plugin vive en [hardcore-utility-tool](https://github.com/AitorMencias/hardcore-utility-tool)
+(GPL-3.0), y **`npm run plugins`** (`scripts/official-plugins.mjs`) trae su última release:
+
+- **Se verifica con el SHA-256 que publica GitHub** del fichero subido (el campo `digest` del asset).
+  Sin él, no se instala.
+- **La plantilla `config.yml` se saca de dentro del jar**: lo que antes hacía `release.mjs` en un
+  paso aparte, ahora no puede desincronizarse.
+- **`plugin.json`** guarda la versión, el nombre del jar, la licencia (la de GitHub) y el repositorio.
+  El catálogo (`officialPlugins.ts`) ya no tiene ni versión ni nombre del jar: tiene `jarPrefix` para
+  reconocer cualquier versión instalada y `repository`. Los lee el núcleo.
+- **Se para** si la release trae cero o varios jars que encajen, o si el `plugin.yml` dice otra
+  versión que la etiqueta.
+- Se prepara en la carpeta temporal del sistema y se sustituye la carpeta entera al final: un corte
+  a medias no deja un jar sin plantilla ni dos versiones juntas (el servidor no arrancaría).
+
+**Cuándo se baja.** `predev`, `prebuild`, `presmoke`, `pree2e` y `pree2e:custom` lo llaman, pero solo
+baja lo que falta: con los plugins ya puestos no toca la red. **La release usa `--update`** y sale
+siempre con la última release de cada plugin; publicar una versión del plugin no obliga a tocar este
+repositorio. Se descartó bajarlo dentro de la app al instalarlo, como Shroudtopia: una release del
+plugin con un fallo llegaría a los servidores sin haber pasado por el smoke y el e2e de una release
+de QubiQ, y el formulario de la app tampoco conocería las opciones nuevas hasta actualizar QubiQ.
+
+Con esto el plugin pasa de la 0.1.0 a la **1.0.0**. Su `config.yml` es idéntico byte a byte al de la
+0.1.0 y pide el mismo `api-version: 26.2`.
+
+#### Datos personales y documentación pública (puntos 2 a 4)
+- **Historial reescrito** con `git filter-repo` en este repositorio y en el del plugin: email
+  `noreply` de GitHub y grabaciones limpias en todos los commits (nombre del equipo en Rust, IPs de
+  rangos reales y las firmas de los tokens del servidor de prototipo de Satisfactory). El smoke
+  vigila ahora que ninguna grabación lleve el usuario, el equipo o una IP pública.
+- **El README es para usuarios.** Lo técnico pasa entero a `docs/DESARROLLO.md`. Nuevos:
+  `PRIVACIDAD.md` (cada conexión a un servicio de fuera, sacada del código), `SECURITY.md`,
+  `CONTRIBUTING.md`, `CHANGELOG.md` y plantillas de issues. `release.mjs` genera `SHA256SUMS.txt`
+  de los ejecutables, que no van firmados.
+- El repositorio pasa a llamarse `qubiq-server-launcher`, sin «Minecraft» en el nombre.
+
+#### Cómo se ha comprobado
+- typecheck. Smoke: 1488 comprobaciones, tres nuevas (el nombre del jar encaja con el catálogo, el
+  catálogo y el script apuntan al mismo repositorio, y hay licencia).
+- `npm run e2e -- paper`, todo correcto: instalar con papel, configurar, detectar un jar distinto,
+  actualizar y quitar, con el jar 1.0.0 bajado.
+- `npm run plugins` sin nada (descarga y verifica), otra vez (no toca la red) y con `--update`
+  (dice que ya estaba al día).
+- Copia limpia de los ficheros versionados → `npm ci` → typecheck y build: bundles idénticos byte a
+  byte a los del repo. Empaquetado sin instalador en una carpeta temporal: `LICENSE.txt` y
+  `THIRD-PARTY-NOTICES.txt` quedan en `resources/`.
+- Recorrido de interfaz (`ui/acerca-de.mjs` y `ui/acerca-de-botones.mjs`): la tarjeta en es, en, de,
+  ru, ja e hi sin desbordes, el plugin en la lista y los botones con `shell` sustituido.
+
+#### Lo que no se ha podido comprobar
+- **Un Paper arrancado con el jar 1.0.0 dentro**: el e2e instala y configura el plugin, pero el
+  arranque real de la prueba va antes de esa parte.
+- **`release.mjs` entero**: cambiaría la versión. Su paso nuevo es la misma función que
+  `npm run plugins -- --update`, que sí se ha probado.
+- **Los botones de licencia y avisos en la app instalada**: arrancarla usaría los datos reales.
+  Los ficheros están donde los busca; con el arnés se ve el camino de error, porque su carpeta de
+  app no es el repositorio.
+- La versión que enseña «Acerca de» en el arnés es la de Electron (arranca sin `package.json`); con
+  `npm run dev` y empaquetada es la de `package.json`.
+
+### 19.36 Revisión de seguridad antes de abrir el código (punto 6 de la checklist)
+
+Con el código público, cualquiera puede leer cómo funciona todo. Se revisó Electron, el control
+remoto, lo que llega de la interfaz al núcleo, las extracciones, las contraseñas y las dependencias.
+
+#### Lo que estaba mal y se ha arreglado
+- **La ventana podía navegar fuera de la app, y la página nueva recibía `window.qubiq` entero.**
+  Comprobado en Electron 44 con una prueba aislada: el preload se vuelve a cargar en cada navegación.
+  Bastaba arrastrar un enlace o un `.html` a la ventana. Ahora `src/main/security.ts` bloquea toda
+  navegación que no sea la de la propia app, manda los enlaces `https` al navegador del usuario (los
+  `target="_blank"` del EULA o de Modrinth abrían la web **dentro** de una ventana de Electron sin
+  barra de direcciones), deniega las ventanas nuevas y los `<webview>`, y solo concede el permiso de
+  escribir en el portapapeles (el botón «Copiar»). Un `window.open` no heredaba la API (también
+  comprobado): el peligro era solo la navegación.
+- **`sandbox: true`.** Venía a `false` de la plantilla, sin motivo: el preload solo usa `electron`.
+- **Los identificadores y nombres que llegan de la interfaz no se comprobaban.** `instances.remove('..')`
+  borraba la carpeta de datos entera; borrar el mundo `..` (o `plugins`) de Minecraft borraba la
+  carpeta del servidor; las partidas de Factorio, los mundos de Valheim y Enshrouded y las copias de
+  seguridad aceptaban rutas. Hacía falta que se colara código en la interfaz, que es justo lo que
+  permitía el fallo anterior. Ahora:
+  - `instanceDir(id)` exige la forma de `slugify` (`[a-z0-9-]`, hasta 64): por ahí pasan las 138
+    rutas de servidores del núcleo. Una carpeta con otro nombre en `instances/` simplemente no sale
+    en la lista, como ya pasaba con las que no tienen manifiesto.
+  - `childPath(carpeta, nombre)` para los nombres sueltos (mundos, partidas): nada de barras, `:`,
+    `.` ni `..`. En Minecraft, además, solo se borra o activa una carpeta con `level.dat`.
+  - Las copias solo aceptan un `*.zip` suelto.
+- **`openContentConfig` abría con el programa de Windows cualquier fichero de `plugins/`**: un
+  `.exe` o un `.bat` se habría ejecutado. Ahora solo abre carpetas y ficheros de configuración; lo
+  demás se señala en el Explorador.
+- **El error de una orden remota que falla viajaba al dispositivo con rutas** que llevan el usuario
+  de Windows. Ahora va sin la carpeta del usuario (`%USERPROFILE%`) y con las IPs enmascaradas.
+- **Dependencias:** `npm audit fix` (las tres eran de herramientas de compilación, que no viajan con
+  la app) y Electron 44.3.0 → 44.5.1. Ojo: `npm update electron` dejó el paquete **sin su binario**;
+  `node node_modules/electron/install.js` lo baja (`dev.bat` ya lo hace si falta).
+
+#### Lo que estaba bien
+- **Control remoto:** TLS 1.2 o más, 16 KB por petición, cabeceras de seguridad completas, sin CORS,
+  `assets/` con nombres cerrados. Órdenes firmadas (Ed25519 o P-256) sobre protocolo, dispositivo,
+  hora, nonce, orden y los tres únicos argumentos; reloj ±1 min, nonces de un solo uso, límites por
+  dispositivo y bloqueo por dirección. Código de emparejamiento de un solo uso, 10 minutos y 5
+  intentos. Consola de nivel 2 con una lista cerrada por juego y sin encadenar comandos.
+- **Extracciones:** todas con el `tar` de Windows (bsdtar) sin `-P`. Probado con un zip malicioso:
+  rechaza `../` y quita la unidad a las rutas absolutas.
+- **Contraseñas:** la de Steam va por la entrada estándar, no en la línea de órdenes. Las de las
+  consolas remotas de Factorio, Rust y Zomboid sí van ahí (los juegos no admiten otra cosa), pero
+  esas consolas escuchan solo en 127.0.0.1, y en los registros salen tapadas (`<private>` lo pone
+  Factorio; la de Rust la tapa la app).
+- **`setStartFile`**: dentro de la carpeta del servidor y solo `.bat`, `.cmd` o `.jar`.
+- **Guardián:** la tubería con nombre lleva 8 bytes aleatorios, solo admite al usuario de Windows
+  que lo lanzó (`OnlyThisUser`) y una conexión a la vez.
+- No hay HTML de fuera pintado como HTML (`dangerouslySetInnerHTML` no se usa) y la CSP de las dos
+  páginas es estricta.
+
+#### Lo que queda dicho, no arreglado
+- El certificado del control remoto es autofirmado: la primera vez el navegador avisa y hay que
+  aceptarlo. QubiQ como cliente fija la huella; un navegador, no.
+- Las contraseñas de las consolas remotas de los juegos están en claro en el manifiesto y en la
+  línea de órdenes del servidor: las puede leer otro programa del mismo usuario de Windows.
+
+#### Cómo se ha comprobado
+- typecheck. Smoke: 1495 (seis nuevas: identificadores, nombres sueltos, copias y el error remoto).
+- `npm run e2e -- paper` y `npm run e2e:remote`, con Electron 44.5.1.
+- `ui/seguridad.mjs`, contra la app de verdad: sandbox puesto, `window.qubiq` sí y Node no; navegar
+  a una web o a un `file:` no sale de la app (la web va al navegador, el fichero a ningún sitio);
+  `window.open` no crea ventana; permisos denegados y «Copiar» funcionando.
+- Recorrido de interfaz (es y en, todas las pestañas) con el sandbox puesto: sin errores.
+
+### 19.37 Steam niega el manifiesto de lo instalado: actualizar fallaba
+
+Al preparar la 1.0 (2026-10-04), `e2e:zomboid` y `e2e:rust` fallaban al instalar con «Steam dejó la
+instalación a medias al cambiar de versión». Los dos servidores tenían parche nuevo (Zomboid
+24909836 → 25485538, Rust → 25681086).
+
+**No era la red**, aunque el resumen de SteamCMD diga `result No connection`. Dos líneas más arriba,
+en `logs/content_log.txt` (no en `console_log.txt`, que es el que lee la app):
+
+```
+CDepotDownloadMgr::BYldRequestDepotManifest(App: 380870, Depot: 380871, Manifest: 8198713088050651526, …): Failed to get manifest request code, 'Access Denied'
+AppID 380870 update canceled : Failed downloading 2 manifests (No connection)
+```
+
+El manifiesto denegado es el de la versión **instalada** (el del `appmanifest`), no el nuevo: para
+actualizar, SteamCMD pide los dos para calcular la diferencia, y Steam ya no da los antiguos a la
+cuenta anónima. Probado: falla igual con `validate` y con `-beta public`, y una instalación de cero
+en una carpeta vacía **sí** descarga.
+
+**El arreglo** (`appUpdate` en `tools/steamcmd.ts`): si el `content_log` nuevo de esa ejecución trae
+la denegación para esa app (`deniedInstalledManifest`), se borra
+`steamapps/appmanifest_<app>.acf` y se repite. Sin él, SteamCMD trata la carpeta como una
+instalación nueva: compara los ficheros que ya hay con la versión nueva y baja solo lo que cambia.
+Medido con Zomboid: 38.892 ficheros (6,8 GB) reaprovechados, unos 4 minutos de verificación. El
+mundo y la configuración no están en el appmanifest. Si lo que falla es la red de verdad
+(`cannotReachSteam`), el mensaje ahora lo dice.
+
+**A un usuario le habría pasado al primer parche** de cualquier juego de Steam que se comporte
+así: Valheim, Satisfactory y Enshrouded no tenían parche ese día y no se ha podido ver si les
+afecta, pero el arreglo es el mismo para todos.
+
+#### Cómo se ha comprobado
+- A mano, fuera de la app: la actualización falla, la instalación limpia descarga, y quitar el
+  appmanifest la deja en la build nueva.
+- Smoke: 1500 (cinco nuevas, contra las líneas reales del `content_log`, sin la ruta del usuario:
+  `fixtures/steam/content_log-*.txt`).
+- `e2e:zomboid` todo correcto, **pasando por el arreglo** (se le devolvió el appmanifest antiguo).
+- `e2e:rust`: el arreglo actualiza la instalación compartida; la prueba pasa hasta «Oxide y plugins
+  de uMod», donde para porque Oxide aún no había salido para ese parche de Rust (la app lo explica).
+
+#### Pendiente
+- Repetir `e2e:rust` cuando salga Oxide, para plugins, borrado y restauración.
+- Los cuatro reintentos de `runWithRetries` por el «state 0x6» se gastan antes del arreglo (unos
+  30 s). Se podría mirar el `content_log` antes de reintentar.

@@ -1,0 +1,9 @@
+[2026-10-04 22:57:07] Found 8 pre-existing matching files for depot 1004 (67863136 bytes)
+[2026-10-04 22:57:07] Found 38210 pre-existing matching files for depot 380871 (6569700973 bytes)
+[2026-10-04 22:57:07] Found 339 pre-existing matching files for depot 380874 (204306502 bytes)
+[2026-10-04 22:59:43] AppID 380870 finished update, 3 mounted depots (BuildID 25485538) : 1004 (7604377918839582995),380871 (5337933334995336130),380874 (6288256085912821612),
+[2026-10-04 22:59:43] AppID 380870 App update changed : Running Update,
+[2026-10-04 22:59:43] AppID 380870 App update changed : None
+[2026-10-04 22:59:43] AppID 380870 state changed : Fully Installed,Update Queued,
+[2026-10-04 22:59:43] AppID 380870 state changed : Fully Installed,
+[2026-10-04 22:59:43] AppID 380870 scheduler finished : removed from schedule (result No Error, state 0xc) 

@@ -131,6 +131,20 @@ export const shell: Translation<typeof source> = {
   'settings.dataFolder.apply': 'Move and restart',
   'settings.dataFolder.applying': 'Restarting…',
 
+  'settings.about.title': 'About',
+  'settings.about.version': 'version {version}',
+  'settings.about.free':
+    'This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License, version 3 or (at your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.',
+  'settings.about.unofficial':
+    'Unofficial tool: not associated with or approved by the studios of the games it manages.',
+  'settings.about.source': 'Source code',
+  'settings.about.license': 'License',
+  'settings.about.notices': 'Third-party notices',
+  'settings.about.plugins':
+    'The app installs these plugins of its own, each with its source code and license:',
+  'settings.about.missingFile':
+    '{file} can’t be found next to the app. If this is an installation, reinstall it; in development, “npm run build” generates it.',
+
   'relocation.movingTitle': 'Moving the QubiQ data',
   'relocation.movingHint':
     'Don’t close the app or turn off the computer. If it gets interrupted, nothing is lost: it resumes when you open it again.',
